@@ -1,0 +1,152 @@
+# Alaminn.info — CI pipeline
+# ----------------------------------------------------------------------------
+# Runs the full quality gate on every push/PR affecting this branch:
+#   lockfile install → DB (ephemeral SQLite) → typecheck → lint → unit+API
+#   tests → 22-test security suite → production build → standalone smoke test.
+#
+# Design notes:
+#   - Uses the committed package-lock.json (npm ci) for reproducible installs.
+#   - Tests and build need a database: an ephemeral SQLite file is created and
+#     seeded per run — never touches production data.
+#   - Secrets used here are generated per-run (openssl) and only ever guard a
+#     throwaway local dev server; no real credentials are required or stored.
+#   - The production build is exercised end-to-end: standalone server boots on
+#     a scratch port, health + key routes are checked, then torn down.
+
+name: CI
+
+on:
+  push:
+    branches: ["arena/01a0effa-alaminn-info", "upload-local-project", "main"]
+  pull_request:
+    branches: ["upload-local-project", "main"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: Typecheck · Lint · Test · Security · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: development
+      # Absolute path on the runner (github.workspace) — SQLite relative
+      # paths resolve differently for CLI vs server; absolute is unambiguous.
+      DATABASE_URL: file:${{ github.workspace }}/db/custom.db
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXTAUTH_URL: http://localhost:3000
+      ADMIN_BOOTSTRAP_EMAIL: ci-admin@alaminn.info
+      ADMIN_BOOTSTRAP_PASSWORD: ci-only-throwaway-pass-9f3b
+      EMAIL_FROM: noreply@localhost
+      EMAIL_REPLY_TO: hello@localhost
+      LOG_LEVEL: warn
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (lockfile)
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate per-run secrets
+        run: |
+          echo "AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "CRON_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - name: Create ephemeral database + seed
+        run: |
+          npx prisma db push --skip-generate
+          npm run db:seed
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Start dev server for API tests
+        run: |
+          npm run dev > /tmp/dev-server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "Dev server ready (attempt $i)"; exit 0
+            fi
+            sleep 1
+          done
+          echo "Dev server failed to start"; tail -50 /tmp/dev-server.log; exit 1
+
+      - name: Unit + integration tests
+        run: npm run test
+
+      - name: Security suite (22 tests)
+        env:
+          # The suite defaults to port 3001 (historical); point it at the
+          # dev server this workflow started on port 3000.
+          SECURITY_TEST_BASE: http://localhost:3000
+        run: |
+          set +e
+          npm run security:test 2>&1 | tee /tmp/security-output.txt
+          code=${PIPESTATUS[0]}
+          # Surface each failing test as a readable annotation in the Checks UI.
+          grep -E "^\[[0-9]+\] FAIL" /tmp/security-output.txt | head -25 | sed 's/^/::error::/' || true
+          grep -A2 "Failed" /tmp/security-output.txt | head -10 | sed 's/^/::error::detail| /' || true
+          exit $code
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-diagnostics
+          path: |
+            docs/security-report.md
+            /tmp/dev-server.log
+          if-no-files-found: ignore
+
+      - name: Stop dev server
+        if: always()
+        run: pkill -f "next dev" || true
+
+      - name: Production build
+        env:
+          # Must be production for `next build` — the job-level development
+          # default breaks prerendering (React dev/prod runtime mismatch in
+          # the build worker: "Cannot read properties of null (useContext)").
+          NODE_ENV: production
+        run: |
+          set +e
+          npm run build 2>&1 | tee /tmp/build-output.txt
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            grep -B3 -A8 "Error\|error" /tmp/build-output.txt | tail -40 | sed 's/^/::error::build| /' || true
+          fi
+          exit $code
+
+      - name: Standalone artifact smoke test
+        run: |
+          PORT=3100 NODE_ENV=production node .next/standalone/server.js > /tmp/standalone.log 2>&1 &
+          SRV=$!
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3100/api/health > /dev/null 2>&1 && break
+            sleep 1
+          done
+          echo "--- route checks ---"
+          for p in / /api/health /higher-study /english-learning /work-with-me; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:3100$p")
+            echo "$p -> $code"
+            [ "$code" = "200" ] || { echo "FAILED on $p"; kill $SRV; exit 1; }
+          done
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3100/api/v1/admin/dashboard)
+          echo "/api/v1/admin/dashboard (anonymous) -> $code"
+          [ "$code" = "401" ] || { echo "Admin API must reject anonymous access with 401"; kill $SRV; exit 1; }
+          kill $SRV
+          echo "Standalone smoke test PASSED"
+
+      - name: Build summary
+        run: echo "All CI gates passed — typecheck, lint, 241+ tests, 22 security tests, build + standalone smoke." >> "$GITHUB_STEP_SUMMARY"

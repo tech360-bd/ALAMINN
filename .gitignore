@@ -1,0 +1,65 @@
+# ─── Dependencies ────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ─── Secrets & environment (NEVER commit real values) ───────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.production.local
+*.pem
+*.key
+
+# ─── Next.js build output ────────────────────────────────────────────
+.next/
+out/
+dist/
+build/
+next-env.d.ts
+
+# ─── Databases (dev SQLite files, backups) ──────────────────────────
+db/*.db
+db/*.db-journal
+db/*.db-wal
+db/*.db-shm
+*.sqlite
+*.sqlite3
+*.sql.gz
+backups/
+
+# ─── Logs ────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+storage/logs/*
+!storage/logs/.gitkeep
+
+# ─── Runtime temp/uploaded content ──────────────────────────────────
+storage/temporary/*
+storage/uploads/*
+!storage/temporary/.gitkeep
+!storage/uploads/.gitkeep
+
+# ─── Testing & coverage ─────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── OS / editor noise ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ─── Misc ───────────────────────────────────────────────────────────
+*.tsbuildinfo
+SHA256SUMS-NEW.txt
+
+# ─── Prisma CLI SQLite default location (dev DB) ────────────────────
+prisma/db/
