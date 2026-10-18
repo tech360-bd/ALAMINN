@@ -180,4 +180,3 @@ alaminn.info/
 ## License
 
 Proprietary — © Al Aminn. All rights reserved.
-# ALAMINN
