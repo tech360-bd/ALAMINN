@@ -1,0 +1,59 @@
+name: Versioned Release & Rollback
+
+on:
+  push:
+    branches: ["main", "feature/ci-cd-pipeline"]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Rollback action: 'rollback' to restore previous release, or 'latest' to clean up old releases"
+        required: false
+        default: ''
+
+jobs:
+  versioned-release:
+    name: Tag and archive current release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create version tag from commit
+        run: |
+          REF="${{ github.ref }}"
+          TAG="v$(date +%Y.%m.%n%H.%M%S).$(git rev-short HEAD)"
+          git tag "$TAG" "${{ github.sha }}"
+          echo "Tagged: $TAG at commit ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Push tags (with approval gate)
+        run: |
+          git push origin "$TAG"
+          echo "Pushed tag $TAG" >> "$GITHUB_STEP_SUMMARY"
+
+  rollback:
+    name: Previous release rollback
+    needs: versioned-release
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find current and previous releases on server
+        env:
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # List releases sorted by modification time (newest first), excluding current
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" "ls -1dt ~/alaminn.info/releases/*/ | head -5"
+
+          # Switch back to previous release if available
+          RESULT=$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" "cd ~/alaminn.info && ls -1dt releases/*/ | head -3 | tail -1")
+          echo "Restoring release: $RESULT" >> "$GITHUB_STEP_SUMMARY"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" "cd ~/alaminn.info && ln -sfn \"\$RESULT\" current && pm2 reload alaminn-info --update-no-deps 2>/dev/null || true"

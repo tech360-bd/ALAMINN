@@ -1,25 +1,10 @@
-# Alaminn.info — CI pipeline
-# ----------------------------------------------------------------------------
-# Runs the full quality gate on every push/PR affecting this branch:
-#   lockfile install → DB (ephemeral SQLite) → typecheck → lint → unit+API
-#   tests → 22-test security suite → production build → standalone smoke test.
-#
-# Design notes:
-#   - Uses the committed package-lock.json (npm ci) for reproducible installs.
-#   - Tests and build need a database: an ephemeral SQLite file is created and
-#     seeded per run — never touches production data.
-#   - Secrets used here are generated per-run (openssl) and only ever guard a
-#     throwaway local dev server; no real credentials are required or stored.
-#   - The production build is exercised end-to-end: standalone server boots on
-#     a scratch port, health + key routes are checked, then torn down.
-
 name: CI
 
 on:
   push:
-    branches: ["arena/01a0effa-alaminn-info", "upload-local-project", "main"]
+    branches: ["main", "feature/ci-cd-pipeline"]
   pull_request:
-    branches: ["upload-local-project", "main"]
+    branches: ["main"]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -32,8 +17,6 @@ jobs:
     timeout-minutes: 30
     env:
       NODE_ENV: development
-      # Absolute path on the runner (github.workspace) — SQLite relative
-      # paths resolve differently for CLI vs server; absolute is unambiguous.
       DATABASE_URL: file:${{ github.workspace }}/db/custom.db
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXTAUTH_URL: http://localhost:3000
@@ -46,10 +29,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 22
+      - name: Setup Node 24.22.0
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24.22.0
           cache: npm
 
       - name: Install dependencies (lockfile)
@@ -87,14 +70,11 @@ jobs:
 
       - name: Security suite (22 tests)
         env:
-          # The suite defaults to port 3001 (historical); point it at the
-          # dev server this workflow started on port 3000.
           SECURITY_TEST_BASE: http://localhost:3000
         run: |
           set +e
           npm run security:test 2>&1 | tee /tmp/security-output.txt
           code=${PIPESTATUS[0]}
-          # Surface each failing test as a readable annotation in the Checks UI.
           grep -E "^\[[0-9]+\] FAIL" /tmp/security-output.txt | head -25 | sed 's/^/::error::/' || true
           grep -A2 "Failed" /tmp/security-output.txt | head -10 | sed 's/^/::error::detail| /' || true
           exit $code
@@ -115,9 +95,6 @@ jobs:
 
       - name: Production build
         env:
-          # Must be production for `next build` — the job-level development
-          # default breaks prerendering (React dev/prod runtime mismatch in
-          # the build worker: "Cannot read properties of null (useContext)").
           NODE_ENV: production
         run: |
           set +e
@@ -149,4 +126,4 @@ jobs:
           echo "Standalone smoke test PASSED"
 
       - name: Build summary
-        run: echo "All CI gates passed — typecheck, lint, 241+ tests, 22 security tests, build + standalone smoke." >> "$GITHUB_STEP_SUMMARY"
+        run: echo "All CI gates passed — typecheck, lint, tests, security, build + standalone smoke." >> "$GITHUB_STEP_SUMMARY"
