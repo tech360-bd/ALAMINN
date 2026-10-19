@@ -1,0 +1,98 @@
+name: Deploy (manual approval)
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit SHA to deploy (defaults to the branch HEAD — must have green CI)"
+        required: false
+        default: ""
+
+jobs:
+  guard:
+    name: Verify CI status of target commit
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+    steps:
+      - name: Pick commit
+        id: pick
+        run: |
+          SHA="${{ github.event.inputs.commit || github.sha }}"
+          echo "sha=$SHA" >> "$GITHY_OUTPUT"
+          echo "Deploy target: $SHA"
+
+      - name: Check CI conclusion
+        run: |
+          SHA="${{ steps.pick.outputs.sha }}"
+          STATUS=$(gh api "repos/${{ github.repository }}/commits/$SHA/check-runs" --jq '[.check_runs[] | select(.name == "Typecheck · Lint · Test · Security · Build") | .conclusion] | unique | join(",")')
+          echo "CI conclusions for $SHA: $STATUS"
+          if [ "$STATUS" != "success" ]; then
+            echo "::error::Refusing to deploy: CI has not passed on $SHA"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  deploy:
+    name: Deploy to production (requires approval)
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    steps:
+      - name: Check required secrets exist
+        env:
+          H: ${{ secrets.DEPLOY_HOST }}
+          U: ${{ secrets.DEPLOY_USER }}
+          K: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          missing=0
+          for pair in "DEPLOY_HOST:$H" "DEPLOY_USER:$U" "DEPLOY_SSH_KEY:$K"; do
+            name="${pair%%:*}"; val="${pair#*:}"
+            if [ -z "$val" ]; then echo "::error::Secret $name is not configured"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          PORT="${{ secrets.DEPLOY_PORT || 22 }}"
+          ssh-keyscan -p "$PORT" -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          echo "SSH_READY=true" >> "$GITHUB_ENV"
+
+      - name: Deploy (versioned release + health check + rollback on failure)
+        run: |
+          PORT="${{ secrets.DEPLOY_PORT || 22 }}"
+          SHA="${{ needs.guard.outputs.sha }}"
+          SSH="ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
+          set -e
+          echo "▶ Deploying $SHA (versioned release)"
+          $SSH bash -s <<'REMOTE'
+            set -e
+            APP_DIR="${APP_DIR:-$HOME/alaminn.info}"
+            RELEASES="$APP_DIR/releases"
+            REL="$RELEASES/$(date +%Y%m%d-%H%M%S)"
+            mkdir -p "$RELEASES"
+            cd "$APP_DIR"
+            git fetch origin main
+            git worktree add "$REL" "$SHA" 2>/dev/null || true
+            cd "$REL"
+            npm ci --no-audit --no-fund
+            npm run build
+            echo "RELEASE_DIR=$REL" >> .release-env
+          REMOTE
+          echo "▶ Switching traffic and reloading service"
+          $SSH bash -s <<'REMOTE'
+            set -e
+            APP_DIR="${APP_DIR:-$HOME/alaminn.info}"
+            REL=$(ls -1dt "$APP_DIR"/releases/*/ | head -1)
+            ln -sfn "$REL" "$APP_DIR/current"
+            pm2 reload alaminn-info --update-no-deps 2>/dev/null || sudo pm2 reload alaminn-info 2>/dev/null || echo "NOTE: restart the app service for the new release"
+            sleep 5
+            curl -sf http://127.0.0.1:3076/api/health > /dev/null || { echo "Health check failed — rolling back"; ln -sfn "$(ls -1dt "$APP_DIR"/releases/*/ | sed -n 2p)" "$APP_DIR/current"; pm2 reload alaminn-info --update-no-deps 2>/dev/null || true; exit 1; }
+            echo "Post-deploy health check PASSED"
+          REMOTE
+          echo "✅ Deployed $SHA"
