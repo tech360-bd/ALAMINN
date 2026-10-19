@@ -186,7 +186,7 @@ export default async function UniversityCoursesPage({
   const where: Prisma.HigherStudyCourseWhereInput = {
     universityId: university.id,
     publicationStatus: "published",
-    verificationStatus: { in: ["verified", "published"] },
+    verificationStatus: { in: ["verified", "published", "pending-review"] },
   };
   if (studyLevel) where.studyLevel = studyLevel;
   if (subject) where.subject = { slug: subject };

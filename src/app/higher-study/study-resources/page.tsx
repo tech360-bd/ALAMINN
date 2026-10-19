@@ -160,7 +160,7 @@ async function fetchResources(params: Record<string, string | string[] | undefin
 
   const where: Prisma.HigherStudyResourceWhereInput = {
     publicationStatus: "published",
-    verificationStatus: { in: ["verified", "published"] },
+    verificationStatus: { in: ["verified", "published", "pending-review"] },
   };
 
   if (category) where.category = category;
@@ -238,13 +238,13 @@ export default async function StudyResourcesPage({ searchParams }: PageProps) {
       db.higherStudyResource.count({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
         },
       }),
       db.higherStudyResource.count({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           featured: true,
         },
       }),
@@ -252,7 +252,7 @@ export default async function StudyResourcesPage({ searchParams }: PageProps) {
         by: ["category"],
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
         },
         _count: { _all: true },
       }),

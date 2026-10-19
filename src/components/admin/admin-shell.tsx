@@ -61,6 +61,7 @@ const NAV_GROUPS: {
   {
     label: "Higher Study",
     items: [
+      { href: "/admin/higher-study/monitoring", label: "Data Monitoring", icon: Activity },
       { href: "/admin/higher-study/countries", label: "Countries", icon: Globe2 },
       { href: "/admin/higher-study/cities", label: "Cities", icon: MapPin },
       { href: "/admin/higher-study/universities", label: "Universities", icon: Building2 },

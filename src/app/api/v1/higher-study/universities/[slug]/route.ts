@@ -39,7 +39,7 @@ export async function GET(
       where: {
         slug: cleanSlug,
         publicationStatus: "published",
-        verificationStatus: { in: ["verified", "published"] },
+        verificationStatus: { in: ["verified", "published", "pending-review"] },
       },
       select: {
         ...publicUniversitySelect,

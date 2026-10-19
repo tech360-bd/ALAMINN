@@ -244,7 +244,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
         where: {
           slug: { not: resource.slug },
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           ...(resource.category ? { category: resource.category } : {}),
         },
         take: 4,

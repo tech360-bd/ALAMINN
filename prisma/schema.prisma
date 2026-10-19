@@ -596,7 +596,7 @@ model HigherStudyUniversity {
   rankingsJson                 String? // JSON string of {provider, year, category, rank, source}[]
   logoUrl                      String?
   featured                     Boolean                      @default(false)
-  verificationStatus           String                       @default("verified") // draft | pending-review | verified | published | needs-update | archived
+  verificationStatus           String                       @default("pending-review") // draft | pending-review | verified | published | needs-update | archived
   publicationStatus            String                       @default("published")
   lastVerifiedAt               DateTime?
   lastVerifiedBy               String?
@@ -683,7 +683,7 @@ model HigherStudyCourse {
   intakeId                    String?
   intake                      HigherStudyIntake?    @relation(fields: [intakeId], references: [id])
   officialSourceUrl           String?
-  verificationStatus          String                @default("verified")
+  verificationStatus          String                @default("pending-review")
   publicationStatus           String                @default("published")
   lastVerifiedAt              DateTime?
   lastVerifiedBy              String?
@@ -731,7 +731,7 @@ model HigherStudyScholarship {
   selectionProcess       String?
   restrictions           String?
   officialSourceUrl      String?
-  verificationStatus     String                 @default("verified")
+  verificationStatus     String                 @default("pending-review")
   publicationStatus      String                 @default("published")
   lastVerifiedAt         DateTime?
   lastVerifiedBy         String?
@@ -791,7 +791,7 @@ model HigherStudyResearchProject {
   requiredDocuments    String?
   applicationProcess   String?
   officialSourceUrl    String?
-  verificationStatus   String                   @default("verified")
+  verificationStatus   String                   @default("pending-review")
   publicationStatus    String                   @default("published")
   lastVerifiedAt       DateTime?
   lastVerifiedBy       String?
@@ -824,7 +824,7 @@ model HigherStudySupervisor {
   currentProjects      String? // JSON string
   acceptingStudents    Boolean                      @default(false)
   applicationGuidance  String?
-  verificationStatus   String                       @default("verified")
+  verificationStatus   String                       @default("pending-review")
   publicationStatus    String                       @default("published")
   lastVerifiedAt       DateTime?
   lastVerifiedBy       String?
@@ -858,7 +858,7 @@ model HigherStudyResource {
   relatedCourseSlugs      String?
   relatedScholarshipSlugs String?
   officialSourceUrl       String?
-  verificationStatus      String    @default("verified")
+  verificationStatus      String    @default("pending-review")
   publicationStatus       String    @default("published")
   featured                Boolean   @default(false)
   createdAt               DateTime  @default(now())
@@ -1060,7 +1060,7 @@ model EnglishLearningCourse {
   currency           String                      @default("USD")
   isFeatured         Boolean                     @default(false)
   isPublished        Boolean                     @default(true)
-  verificationStatus String                      @default("verified") // draft | pending-review | verified | published | needs-update | archived
+  verificationStatus String                      @default("pending-review") // draft | pending-review | verified | published | needs-update | archived
   publicationStatus  String                      @default("published") // draft | published | archived
   lastVerifiedAt     DateTime?
   lastVerifiedBy     String?
@@ -1174,7 +1174,7 @@ model EnglishLearningTutor {
   reviewCount        Int       @default(0)
   isAvailable        Boolean   @default(true)
   isPublished        Boolean   @default(true)
-  verificationStatus String    @default("verified")
+  verificationStatus String    @default("pending-review")
   lastVerifiedAt     DateTime?
   officialProfileUrl String?
   createdAt          DateTime  @default(now())
@@ -1558,4 +1558,128 @@ model SocialContentTarget {
 
   @@unique([contentId, accountId])
   @@index([status])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HIGHER STUDY — Source registry, 7-day monitoring, change approval
+// (additive; production catalogue rows are NEVER mutated by the agent
+//  — only via Super Admin approval in the verification queue)
+// ══════════════════════════════════════════════════════════════════
+
+model HigherStudyFaculty {
+  id           String   @id @default(cuid())
+  universityId String
+  name         String
+  type         String   @default("faculty") // faculty | school | department | college | institute
+  parentId     String?
+  officialUrl  String?
+  sourceUrl    String?
+  lastVerifiedAt DateTime?
+  verificationStatus String @default("pending-review")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@index([universityId]) @@index([type])
+}
+
+model HigherStudyCourseIntake {
+  id             String   @id @default(cuid())
+  courseId       String
+  intakeName     String // e.g. September 2027
+  academicYear   String?
+  opensAt        DateTime?
+  deadline       DateTime?
+  intlDeadline   DateTime?
+  scholarshipDeadline DateTime?
+  startsAt       DateTime?
+  rolling        Boolean  @default(false)
+  intlConfirmed  Boolean  @default(false)
+  sourceUrl      String?
+  lastVerifiedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([courseId]) @@index([deadline]) @@index([startsAt])
+}
+
+model HigherStudySourceRecord {
+  id           String   @id @default(cuid())
+  url          String   @unique
+  owner        String? // university / government body
+  sourceType   String   @default("university-course") // university-course | uni-admissions | uni-fees | uni-scholarship | government | immigration | ranking | pdf
+  entityType   String? // university | course | scholarship | country | government
+  entityId     String?
+  countrySlug  String?
+  title        String?
+  licenseNote  String?
+  active       Boolean  @default(true)
+  lastCheckedAt DateTime?
+  lastStatus   String? // ok | unavailable | parse-error | changed
+  failCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@index([entityType, entityId]) @@index([active]) @@index([sourceType])
+}
+
+model HigherStudySourceSnapshot {
+  id          String   @id @default(cuid())
+  sourceId    String
+  contentHash String
+  title       String?
+  signals     String? // JSON extracted signals {fees:[], deadlines:[], ielts:null,...}
+  fetchedAt   DateTime @default(now())
+  httpStatus  Int?
+  @@index([sourceId, fetchedAt]) @@index([contentHash])
+}
+
+model HigherStudyDataChange {
+  id             String   @id @default(cuid())
+  runId          String?
+  sourceId       String?
+  entityType     String // university | course | scholarship | government
+  entityId       String?
+  entityLabel    String?
+  field          String?
+  changeType     String // NEW_COURSE | COURSE_CLOSED | FEE_CHANGED | DEADLINE_CHANGED | REQUIREMENT_CHANGED | ENGLISH_REQUIREMENT_CHANGED | SCHOLARSHIP_NEW | SCHOLARSHIP_UPDATED | INTAKE_CHANGED | SOURCE_CHANGED | SOURCE_UNAVAILABLE | POSSIBLE_DATA_CONFLICT | NEEDS_MANUAL_REVIEW | OFFICIAL_POLICY_CHANGE | GOVERNMENT_POLICY_CHANGE ...
+  impact         String   @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  oldValue       String?
+  newValue       String?
+  sourceUrl      String?
+  confidence     Float    @default(0)
+  aiSummary      String?
+  status         String   @default("pending") // pending | approved | rejected | needs-review | recheck-requested
+  decidedById    String?
+  decidedAt      DateTime?
+  detectedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([status]) @@index([changeType]) @@index([entityType, entityId]) @@index([detectedAt])
+}
+
+model HigherStudyMonitoringRun {
+  id           String   @id @default(cuid()) // also the dedup/lock key per cycle
+  status       String   @default("running") // running | completed | failed
+  sourcesChecked Int    @default(0)
+  sourcesFailed  Int    @default(0)
+  changesDetected Int   @default(0)
+  error        String?
+  startedAt    DateTime @default(now())
+  completedAt  DateTime?
+  nextRunAt    DateTime?
+  @@index([status]) @@index([startedAt])
+}
+
+model HigherStudyOfficialDocument {
+  id           String   @id @default(cuid())
+  title        String
+  sourceUrl    String
+  universityId String?
+  countrySlug  String?
+  category     String   @default("guide") // admission-guide | scholarship-pdf | handbook | policy
+  fileHash     String?
+  version      Int      @default(1)
+  approvalStatus String @default("pending") // pending | approved | rejected
+  publishedAt  DateTime?
+  discoveredAt DateTime @default(now())
+  lastCheckedAt DateTime?
+  @@unique([sourceUrl, version])
+  @@index([countrySlug]) @@index([approvalStatus])
 }

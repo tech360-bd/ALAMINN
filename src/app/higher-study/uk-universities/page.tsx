@@ -320,7 +320,7 @@ export default async function UkUniversitiesPage({ searchParams }: PageProps) {
         where: {
           publicationStatus: "published",
           country: { slug: "uk" },
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
         },
       }),
     ]);

@@ -276,7 +276,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
             subjectId: subject.id,
             slug: { not: course.slug },
             publicationStatus: "published",
-            verificationStatus: { in: ["verified", "published"] },
+            verificationStatus: { in: ["verified", "published", "pending-review"] },
           },
           take: 4,
           orderBy: [{ featured: "desc" }, { lastVerifiedAt: "desc" }],
