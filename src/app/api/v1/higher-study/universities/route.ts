@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
       publicationStatus: "published",
       verificationStatus: verifiedStatus
         ? verifiedStatus
-        : { in: ["verified", "published"] },
+        : { in: ["verified", "published", "pending-review"] },
     };
 
     if (q) {

@@ -167,7 +167,7 @@ async function fetchSupervisors(params: Record<string, string | string[] | undef
 
   const where: Prisma.HigherStudySupervisorWhereInput = {
     publicationStatus: "published",
-    verificationStatus: { in: ["verified", "published"] },
+    verificationStatus: { in: ["verified", "published", "pending-review"] },
   };
 
   if (countrySlug) where.university = { ...((where.university as Prisma.HigherStudyUniversityWhereInput) ?? {}), country: { slug: countrySlug } };
@@ -247,13 +247,13 @@ export default async function SupervisorsPage({ searchParams }: PageProps) {
       db.higherStudySupervisor.count({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
         },
       }),
       db.higherStudySupervisor.count({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           acceptingStudents: true,
         },
       }),
@@ -266,7 +266,7 @@ export default async function SupervisorsPage({ searchParams }: PageProps) {
               supervisors: {
                 some: {
                   publicationStatus: "published",
-                  verificationStatus: { in: ["verified", "published"] },
+                  verificationStatus: { in: ["verified", "published", "pending-review"] },
                 },
               },
             },

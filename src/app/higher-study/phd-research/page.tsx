@@ -175,7 +175,7 @@ async function fetchResearch(params: Record<string, string | string[] | undefine
 
   const where: Prisma.HigherStudyResearchProjectWhereInput = {
     publicationStatus: "published",
-    verificationStatus: { in: ["verified", "published"] },
+    verificationStatus: { in: ["verified", "published", "pending-review"] },
     OR: [
       { applicationDeadline: null },
       { applicationDeadline: { gte: new Date() } },
@@ -260,7 +260,7 @@ async function fetchResearch(params: Record<string, string | string[] | undefine
               ? await db.higherStudyResearchProject.count({
                   where: {
                     publicationStatus: "published",
-                    verificationStatus: { in: ["verified", "published"] },
+                    verificationStatus: { in: ["verified", "published", "pending-review"] },
                     OR: [{ applicationDeadline: null }, { applicationDeadline: { gte: new Date() } }],
                   },
                 })
@@ -268,7 +268,7 @@ async function fetchResearch(params: Record<string, string | string[] | undefine
                 ? await db.higherStudyResearchProject.count({
                     where: {
                       publicationStatus: "published",
-                      verificationStatus: { in: ["verified", "published"] },
+                      verificationStatus: { in: ["verified", "published", "pending-review"] },
                       fundingStatus: t,
                       OR: [{ applicationDeadline: null }, { applicationDeadline: { gte: new Date() } }],
                     },
@@ -277,7 +277,7 @@ async function fetchResearch(params: Record<string, string | string[] | undefine
                   await db.higherStudyResearchProject.count({
                     where: {
                       publicationStatus: "published",
-                      verificationStatus: { in: ["verified", "published"] },
+                      verificationStatus: { in: ["verified", "published", "pending-review"] },
                       AND: [
                         {
                           OR: [
@@ -340,14 +340,14 @@ export default async function PhdResearchPage({ searchParams }: PageProps) {
       db.higherStudyResearchProject.count({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           OR: [{ applicationDeadline: null }, { applicationDeadline: { gte: now } }],
         },
       }),
       db.higherStudyResearchProject.count({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           fundingStatus: "fully-funded",
           OR: [{ applicationDeadline: null }, { applicationDeadline: { gte: now } }],
         },
@@ -355,7 +355,7 @@ export default async function PhdResearchPage({ searchParams }: PageProps) {
       db.higherStudyResearchProject.count({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           applicationDeadline: { gte: now, lte: soonDeadline },
         },
       }),

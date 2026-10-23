@@ -240,7 +240,7 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
       where: {
         supervisorId: supervisor.id,
         publicationStatus: "published",
-        verificationStatus: { in: ["verified", "published"] },
+        verificationStatus: { in: ["verified", "published", "pending-review"] },
       },
       take: 8,
       orderBy: [{ featured: "desc" }, { applicationDeadline: "asc" }],
@@ -259,7 +259,7 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
             researchAreaId: researchArea.id,
             slug: { not: supervisor.slug },
             publicationStatus: "published",
-            verificationStatus: { in: ["verified", "published"] },
+            verificationStatus: { in: ["verified", "published", "pending-review"] },
           },
           take: 4,
           orderBy: [{ acceptingStudents: "desc" }, { lastVerifiedAt: "desc" }],

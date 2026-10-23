@@ -220,7 +220,16 @@ export type Permission =
   // ─── WhatsApp AI Agent ────────────────────────────────────────────
   | "whatsapp.view"
   | "whatsapp.send"
-  | "whatsapp.manage";
+  | "whatsapp.manage"
+  // ─── Social Command Center ────────────────────────────────────────
+  | "social.view"
+  | "social.accounts.manage"
+  | "social.inbox.reply" // manual replies — allowed even when automation is OFF
+  | "social.approvals.decide"
+  | "social.automation.manage" // global ON/OFF switch
+  | "social.personality.manage"
+  | "social.content.manage"
+  | "social.content.publish";
 
 /**
  * The matrix. `SUPER_ADMIN` and `OWNER` are intentionally expanded as
@@ -263,6 +272,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "newsletter.export",
     "whatsapp.view",
     "whatsapp.send",
+    "social.view", "social.inbox.reply",
   ],
   PARTNERSHIP_MANAGER: [
     "dashboard.view",
@@ -298,7 +308,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "newsletter.send",
   ],
   MARKETING_MANAGER: [
-    "dashboard.view",
+    "dashboard.view", "social.view", "social.inbox.reply", "social.content.manage", "social.content.publish",
     "articles.view",
     "articles.update",
     "articles.publish",
@@ -341,6 +351,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "whatsapp.view",
     "whatsapp.send",
     "whatsapp.manage",
+    "social.view", "social.inbox.reply", "social.approvals.decide",
   ],
   SECURITY_AUDITOR: [
     "dashboard.view",

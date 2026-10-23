@@ -596,7 +596,7 @@ model HigherStudyUniversity {
   rankingsJson                 String? // JSON string of {provider, year, category, rank, source}[]
   logoUrl                      String?
   featured                     Boolean                      @default(false)
-  verificationStatus           String                       @default("verified") // draft | pending-review | verified | published | needs-update | archived
+  verificationStatus           String                       @default("pending-review") // draft | pending-review | verified | published | needs-update | archived
   publicationStatus            String                       @default("published")
   lastVerifiedAt               DateTime?
   lastVerifiedBy               String?
@@ -683,7 +683,7 @@ model HigherStudyCourse {
   intakeId                    String?
   intake                      HigherStudyIntake?    @relation(fields: [intakeId], references: [id])
   officialSourceUrl           String?
-  verificationStatus          String                @default("verified")
+  verificationStatus          String                @default("pending-review")
   publicationStatus           String                @default("published")
   lastVerifiedAt              DateTime?
   lastVerifiedBy              String?
@@ -731,7 +731,7 @@ model HigherStudyScholarship {
   selectionProcess       String?
   restrictions           String?
   officialSourceUrl      String?
-  verificationStatus     String                 @default("verified")
+  verificationStatus     String                 @default("pending-review")
   publicationStatus      String                 @default("published")
   lastVerifiedAt         DateTime?
   lastVerifiedBy         String?
@@ -791,7 +791,7 @@ model HigherStudyResearchProject {
   requiredDocuments    String?
   applicationProcess   String?
   officialSourceUrl    String?
-  verificationStatus   String                   @default("verified")
+  verificationStatus   String                   @default("pending-review")
   publicationStatus    String                   @default("published")
   lastVerifiedAt       DateTime?
   lastVerifiedBy       String?
@@ -824,7 +824,7 @@ model HigherStudySupervisor {
   currentProjects      String? // JSON string
   acceptingStudents    Boolean                      @default(false)
   applicationGuidance  String?
-  verificationStatus   String                       @default("verified")
+  verificationStatus   String                       @default("pending-review")
   publicationStatus    String                       @default("published")
   lastVerifiedAt       DateTime?
   lastVerifiedBy       String?
@@ -858,7 +858,7 @@ model HigherStudyResource {
   relatedCourseSlugs      String?
   relatedScholarshipSlugs String?
   officialSourceUrl       String?
-  verificationStatus      String    @default("verified")
+  verificationStatus      String    @default("pending-review")
   publicationStatus       String    @default("published")
   featured                Boolean   @default(false)
   createdAt               DateTime  @default(now())
@@ -1060,7 +1060,7 @@ model EnglishLearningCourse {
   currency           String                      @default("USD")
   isFeatured         Boolean                     @default(false)
   isPublished        Boolean                     @default(true)
-  verificationStatus String                      @default("verified") // draft | pending-review | verified | published | needs-update | archived
+  verificationStatus String                      @default("pending-review") // draft | pending-review | verified | published | needs-update | archived
   publicationStatus  String                      @default("published") // draft | published | archived
   lastVerifiedAt     DateTime?
   lastVerifiedBy     String?
@@ -1174,7 +1174,7 @@ model EnglishLearningTutor {
   reviewCount        Int       @default(0)
   isAvailable        Boolean   @default(true)
   isPublished        Boolean   @default(true)
-  verificationStatus String    @default("verified")
+  verificationStatus String    @default("pending-review")
   lastVerifiedAt     DateTime?
   officialProfileUrl String?
   createdAt          DateTime  @default(now())
@@ -1298,4 +1298,388 @@ model EnglishLearningSetting {
   updatedAt DateTime @updatedAt
 
   @@index([category])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SOCIAL COMMAND CENTER — multi-account social automation (Phase B)
+// Loose scalar FKs to User/Contact (no back-relations) to keep this
+// migration additive and reversible. JSON payloads stored as String
+// per existing schema convention (SQLite-compatible).
+// ══════════════════════════════════════════════════════════════════
+
+model SocialAccount {
+  id               String    @id @default(cuid())
+  platform         String // facebook | whatsapp | instagram | youtube | linkedin | tiktok
+  externalId       String // page id / phone_number_id / ig user id
+  displayName      String
+  username         String?
+  status           String    @default("disconnected") // connected | disconnected | expired | error | pending
+  capabilities     String? // JSON string[] e.g. ["publish","inbox","comments"]
+  tokenEncrypted   String? // AES-256-GCM ciphertext — never returned to client
+  tokenExpiresAt   DateTime?
+  webhookVerified  Boolean   @default(false)
+  automationEnabled Boolean  @default(false)
+  responseMode     String    @default("approval") // manual | approval | controlled
+  aiProfileId      String?
+  assignedUserId   String?
+  lastHealthAt     DateTime?
+  healthError      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  conversations    SocialConversation[]
+  contents         SocialContentTarget[]
+
+  @@unique([platform, externalId])
+  @@index([platform])
+  @@index([status])
+}
+
+model SocialAutomationState {
+  id                 String   @id @default("global")
+  engagementEnabled  Boolean  @default(false) // global auto-reply switch — default OFF (fail-safe)
+  publishingEnabled  Boolean  @default(false)
+  generationEnabled  Boolean  @default(true)
+  version            Int      @default(1) // optimistic-concurrency / race guard
+  changedById        String?
+  changedByName      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model AiPersonalityProfile {
+  id                String   @id @default(cuid())
+  name              String
+  isDefault         Boolean  @default(false)
+  identity          String? // preferred name + professional identity
+  brandContext      String?
+  languages         String   @default("en,bn") // comma list: en | bn | banglish
+  formality         Int      @default(3) // 1 casual .. 5 formal
+  friendliness      Int      @default(4) // 1 .. 5
+  greeting          String?
+  signOff           String?
+  sentenceStyle     String? // short | balanced | detailed
+  preferredPhrases  String? // JSON string[]
+  avoidPhrases      String? // JSON string[]
+  servicePrinciples String?
+  faqs              String? // JSON [{q,a}]
+  businessHours     String?
+  escalationContact String?
+  platformStyles    String? // JSON {facebook: "...", whatsapp: "..."}
+  neverAnswerTopics String? // JSON string[] — always escalate
+  examplePairs      String? // JSON [{incoming, approvedReply}]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isDefault])
+}
+
+model SocialKnowledgeSource {
+  id        String   @id @default(cuid())
+  title     String
+  category  String   @default("faq") // faq | policy | service | pricing | document
+  content   String
+  approved  Boolean  @default(false)
+  profileId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([approved])
+}
+
+model SocialConversation {
+  id               String          @id @default(cuid())
+  accountId        String
+  account          SocialAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  platform         String
+  externalThreadId String // participant id / thread id from provider
+  participantId    String
+  participantName  String?
+  status           String          @default("unread") // unread | pending | resolved | escalated
+  priority         String          @default("normal") // low | normal | high | urgent
+  assignedUserId   String?
+  labels           String? // JSON string[]
+  language         String?
+  contactId        String? // link to CRM Contact
+  unreadCount      Int             @default(0)
+  lastMessageAt    DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  messages         SocialMessage[]
+
+  @@unique([accountId, externalThreadId])
+  @@index([platform])
+  @@index([status])
+  @@index([lastMessageAt])
+}
+
+model SocialMessage {
+  id                String             @id @default(cuid())
+  conversationId    String
+  conversation      SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  providerMessageId String?
+  direction         String // inbound | outbound
+  kind              String   @default("message") // message | comment | mention
+  senderId          String?
+  senderName        String?
+  body              String
+  mediaUrl          String?
+  isOwn             Boolean            @default(false)
+  deliveryStatus    String   @default("received") // received | queued | sending | sent | delivered | read | failed | suppressed
+  createdAt         DateTime           @default(now())
+
+  @@unique([providerMessageId])
+  @@index([conversationId, createdAt])
+  @@index([deliveryStatus])
+}
+
+model SocialWebhookEvent {
+  id              String    @id @default(cuid())
+  provider        String
+  providerEventId String
+  accountId       String?
+  payloadHash     String
+  status          String    @default("received") // received | processed | duplicate | failed | ignored
+  attempts        Int       @default(0)
+  error           String?
+  processedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@unique([provider, providerEventId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SocialReplyDecision {
+  id             String   @id @default(cuid())
+  conversationId String
+  messageId      String?
+  category       String // general | service | lead | appointment | complaint | spam | sensitive | pricing | human-required
+  language       String?
+  confidence     Float    @default(0)
+  risk           String   @default("high") // low | medium | high
+  draft          String?
+  finalText      String?
+  decision       String   @default("held") // auto_sent | held | approved_sent | edited_sent | rejected | escalated | suppressed_off | manual_sent | failed
+  reason         String?
+  modelUsed      String?
+  knowledgeRefs  String? // JSON string[]
+  automationVersion Int?  // global switch version observed at decision time
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([decision])
+  @@index([createdAt])
+}
+
+model SocialApproval {
+  id          String   @id @default(cuid())
+  decisionId  String   @unique
+  status      String   @default("pending") // pending | approved | edited_approved | rejected | escalated | resolved
+  editedText  String?
+  decidedById String?
+  decidedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SocialAutomationRule {
+  id              String   @id @default(cuid())
+  name            String
+  accountId       String? // null = all accounts
+  platform        String?
+  category        String? // null = any category
+  action          String   @default("approval") // auto_reply | approval | escalate | ignore
+  minConfidence   Float    @default(0.85)
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([accountId])
+  @@index([enabled])
+}
+
+model SocialCampaign {
+  id          String   @id @default(cuid())
+  name        String
+  objective   String?
+  pillar      String?
+  audience    String?
+  status      String   @default("draft") // draft | active | paused | completed
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  contents    SocialContent[]
+
+  @@index([status])
+}
+
+model SocialContent {
+  id          String   @id @default(cuid())
+  campaignId  String?
+  campaign    SocialCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  title       String
+  body        String
+  variants    String? // JSON {platform: body}
+  hashtags    String? // JSON string[]
+  cta         String?
+  mediaUrls   String? // JSON string[]
+  language    String   @default("en")
+  status      String   @default("draft") // draft | review | approved | scheduled | publishing | published | failed
+  scheduledAt DateTime?
+  approvedById String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  targets     SocialContentTarget[]
+
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model SocialContentTarget {
+  id          String        @id @default(cuid())
+  contentId   String
+  content     SocialContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  status      String        @default("pending") // pending | publishing | published | failed | suppressed
+  providerPostId String?
+  error       String?
+  attempts    Int           @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([contentId, accountId])
+  @@index([status])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HIGHER STUDY — Source registry, 7-day monitoring, change approval
+// (additive; production catalogue rows are NEVER mutated by the agent
+//  — only via Super Admin approval in the verification queue)
+// ══════════════════════════════════════════════════════════════════
+
+model HigherStudyFaculty {
+  id           String   @id @default(cuid())
+  universityId String
+  name         String
+  type         String   @default("faculty") // faculty | school | department | college | institute
+  parentId     String?
+  officialUrl  String?
+  sourceUrl    String?
+  lastVerifiedAt DateTime?
+  verificationStatus String @default("pending-review")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@index([universityId]) @@index([type])
+}
+
+model HigherStudyCourseIntake {
+  id             String   @id @default(cuid())
+  courseId       String
+  intakeName     String // e.g. September 2027
+  academicYear   String?
+  opensAt        DateTime?
+  deadline       DateTime?
+  intlDeadline   DateTime?
+  scholarshipDeadline DateTime?
+  startsAt       DateTime?
+  rolling        Boolean  @default(false)
+  intlConfirmed  Boolean  @default(false)
+  sourceUrl      String?
+  lastVerifiedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([courseId]) @@index([deadline]) @@index([startsAt])
+}
+
+model HigherStudySourceRecord {
+  id           String   @id @default(cuid())
+  url          String   @unique
+  owner        String? // university / government body
+  sourceType   String   @default("university-course") // university-course | uni-admissions | uni-fees | uni-scholarship | government | immigration | ranking | pdf
+  entityType   String? // university | course | scholarship | country | government
+  entityId     String?
+  countrySlug  String?
+  title        String?
+  licenseNote  String?
+  active       Boolean  @default(true)
+  lastCheckedAt DateTime?
+  lastStatus   String? // ok | unavailable | parse-error | changed
+  failCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@index([entityType, entityId]) @@index([active]) @@index([sourceType])
+}
+
+model HigherStudySourceSnapshot {
+  id          String   @id @default(cuid())
+  sourceId    String
+  contentHash String
+  title       String?
+  signals     String? // JSON extracted signals {fees:[], deadlines:[], ielts:null,...}
+  fetchedAt   DateTime @default(now())
+  httpStatus  Int?
+  @@index([sourceId, fetchedAt]) @@index([contentHash])
+}
+
+model HigherStudyDataChange {
+  id             String   @id @default(cuid())
+  runId          String?
+  sourceId       String?
+  entityType     String // university | course | scholarship | government
+  entityId       String?
+  entityLabel    String?
+  field          String?
+  changeType     String // NEW_COURSE | COURSE_CLOSED | FEE_CHANGED | DEADLINE_CHANGED | REQUIREMENT_CHANGED | ENGLISH_REQUIREMENT_CHANGED | SCHOLARSHIP_NEW | SCHOLARSHIP_UPDATED | INTAKE_CHANGED | SOURCE_CHANGED | SOURCE_UNAVAILABLE | POSSIBLE_DATA_CONFLICT | NEEDS_MANUAL_REVIEW | OFFICIAL_POLICY_CHANGE | GOVERNMENT_POLICY_CHANGE ...
+  impact         String   @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  oldValue       String?
+  newValue       String?
+  sourceUrl      String?
+  confidence     Float    @default(0)
+  aiSummary      String?
+  status         String   @default("pending") // pending | approved | rejected | needs-review | recheck-requested
+  decidedById    String?
+  decidedAt      DateTime?
+  detectedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([status]) @@index([changeType]) @@index([entityType, entityId]) @@index([detectedAt])
+}
+
+model HigherStudyMonitoringRun {
+  id           String   @id @default(cuid()) // also the dedup/lock key per cycle
+  status       String   @default("running") // running | completed | failed
+  sourcesChecked Int    @default(0)
+  sourcesFailed  Int    @default(0)
+  changesDetected Int   @default(0)
+  error        String?
+  startedAt    DateTime @default(now())
+  completedAt  DateTime?
+  nextRunAt    DateTime?
+  @@index([status]) @@index([startedAt])
+}
+
+model HigherStudyOfficialDocument {
+  id           String   @id @default(cuid())
+  title        String
+  sourceUrl    String
+  universityId String?
+  countrySlug  String?
+  category     String   @default("guide") // admission-guide | scholarship-pdf | handbook | policy
+  fileHash     String?
+  version      Int      @default(1)
+  approvalStatus String @default("pending") // pending | approved | rejected
+  publishedAt  DateTime?
+  discoveredAt DateTime @default(now())
+  lastCheckedAt DateTime?
+  @@unique([sourceUrl, version])
+  @@index([countrySlug]) @@index([approvalStatus])
 }

@@ -183,7 +183,7 @@ async function fetchCourses(params: Record<string, string | string[] | undefined
 
   const where: Prisma.HigherStudyCourseWhereInput = {
     publicationStatus: "published",
-    verificationStatus: { in: ["verified", "published"] },
+    verificationStatus: { in: ["verified", "published", "pending-review"] },
   };
 
   if (countrySlug) where.country = { slug: countrySlug };

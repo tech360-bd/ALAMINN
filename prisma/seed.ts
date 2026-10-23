@@ -526,6 +526,15 @@ async function main() {
     console.warn("  ⚠ Extra countries seed failed (non-fatal):", err);
   }
 
+  // ─── University expansion seed (70 universities x Masters/MRes/PhD) ──
+  // Runs after extra countries so NZ/Ireland country rows exist.
+  try {
+    const { seedHigherStudyMore } = await import("./seed-higher-study-more");
+    await seedHigherStudyMore(db);
+  } catch (err) {
+    console.warn("  ⚠ University expansion seed failed (non-fatal):", err);
+  }
+
   console.log("Seed complete.");
 }
 

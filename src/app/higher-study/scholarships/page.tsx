@@ -182,7 +182,7 @@ async function fetchScholarships(params: Record<string, string | string[] | unde
 
   const where: Prisma.HigherStudyScholarshipWhereInput = {
     publicationStatus: "published",
-    verificationStatus: { in: ["verified", "published"] },
+    verificationStatus: { in: ["verified", "published", "pending-review"] },
     OR: [
       { deadline: null },
       { deadline: { gte: new Date() } },
@@ -242,14 +242,14 @@ async function fetchScholarships(params: Record<string, string | string[] | unde
             ? await db.higherStudyScholarship.count({
                 where: {
                   publicationStatus: "published",
-                  verificationStatus: { in: ["verified", "published"] },
+                  verificationStatus: { in: ["verified", "published", "pending-review"] },
                   OR: [{ deadline: null }, { deadline: { gte: new Date() } }],
                 },
               })
             : await db.higherStudyScholarship.count({
                 where: {
                   publicationStatus: "published",
-                  verificationStatus: { in: ["verified", "published"] },
+                  verificationStatus: { in: ["verified", "published", "pending-review"] },
                   fundingType: t,
                   OR: [{ deadline: null }, { deadline: { gte: new Date() } }],
                 },
@@ -304,14 +304,14 @@ export default async function ScholarshipsPage({ searchParams }: PageProps) {
       db.higherStudyScholarship.count({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           OR: [{ deadline: null }, { deadline: { gte: now } }],
         },
       }),
       db.higherStudyScholarship.count({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           fundingType: "fully-funded",
           OR: [{ deadline: null }, { deadline: { gte: now } }],
         },
@@ -319,7 +319,7 @@ export default async function ScholarshipsPage({ searchParams }: PageProps) {
       db.higherStudyScholarship.count({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           deadline: { gte: now, lte: soonDeadline },
         },
       }),

@@ -202,7 +202,7 @@ export default async function ScholarshipDetailPage({ params }: PageProps) {
       where: {
         slug: { not: scholarship.slug },
         publicationStatus: "published",
-        verificationStatus: { in: ["verified", "published"] },
+        verificationStatus: { in: ["verified", "published", "pending-review"] },
         OR: [
           ...(scholarship.fundingType ? [{ fundingType: scholarship.fundingType }] : []),
           ...(country ? [{ countryId: country.id }] : []),

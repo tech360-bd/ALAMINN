@@ -197,7 +197,7 @@ async function fetchUniversities(params: Record<string, string | string[] | unde
   const where: Prisma.HigherStudyUniversityWhereInput = {
     publicationStatus: "published",
     country: countryFilter,
-    verificationStatus: { in: ["verified", "published"] },
+    verificationStatus: { in: ["verified", "published", "pending-review"] },
   };
   if (institutionType) where.institutionType = institutionType;
   if (studyLevel) {

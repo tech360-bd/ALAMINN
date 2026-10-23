@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
 
     const where: Prisma.HigherStudyResourceWhereInput = {
       publicationStatus: "published",
-      verificationStatus: { in: ["verified", "published"] },
+      verificationStatus: { in: ["verified", "published", "pending-review"] },
     };
     if (q) {
       where.OR = [

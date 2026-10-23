@@ -153,7 +153,7 @@ export default async function UniversityScholarshipsPage({
       { countryId: university.countryId },
     ],
     publicationStatus: "published",
-    verificationStatus: { in: ["verified", "published"] },
+    verificationStatus: { in: ["verified", "published", "pending-review"] },
   };
   if (fundingType) where.fundingType = fundingType;
   if (typeof tuitionCoverage === "boolean") where.tuitionCoverage = tuitionCoverage;

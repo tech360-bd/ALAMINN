@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
 
     const where: Prisma.HigherStudyUniversityWhereInput = {
       publicationStatus: "published",
-      verificationStatus: { in: ["verified", "published"] },
+      verificationStatus: { in: ["verified", "published", "pending-review"] },
     };
 
     // Country filter — verify against COUNTRIES_LIST to prevent slug injection
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
       db.higherStudyCourse.findMany({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           ...(studyLevel ? { studyLevel } : {}),
           ...(countrySlug && COUNTRIES_MAP[countrySlug]
             ? { country: { slug: countrySlug } }
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
       db.higherStudyScholarship.findMany({
         where: {
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
           ...(countrySlug && COUNTRIES_MAP[countrySlug]
             ? { country: { slug: countrySlug } }
             : {}),

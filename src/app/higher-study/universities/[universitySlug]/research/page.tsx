@@ -88,7 +88,7 @@ export default async function UniversityResearchPage({
         where: {
           universityId: university.id,
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
         },
         take: 24,
         orderBy: [{ featured: "desc" }, { applicationDeadline: "asc" }],
@@ -103,7 +103,7 @@ export default async function UniversityResearchPage({
         where: {
           universityId: university.id,
           publicationStatus: "published",
-          verificationStatus: { in: ["verified", "published"] },
+          verificationStatus: { in: ["verified", "published", "pending-review"] },
         },
         take: 24,
         orderBy: [{ acceptingStudents: "desc" }, { lastVerifiedAt: "desc" }],

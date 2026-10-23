@@ -2,7 +2,7 @@
   "name": "alaminn-info",
   "version": "1.0.0",
   "private": true,
-  "description": "alaminn.info — Premium executive authority platform for Al Aminn (Next.js 16 standalone production build)",
+  "description": "alaminn.info \u2014 Premium executive authority platform for Al Aminn (Next.js 16 standalone production build)",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -40,7 +40,8 @@
     "docker:run": "docker run -d --name alaminn-app -p 3000:3000 --env-file .env alaminn-info",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f"
+    "docker:logs": "docker compose logs -f",
+    "db:seed:universities": "npx tsx prisma/seed-higher-study-more.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

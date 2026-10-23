@@ -10,12 +10,13 @@ import {
   LogOut, Menu, X, ChevronRight,
   Globe2, MapPin, BookOpen, Award, Library, UserSquare2, Microscope,
   FlaskConical, CalendarDays, GraduationCap, ClipboardList, HelpCircle, Mail,
-  MessageCircle,
+  MessageCircle, Share2, Inbox, UserRound, CalendarClock as CalIcon, Megaphone, ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminFetch } from "./lib";
+import { AutomationSwitch } from "@/components/social/automation-switch";
 
 type SessionInfo = {
   userId: string;
@@ -60,6 +61,7 @@ const NAV_GROUPS: {
   {
     label: "Higher Study",
     items: [
+      { href: "/admin/higher-study/monitoring", label: "Data Monitoring", icon: Activity },
       { href: "/admin/higher-study/countries", label: "Countries", icon: Globe2 },
       { href: "/admin/higher-study/cities", label: "Cities", icon: MapPin },
       { href: "/admin/higher-study/universities", label: "Universities", icon: Building2 },
@@ -93,6 +95,18 @@ const NAV_GROUPS: {
       { href: "/admin/whatsapp-ai", label: "WhatsApp AI", icon: MessageCircle },
       { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck },
       { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Social Command",
+    items: [
+      { href: "/admin/social", label: "Social Overview", icon: Share2 },
+      { href: "/admin/social/accounts", label: "Connected Accounts", icon: Users },
+      { href: "/admin/social/inbox", label: "Unified Inbox", icon: Inbox },
+      { href: "/admin/social/approvals", label: "Approval Queue", icon: ShieldCheck },
+      { href: "/admin/social/personality", label: "AI Personality", icon: UserRound },
+      { href: "/admin/social/content", label: "Content & Calendar", icon: CalIcon },
+      { href: "/admin/social/rules", label: "Automation Rules", icon: ListChecks },
     ],
   },
   {
@@ -189,7 +203,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <nav className="flex items-center text-sm text-muted-foreground gap-1" aria-label="Breadcrumb">
+          <AutomationSwitch />
+          <nav className="hidden md:flex items-center text-sm text-muted-foreground gap-1" aria-label="Breadcrumb">
             <Link href="/admin" className="hover:text-foreground transition-colors">Admin</Link>
             {pathname !== "/admin" && (
               <>

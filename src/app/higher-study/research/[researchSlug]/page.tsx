@@ -228,7 +228,7 @@ export default async function ResearchDetailPage({ params }: PageProps) {
             researchAreaId: researchArea.id,
             slug: { not: research.slug },
             publicationStatus: "published",
-            verificationStatus: { in: ["verified", "published"] },
+            verificationStatus: { in: ["verified", "published", "pending-review"] },
           },
           take: 4,
           orderBy: [{ featured: "desc" }, { applicationDeadline: "asc" }],
