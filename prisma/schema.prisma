@@ -2,7 +2,8 @@
 // Premium executive authority platform for Al Aminn
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "client"
 }
 
 datasource db {
@@ -410,7 +411,7 @@ model Document {
 model KnowledgeChunk {
   id         String   @id @default(cuid())
   documentId String
-  content    String   @db.Text
+  content    String
   embedding  Json?
   chunkIndex Int
   status     String   @default("indexed") // indexed | pending | failed
@@ -1578,7 +1579,8 @@ model HigherStudyFaculty {
   verificationStatus String @default("pending-review")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  @@index([universityId]) @@index([type])
+  @@index([universityId])
+  @@index([type])
 }
 
 model HigherStudyCourseIntake {
@@ -1597,7 +1599,9 @@ model HigherStudyCourseIntake {
   lastVerifiedAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  @@index([courseId]) @@index([deadline]) @@index([startsAt])
+  @@index([courseId])
+  @@index([deadline])
+  @@index([startsAt])
 }
 
 model HigherStudySourceRecord {
@@ -1616,7 +1620,9 @@ model HigherStudySourceRecord {
   failCount    Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  @@index([entityType, entityId]) @@index([active]) @@index([sourceType])
+  @@index([entityType, entityId])
+  @@index([active])
+  @@index([sourceType])
 }
 
 model HigherStudySourceSnapshot {
@@ -1627,7 +1633,8 @@ model HigherStudySourceSnapshot {
   signals     String? // JSON extracted signals {fees:[], deadlines:[], ielts:null,...}
   fetchedAt   DateTime @default(now())
   httpStatus  Int?
-  @@index([sourceId, fetchedAt]) @@index([contentHash])
+  @@index([sourceId, fetchedAt])
+  @@index([contentHash])
 }
 
 model HigherStudyDataChange {
@@ -1651,7 +1658,10 @@ model HigherStudyDataChange {
   detectedAt     DateTime @default(now())
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  @@index([status]) @@index([changeType]) @@index([entityType, entityId]) @@index([detectedAt])
+  @@index([status])
+  @@index([changeType])
+  @@index([entityType, entityId])
+  @@index([detectedAt])
 }
 
 model HigherStudyMonitoringRun {
@@ -1664,7 +1674,8 @@ model HigherStudyMonitoringRun {
   startedAt    DateTime @default(now())
   completedAt  DateTime?
   nextRunAt    DateTime?
-  @@index([status]) @@index([startedAt])
+  @@index([status])
+  @@index([startedAt])
 }
 
 model HigherStudyOfficialDocument {
@@ -1681,5 +1692,6 @@ model HigherStudyOfficialDocument {
   discoveredAt DateTime @default(now())
   lastCheckedAt DateTime?
   @@unique([sourceUrl, version])
-  @@index([countrySlug]) @@index([approvalStatus])
+  @@index([countrySlug])
+  @@index([approvalStatus])
 }

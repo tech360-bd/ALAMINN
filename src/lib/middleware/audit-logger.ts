@@ -56,14 +56,16 @@ export class AuditLogger {
   static audit(): (req: Request, res: Response, next: NextFunction) => void {
     return (req: Request, res: Response, next: NextFunction) => {
       const startTime = Date.now();
-      const requestId = req.headers["x-request-id"] as string || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const rawId = req.headers["x-request-id"];
+      const requestId = (Array.isArray(rawId) ? rawId[0] : rawId) || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       // Add request ID to headers for tracking
       req.headers["x-request-id"] = requestId;
       res.setHeader("X-Request-ID", requestId);
 
       // Skip excluded paths
-      if (this.config.excludePaths && this.config.excludePaths.some(p => req.path === p || req.path.startsWith(p))) {
+      const reqPath = req.path || req.url || "";
+      if (this.config.excludePaths && this.config.excludePaths.some(p => reqPath === p || reqPath.startsWith(p))) {
         return next();
       }
 
@@ -77,32 +79,33 @@ export class AuditLogger {
       const originalSend = res.send;
       let responseBody: any;
 
-      res.send = function (body: any): Response {
-        if (this.config.logResponses) {
+      res.send = ((body: any): Response => {
+        if (AuditLogger.config.logResponses) {
           try {
             const parsed = typeof body === "string" ? JSON.parse(body) : body;
-            responseBody = this.sanitizeBody(parsed);
+            responseBody = AuditLogger.sanitizeBody(parsed);
           } catch {
             responseBody = body;
           }
         }
-        return originalSend.call(this, body);
-      }.bind(this);
+        return originalSend.call(res, body);
+      });
 
       // Log on finish
       res.on("finish", () => {
         const responseTime = Date.now() - startTime;
+        const finishPath = req.path || req.url || "";
 
         // Skip excluded paths
-        if (this.config.excludePaths && this.config.excludePaths.some(p => req.path === p || req.path.startsWith(p))) {
+        if (this.config.excludePaths && this.config.excludePaths.some(p => finishPath === p || finishPath.startsWith(p))) {
           return;
         }
 
         const logEntry: AuditLogEntry = {
           timestamp: new Date().toISOString(),
           requestId,
-          method: req.method,
-          path: req.path,
+          method: req.method || "GET",
+          path: finishPath,
           ip: this.getClientIp(req),
           userAgent: req.headers["user-agent"],
           userId: (req as any).userId,
@@ -135,8 +138,8 @@ export class AuditLogger {
     const logEntry: AuditLogEntry = {
       timestamp: new Date().toISOString(),
       requestId,
-      method: req.method,
-      path: req.path,
+      method: req.method || "GET",
+      path: req.path || req.url || "",
       ip: this.getClientIp(req),
       userAgent: req.headers["user-agent"],
       userId: (req as any).userId,
@@ -163,8 +166,8 @@ export class AuditLogger {
     const logEntry: AuditLogEntry = {
       timestamp: new Date().toISOString(),
       requestId,
-      method: req.method,
-      path: req.path,
+      method: req.method || "GET",
+      path: req.path || req.url || "",
       ip: this.getClientIp(req),
       userAgent: req.headers["user-agent"],
       userId: (req as any).userId,
@@ -186,8 +189,8 @@ export class AuditLogger {
     const logEntry: AuditLogEntry = {
       timestamp: new Date().toISOString(),
       requestId,
-      method: req.method,
-      path: req.path,
+      method: req.method || "GET",
+      path: req.path || req.url || "",
       ip: this.getClientIp(req),
       userAgent: req.headers["user-agent"],
       userId: (req as any).userId,
@@ -307,7 +310,7 @@ export class AuditLogger {
     if (req.headers["x-real-ip"]) {
       return req.headers["x-real-ip"] as string;
     }
-    return req.ip || req.socket.remoteAddress || "unknown";
+    return req.ip || req.socket?.remoteAddress || "unknown";
   }
 
   /**

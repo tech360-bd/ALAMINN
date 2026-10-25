@@ -11,12 +11,17 @@ import {
   Globe2, MapPin, BookOpen, Award, Library, UserSquare2, Microscope,
   FlaskConical, CalendarDays, GraduationCap, ClipboardList, HelpCircle, Mail,
   MessageCircle, Share2, Inbox, UserRound, CalendarClock as CalIcon, Megaphone, ListChecks,
+  Activity, Sparkles, Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminFetch } from "./lib";
 import { AutomationSwitch } from "@/components/social/automation-switch";
+import {
+  DashboardAiAgentBannerAndDrawer,
+  triggerOpenDashboardAgent,
+} from "./dashboard-ai-agent";
 
 type SessionInfo = {
   userId: string;
@@ -42,6 +47,8 @@ const NAV_GROUPS: {
     items: [
       { href: "/admin/contacts", label: "Contacts", icon: Users },
       { href: "/admin/companies", label: "Companies", icon: Building2 },
+      { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
+      { href: "/admin/opportunities", label: "Opportunities", icon: Briefcase },
       { href: "/admin/meetings", label: "Meetings", icon: CalendarClock },
       { href: "/admin/notes", label: "Notes", icon: StickyNote },
       { href: "/admin/tasks", label: "Tasks", icon: CheckSquare },
@@ -91,6 +98,7 @@ const NAV_GROUPS: {
   {
     label: "AI & Insights",
     items: [
+      { href: "/admin/ai-agents", label: "Free AI Agents", icon: Sparkles },
       { href: "/admin/ai-assistant", label: "AI Assistant", icon: Bot },
       { href: "/admin/whatsapp-ai", label: "WhatsApp AI", icon: MessageCircle },
       { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck },
@@ -215,7 +223,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </>
             )}
           </nav>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => triggerOpenDashboardAgent()}
+              className="h-8 gap-1.5 text-xs border-orange-300/60 dark:border-orange-900/60"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-orange-500" />
+              <span className="hidden sm:inline">Ask Agent</span>
+              <kbd className="hidden md:inline rounded bg-muted px-1 py-0.5 text-[10px] font-mono">
+                ⌘J
+              </kbd>
+            </Button>
             <span className="text-xs text-muted-foreground hidden sm:inline">
               {session?.email} · <span className="font-medium text-foreground">{session?.role}</span>
             </span>
@@ -228,6 +248,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
         {/* Page content */}
         <main id="main-content" className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          <DashboardAiAgentBannerAndDrawer />
           {children}
         </main>
       </div>

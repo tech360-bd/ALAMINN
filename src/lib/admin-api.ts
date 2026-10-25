@@ -96,3 +96,43 @@ export async function readJson<T = Record<string, unknown>>(
 export function param(req: Request, key: string): string | null {
   return new URL(req.url).searchParams.get(key);
 }
+
+/** Check whether a Setting key holds a secret, password, API key, or token. */
+export function isSensitiveSettingKey(key: string): boolean {
+  return /(pass|secret|token|apikey|api_key|\.key$|credential|private|accountid)/i.test(key);
+}
+
+// ─── Bounded sliding-window in-memory rate limiter for Admin AI endpoints ────
+interface AdminRateBucket {
+  count: number;
+  resetAt: number;
+}
+const adminRateBuckets = new Map<string, AdminRateBucket>();
+const MAX_RATE_BUCKETS = 4096;
+
+export function checkAdminRateLimit(
+  bucketKey: string,
+  maxRequests: number,
+  windowMs = 60_000
+): { allowed: boolean; retryAfterSec: number } {
+  const now = Date.now();
+  if (adminRateBuckets.size > MAX_RATE_BUCKETS) {
+    for (const [k, v] of adminRateBuckets.entries()) {
+      if (v.resetAt <= now) adminRateBuckets.delete(k);
+    }
+  }
+  const existing = adminRateBuckets.get(bucketKey);
+  if (!existing || existing.resetAt <= now) {
+    adminRateBuckets.set(bucketKey, { count: 1, resetAt: now + windowMs });
+    return { allowed: true, retryAfterSec: 0 };
+  }
+  if (existing.count >= maxRequests) {
+    return {
+      allowed: false,
+      retryAfterSec: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
+    };
+  }
+  existing.count += 1;
+  return { allowed: true, retryAfterSec: 0 };
+}
+

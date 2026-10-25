@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { applySafetyGuardrails } from "@/lib/whatsapp/agent";
-const parse = (s: string | null, fb: unknown) => { try { return s ? JSON.parse(s) : fb; } catch { return fb; } };
+const parse = (s: string | null | undefined, fb: unknown) => { try { return s ? JSON.parse(s) : fb; } catch { return fb; } };
 export async function getProfileForAccount(accountId: string) {
   const acc = await db.socialAccount.findUnique({ where: { id: accountId } }).catch(() => null);
   if (acc?.aiProfileId) { const p = await db.aiPersonalityProfile.findUnique({ where: { id: acc.aiProfileId } }).catch(() => null); if (p) return p; }
@@ -25,17 +25,42 @@ export function buildSystemPrompt(p: Awaited<ReturnType<typeof getProfileForAcco
 export async function generateSocialReply(opts: { profile: Awaited<ReturnType<typeof getProfileForAccount>>; platform: string; message: string; knowledge: { title: string; content: string }[] }): Promise<{ text: string; modelUsed: string }> {
   const faqs = parse(opts.profile?.faqs, []) as { q: string; a: string }[];
   const hit = faqs.find((f) => opts.message.toLowerCase().includes(f.q.toLowerCase().slice(0, 12)));
+  const kb = opts.knowledge.length ? opts.knowledge.map((k) => `[${k.title}] ${k.content}`).join("\n") : "No approved knowledge matched. Do not invent facts; offer a human counselor.";
+  const examples = (parse(opts.profile?.examplePairs, []) as { incoming: string; approvedReply: string }[]).slice(0, 3).map((e) => `Example Q: ${e.incoming}\nApproved style: ${e.approvedReply}`).join("\n");
+
+  // 1. Primary path: Multi-Provider AI Router (UnoRouter `claude-opus-4-6-thinking` preferred first, cascading across configured providers)
+  try {
+    const { resolveAllProviderConfigs } = await import("@/lib/ai/free-providers");
+    const { runFreeAiRouter } = await import("@/lib/ai/free-router");
+    const { providers } = await resolveAllProviderConfigs();
+    const hasConfiguredCloud = providers.some(
+      (p) => p.enabled && p.configured && !["local-grounded", "zai", "pollinations"].includes(p.spec.id)
+    );
+    if (hasConfiguredCloud) {
+      const routed = await runFreeAiRouter({
+        systemPrompt: `${buildSystemPrompt(opts.profile, opts.platform)}\n\nAPPROVED KNOWLEDGE:\n${kb}${examples ? `\n${examples}` : ""}`,
+        messages: [{ role: "user", content: opts.message }],
+        maxTokens: 500,
+        temperature: 0.35,
+        bypassCache: true,
+      });
+      if (routed.providerUsed !== "local-grounded" && routed.content.trim()) {
+        return { text: applySafetyGuardrails(routed.content.trim()), modelUsed: `${routed.providerUsed}:${routed.modelUsed}` };
+      }
+    }
+  } catch { /* fall through to ZAI SDK or grounded fallback */ }
+
+  // 2. Secondary fallback: ZAI SDK
   try {
     const ZAI = await import("z-ai-web-dev-sdk").catch(() => null);
     if (ZAI?.default) {
       const zai = await ZAI.default.create();
-      const kb = opts.knowledge.length ? opts.knowledge.map((k) => `[${k.title}] ${k.content}`).join("\n") : "No approved knowledge matched. Do not invent facts; offer a human counselor.";
-      const examples = (parse(opts.profile?.examplePairs, []) as { incoming: string; approvedReply: string }[]).slice(0, 3).map((e) => `Example Q: ${e.incoming}\nApproved style: ${e.approvedReply}`).join("\n");
       const c = await zai.chat.completions.create({ messages: [{ role: "system", content: buildSystemPrompt(opts.profile, opts.platform) }, { role: "system", content: `APPROVED KNOWLEDGE:\n${kb}\n${examples}` }, { role: "user", content: opts.message }], temperature: 0.4, max_tokens: 500 });
       const text = c?.choices?.[0]?.message?.content?.trim();
       if (text) return { text: applySafetyGuardrails(text), modelUsed: process.env.WHATSAPP_AI_MODEL || "glm-4.6" };
     }
   } catch { /* fall through to grounded fallback */ }
+
   if (hit) return { text: applySafetyGuardrails(hit.a), modelUsed: "faq-fallback" };
   if (opts.knowledge.length) return { text: applySafetyGuardrails(`${opts.profile?.greeting ? opts.profile.greeting + " " : ""}Thank you for your message. Based on our approved information: ${opts.knowledge[0].content.slice(0, 500)} ${opts.profile?.signOff || ""}`.trim()), modelUsed: "knowledge-fallback" };
   return { text: "Thank you for your message. I don't have verified information on that yet — I've passed it to our team, who will reply shortly.", modelUsed: "safe-fallback" };

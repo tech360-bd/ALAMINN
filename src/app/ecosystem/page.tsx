@@ -47,11 +47,13 @@ const ECOSYSTEM = [
 
 export default async function EcosystemPage() {
   // Pull live project records for additional context
-  const projects = await db.project.findMany({
-    where: { visibility: "public" },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, slug: true, category: true, shortDescription: true, status: true, featured: true },
-  });
+  const projects = await db.project
+    .findMany({
+      where: { visibility: "public" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, slug: true, category: true, shortDescription: true, status: true, featured: true },
+    })
+    .catch(() => []);
 
   return (
     <PublicPage>

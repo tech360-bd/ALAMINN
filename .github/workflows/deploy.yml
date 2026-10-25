@@ -19,7 +19,7 @@ jobs:
         id: pick
         run: |
           SHA="${{ github.event.inputs.commit || github.sha }}"
-          echo "sha=$SHA" >> "$GITHY_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "Deploy target: $SHA"
 
       - name: Check CI conclusion

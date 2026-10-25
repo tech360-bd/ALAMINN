@@ -22,10 +22,12 @@ const CATEGORY_ICONS: Record<string, typeof Award> = {
 };
 
 export default async function ImpactPage() {
-  const records = await db.impactRecord.findMany({
-    orderBy: { date: "desc" },
-    select: { id: true, category: true, challenge: true, role: true, action: true, outcome: true, evidenceStatus: true, date: true },
-  });
+  const records = await db.impactRecord
+    .findMany({
+      orderBy: { date: "desc" },
+      select: { id: true, category: true, challenge: true, role: true, action: true, outcome: true, evidenceStatus: true, date: true },
+    })
+    .catch(() => []);
 
   return (
     <PublicPage>

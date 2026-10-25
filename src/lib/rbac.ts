@@ -415,6 +415,15 @@ const ALL_PERMISSIONS: Permission[] = [
   "english-learning.audit.view", "english-learning.referrals.view",
   // WhatsApp AI Agent
   "whatsapp.view", "whatsapp.send", "whatsapp.manage",
+  // Social Command Center
+  "social.view",
+  "social.accounts.manage",
+  "social.inbox.reply",
+  "social.approvals.decide",
+  "social.automation.manage",
+  "social.personality.manage",
+  "social.content.manage",
+  "social.content.publish",
 ];
 
 /**

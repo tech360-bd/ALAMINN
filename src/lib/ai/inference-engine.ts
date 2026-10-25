@@ -13,11 +13,22 @@
  */
 
 import { z } from "zod";
+import { runFreeAiRouter, generateFreeEmbeddings } from "./free-router";
+import type { FreeProviderId } from "./free-providers";
 
 export const ModelProvider = {
+  UNOROUTER: "unorouter",
   LOCAL: "local",
   OPENAI: "openai",
   ZAI: "zai",
+  GROQ: "groq",
+  GEMINI: "gemini",
+  CEREBRAS: "cerebras",
+  OPENROUTER: "openrouter",
+  GITHUB: "github",
+  CLOUDFLARE: "cloudflare",
+  POLLINATIONS: "pollinations",
+  OLLAMA: "ollama",
 } as const;
 
 export type ModelProvider = (typeof ModelProvider)[keyof typeof ModelProvider];
@@ -182,115 +193,55 @@ export class LocalInferenceEngine {
   }
 
   private async performInference(request: InferenceRequest, config: ModelConfig): Promise<InferenceResponse> {
-    switch (config.provider) {
-      case "local":
-        return this.localInference(request, config);
-      case "openai":
-        return this.openaiInference(request, config);
-      case "zai":
-        return this.zaiInference(request, config);
-      default:
-        throw new InferenceError(`Provider ${config.provider} not supported`, "UNSUPPORTED_OPERATION");
-    }
-  }
+    const providerMap: Record<string, FreeProviderId | "auto"> = {
+      local: "auto",
+      openai: "github",
+      zai: "zai",
+      groq: "groq",
+      gemini: "gemini",
+      cerebras: "cerebras",
+      openrouter: "openrouter",
+      github: "github",
+      cloudflare: "cloudflare",
+      pollinations: "pollinations",
+      ollama: "ollama",
+    };
 
-  private async localInference(request: InferenceRequest, config: ModelConfig): Promise<InferenceResponse> {
-    // Local inference implementation
-    // For Phase 2, start with a minimal working implementation
-    // This could use Hugging Face transformers, llama.cpp, or other local inference
+    const routed = await runFreeAiRouter({
+      systemPrompt: request.systemPrompt || "You are Alaminn AI, an executive assistant.",
+      messages: [{ role: "user", content: request.prompt }],
+      preferredProvider: providerMap[config.provider] || "auto",
+      preferredModel: config.provider === "local" ? undefined : request.model,
+      temperature: request.temperature ?? config.temperature ?? 0.4,
+      maxTokens: request.maxTokens ?? config.maxTokens ?? 1024,
+    });
 
-    console.log(`[InferenceEngine] Local inference for ${config.model}: ${request.prompt.substring(0, 100)}...`);
-
-    // TODO: Implement actual local inference logic
-    // For now, return a placeholder response
+    const promptTokens = Math.max(1, Math.floor(request.prompt.length / 4));
+    const completionTokens = Math.max(1, Math.floor(routed.content.length / 4));
     return {
-      content: this.generateMockResponse(request.prompt),
-      model: config.model,
+      content: routed.content,
+      model: routed.modelUsed || config.model,
       provider: config.provider,
       usage: {
-        promptTokens: Math.floor(request.prompt.length / 4),
-        completionTokens: Math.floor(this.generateMockResponse(request.prompt).length / 4),
-        totalTokens: Math.floor((request.prompt.length + this.generateMockResponse(request.prompt).length) / 4),
+        promptTokens,
+        completionTokens,
+        totalTokens: promptTokens + completionTokens,
       },
       finishReason: "stop",
-    };
-  }
-
-  private async openaiInference(request: InferenceRequest, config: ModelConfig): Promise<InferenceResponse> {
-    // OpenAI-compatible API implementation
-    if (!config.apiKey) {
-      throw new InferenceError("OpenAI API key not configured", "INVALID_REQUEST");
-    }
-
-    console.log(`[InferenceEngine] OpenAI inference for ${config.model}: ${request.prompt.substring(0, 100)}...`);
-
-    // TODO: Implement actual OpenAI API calls
-    return {
-      content: this.generateMockResponse(request.prompt),
-      model: config.model,
-      provider: config.provider,
-      usage: {
-        promptTokens: Math.floor(request.prompt.length / 4),
-        completionTokens: Math.floor(this.generateMockResponse(request.prompt).length / 4),
-        totalTokens: Math.floor((request.prompt.length + this.generateMockResponse(request.prompt).length) / 4),
+      metadata: {
+        providerUsed: routed.providerUsed,
+        cached: routed.cached,
+        latencyMs: routed.latencyMs,
       },
-      finishReason: "stop",
     };
-  }
-
-  private async zaiInference(request: InferenceRequest, config: ModelConfig): Promise<InferenceResponse> {
-    // ZAI inference implementation (used by WhatsApp AI agent)
-    console.log(`[InferenceEngine] ZAI inference for ${config.model}: ${request.prompt.substring(0, 100)}...`);
-
-    // TODO: Implement actual ZAI API calls
-    return {
-      content: this.generateMockResponse(request.prompt),
-      model: config.model,
-      provider: config.provider,
-      usage: {
-        promptTokens: Math.floor(request.prompt.length / 4),
-        completionTokens: Math.floor(this.generateMockResponse(request.prompt).length / 4),
-        totalTokens: Math.floor((request.prompt.length + this.generateMockResponse(request.prompt).length) / 4),
-      },
-      finishReason: "stop",
-    };
-  }
-
-  private generateMockResponse(prompt: string): string {
-    // Mock response for Phase 2 - placeholder until local CPU inference is implemented
-    // Note: This is not actual inference - real inference requires downloading local models
-    console.warn(
-      `[InferenceEngine] Using mock response for: ${prompt.substring(0, 50)}...\n` +
-      `  To implement real local CPU inference, need to: 1) Install transformers 2) Download local model 3) Initialize with actual inference logic.`
-    );
-
-    return "I understand you're asking about: " + prompt.substring(0, 100) + "...\n\n" +
-           "Note: This is a placeholder response. Real local CPU inference (Phase 2) is not yet implemented.\n" +
-           "The inference engine currently supports provider-independent interface with mock responses.\n" +
-           "For real functionality, you need: 1) Download transformers package, 2) Load a local model (e.g., llama.cpp or Hugging Face transformers), 3) Implement actual inference logic instead of mock responses.\n\n" +
-           "To proceed with Phase 2 (Local AI Model Service & Gateway), you need to:\n" +
-           "1. Fix sandbox network restrictions to install @xenova/transformers\n" +
-           "2. Add actual CPU inference logic using transformers or llama.cpp\n" +
-           "3. Test with real model downloads and inference requests\n" +
-           "4. Implement provider-independent local inference with fallback to OpenAI/ZAI\n\n" +
-           "This implementation satisfies the interface requirements but is not production-ready until real inference is implemented.";
   }
 
   async generateEmbedding(request: EmbeddingRequest): Promise<EmbeddingResponse> {
-    const modelConfig = this.models.get(request.model);
-    if (!modelConfig) {
-      throw new InferenceError(`Model ${request.model} not configured for embeddings`, "INVALID_REQUEST");
-    }
-
-    console.log(`[InferenceEngine] Generating embeddings for ${request.model}`);
-
-    // TODO: Implement actual embedding generation
     const texts = Array.isArray(request.text) ? request.text : [request.text];
-    const embeddings = texts.map(() => this.generateMockEmbedding(texts[0].length));
-
+    const emb = await generateFreeEmbeddings(texts);
     return {
-      embeddings,
-      model: request.model,
+      embeddings: emb.embeddings,
+      model: emb.modelUsed || request.model,
       provider: request.provider,
       usage: {
         totalTokens: texts.reduce((sum, text) => sum + Math.floor(text.length / 4), 0),
@@ -298,32 +249,8 @@ export class LocalInferenceEngine {
     };
   }
 
-  private generateMockEmbedding(textLength: number): number[] {
-    // Generate a mock embedding vector
-    const dimension = 384; // Common embedding dimension
-    const embedding = new Array(dimension).fill(0);
-
-    // Simple deterministic embedding based on text length
-    for (let i = 0; i < Math.min(textLength % 50, dimension); i++) {
-      embedding[i] = (textLength + i) % 100 / 100;
-    }
-
-    return embedding;
-  }
-
   async loadModel(config: ModelConfig): Promise<void> {
-    console.log(`[InferenceEngine] Loading model: ${config.model} (${config.provider})`);
-
-    switch (config.provider) {
-      case "local":
-        return this.loadLocalModel(config);
-      case "openai":
-        return this.loadOpenAIModel(config);
-      case "zai":
-        return this.loadZAIModel(config);
-      default:
-        throw new InferenceError(`Provider ${config.provider} not supported for loading`, "UNSUPPORTED_OPERATION");
-    }
+    console.log(`[InferenceEngine] Ready model: ${config.model} (${config.provider})`);
   }
 
   private async loadLocalModel(config: ModelConfig): Promise<void> {
