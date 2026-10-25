@@ -76,7 +76,7 @@ function buildEnv(): AppEnv {
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || DEV_SITE_URL).replace(/\/$/, "");
 
   const databaseUrl =
-    process.env.DATABASE_URL || "file:./dev.db";
+    process.env.DATABASE_URL || "file:./db/custom.db";
 
   // AUTH_SECRET — required in production, dev-fallback in development
   const authSecret = process.env.AUTH_SECRET || "";
@@ -148,8 +148,8 @@ function buildEnv(): AppEnv {
   const whatsappApiToken = process.env.WHATSAPP_API_TOKEN || null;
   const whatsappApiConfigured = !!(whatsappApiPhoneNumberId && whatsappApiToken);
 
-  const whatsappAiProvider = process.env.WHATSAPP_AI_PROVIDER || "zai";
-  const whatsappAiModel = process.env.WHATSAPP_AI_MODEL || "glm-4.6";
+  const whatsappAiProvider = process.env.WHATSAPP_AI_PROVIDER || "unorouter";
+  const whatsappAiModel = process.env.WHATSAPP_AI_MODEL || "claude-opus-4-6-thinking";
   const rawAiMode = (process.env.WHATSAPP_AI_MODE || "ACTIVE").toUpperCase();
   const whatsappAiMode: AppEnv["whatsappAiMode"] =
     rawAiMode === "HUMAN_ONLY" ||

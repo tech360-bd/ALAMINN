@@ -33,10 +33,12 @@ const TECH360 = {
 };
 
 export default async function Tech360Page() {
-  const project = await db.project.findUnique({
-    where: { slug: "tech360" },
-    select: { name: true, shortDescription: true, status: true, technologies: true },
-  });
+  const project = await db.project
+    .findUnique({
+      where: { slug: "tech360" },
+      select: { name: true, shortDescription: true, status: true, technologies: true },
+    })
+    .catch(() => null);
 
   return (
     <PublicPage>

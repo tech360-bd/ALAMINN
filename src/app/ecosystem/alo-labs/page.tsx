@@ -33,10 +33,12 @@ const LABS = {
 };
 
 export default async function AloLabsPage() {
-  const project = await db.project.findUnique({
-    where: { slug: "alo-labs-agent-hub" },
-    select: { name: true, shortDescription: true, fullDescription: true, status: true, technologies: true },
-  });
+  const project = await db.project
+    .findUnique({
+      where: { slug: "alo-labs-agent-hub" },
+      select: { name: true, shortDescription: true, fullDescription: true, status: true, technologies: true },
+    })
+    .catch(() => null);
 
   return (
     <PublicPage>

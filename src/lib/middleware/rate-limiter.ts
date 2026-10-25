@@ -29,11 +29,11 @@ export class RateLimiter {
   /**
    * Create Express middleware for rate limiting.
    */
-  static middleware(config: RateLimitConfig = {}): (req: Request, res: Response, next: NextFunction) => void {
+  static middleware(config: Partial<RateLimitConfig> = {}): (req: Request, res: Response, next: NextFunction) => void {
     const configInstance = { ...this.defaultConfig, ...config };
-    const key = this.getRateLimitKey(req);
 
     return (req: Request, res: Response, next: NextFunction) => {
+      const key = this.getRateLimitKey(req);
       const now = Date.now();
       let limitInfo = this.rateLimits.get(key);
 
@@ -92,10 +92,11 @@ export class RateLimiter {
       ip = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor;
     } else if (req.ip) {
       ip = req.ip;
-    } else if (req.socket.remoteAddress) {
+    } else if (req.socket?.remoteAddress) {
       ip = req.socket.remoteAddress;
     } else if (req.headers["x-real-ip"]) {
-      ip = req.headers["x-real-ip"];
+      const realIp = req.headers["x-real-ip"];
+      ip = Array.isArray(realIp) ? realIp[0] : realIp;
     }
 
     // Clean up IP for rate limiting (remove common prefixes, keep last octet)

@@ -371,18 +371,53 @@ async function generateLlmResponse(
   knowledge: KnowledgeResult | null,
   intent: WhatsappIntent
 ): Promise<{ text: string; used: boolean }> {
+  const knowledgeBlock =
+    knowledge && knowledge.totalFound > 0
+      ? formatKnowledgeForLlm(knowledge)
+      : "No matching records found in the verified database. Be honest about this — do NOT invent data.";
+
+  // 1. Primary path: Multi-Provider AI Router (defaults to UnoRouter `claude-opus-4-6-thinking`, cascading across configured cloud/local providers)
   try {
-    // Dynamic import — keeps the SDK out of the client bundle.
+    const { resolveAllProviderConfigs } = await import("@/lib/ai/free-providers");
+    const { runFreeAiRouter } = await import("@/lib/ai/free-router");
+    const { providers } = await resolveAllProviderConfigs();
+    const hasConfiguredProvider = providers.some(
+      (p) =>
+        p.enabled &&
+        p.configured &&
+        p.spec.id !== "local-grounded" &&
+        p.spec.id !== "zai" &&
+        p.spec.id !== "pollinations"
+    );
+    if (hasConfiguredProvider) {
+      const routed = await runFreeAiRouter({
+        systemPrompt: `${SYSTEM_PROMPT}\n\nVERIFIED KNOWLEDGE CONTEXT:\n${knowledgeBlock}\n\nDETECTED INTENT: ${intent}`,
+        messages: [
+          ...history.slice(-6).map((m) => ({
+            role: (m.role === "assistant" ? "assistant" : "user") as "assistant" | "user",
+            content: m.content,
+          })),
+          { role: "user" as const, content: userMessage },
+        ],
+        maxTokens: 600,
+        temperature: 0.35,
+        bypassCache: true,
+      });
+      if (routed.providerUsed !== "local-grounded" && routed.content.trim()) {
+        return { text: routed.content.trim(), used: true };
+      }
+    }
+  } catch {
+    // fall through to ZAI SDK or deterministic rule-based response
+  }
+
+  // 2. Secondary fallback: z-ai-web-dev-sdk when available
+  try {
     const ZAI = await import("z-ai-web-dev-sdk").catch(() => null);
     if (!ZAI || !ZAI.default) {
       return { text: "", used: false };
     }
     const zai = await ZAI.default.create();
-
-    // Build the knowledge context block (only verified data)
-    const knowledgeBlock = knowledge && knowledge.totalFound > 0
-      ? formatKnowledgeForLlm(knowledge)
-      : "No matching records found in the verified database. Be honest about this — do NOT invent data.";
 
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -397,7 +432,7 @@ async function generateLlmResponse(
 
     const completion = await zai.chat.completions.create({
       messages,
-      temperature: 0.4, // lower = more deterministic, safer
+      temperature: 0.4,
       max_tokens: 600,
     });
 

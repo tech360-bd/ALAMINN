@@ -35,10 +35,12 @@ const SUBSIDIARIES = {
 };
 
 export default async function AloEducationPage() {
-  const project = await db.project.findUnique({
-    where: { slug: "alo-education" },
-    select: { name: true, slug: true, shortDescription: true, fullDescription: true, status: true, technologies: true, approvedUrl: true },
-  });
+  const project = await db.project
+    .findUnique({
+      where: { slug: "alo-education" },
+      select: { name: true, slug: true, shortDescription: true, fullDescription: true, status: true, technologies: true, approvedUrl: true },
+    })
+    .catch(() => null);
 
   if (!project) {
     return (

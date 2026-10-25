@@ -30,20 +30,22 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export default async function CaseStudiesListingPage() {
-  const caseStudies = await db.caseStudy.findMany({
-    orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      category: true,
-      outcome: true,
-      evidenceStatus: true,
-      confidentiality: true,
-      readTime: true,
-      featured: true,
-    },
-  });
+  const caseStudies = await db.caseStudy
+    .findMany({
+      orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        category: true,
+        outcome: true,
+        evidenceStatus: true,
+        confidentiality: true,
+        readTime: true,
+        featured: true,
+      },
+    })
+    .catch(() => []);
 
   const featured = caseStudies.filter((c) => c.featured);
   const rest = caseStudies.filter((c) => !c.featured);

@@ -390,7 +390,7 @@ export class ApiGateway {
           error: {
             code: "VALIDATION_ERROR",
             message: "Invalid request payload",
-            details: error.errors.map(e => e.message),
+            details: error.issues.map(e => e.message),
           },
         });
       } else {
@@ -513,7 +513,7 @@ export class ApiGateway {
           error: {
             code: "VALIDATION_ERROR",
             message: "Invalid request payload",
-            details: error.errors.map(e => e.message),
+            details: error.issues.map(e => e.message),
           },
         });
       } else {

@@ -48,10 +48,10 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  // Lock down client-side feature APIs that this app never uses.
+  // Lock down client-side feature APIs; allow same-origin microphone for Admin AI Studio STT.
   // Format: feature=(allowlist) — empty allowlist = disabled.
   "Permissions-Policy":
-    "camera=(), microphone=(), geolocation=(), browsing-topics=(), interest-cohort=()",
+    "camera=(), microphone=(self), geolocation=(), browsing-topics=(), interest-cohort=()",
   // Content-Security-Policy — restricts resource loading to prevent XSS,
   // data exfiltration, and clickjacking. Next.js requires 'unsafe-inline'
   // for styles and 'unsafe-eval' for some dev tooling; in production the

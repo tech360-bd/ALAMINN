@@ -7,9 +7,9 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-# Copy lockfile + manifest for reproducible installs.
+# Copy lockfile + manifest for reproducible installs (keep optional @libsql musl bindings on Alpine).
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=optional && npm cache clean --force
+RUN npm ci --no-audit --no-fund && npm cache clean --force
 
 # ── Stage 2: builder ───────────────────────────────────────────────
 FROM node:22-alpine AS builder
@@ -21,9 +21,11 @@ COPY . .
 # Generate Prisma client (uses schema.prisma — swap to MySQL for prod).
 RUN npx prisma generate
 
-# Build Next.js (standalone output).
+# Build Next.js (standalone output) using an ephemeral initialized SQLite schema for static generation.
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN DATABASE_URL="file:/tmp/build.db" npx prisma db push --skip-generate && \
+    DATABASE_URL="file:/tmp/build.db" npm run build && \
+    rm -f /tmp/build.db /tmp/build.db-journal /tmp/build.db-wal /tmp/build.db-shm
 
 # ── Stage 3: runner (final, minimal image) ────────────────────────
 FROM node:22-alpine AS runner

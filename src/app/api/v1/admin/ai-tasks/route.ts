@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { ok, fail, pagination, readJson, writeAudit } from "@/lib/admin-api";
+import { executeAiTaskWithFreeRouter } from "@/lib/ai/workflow-executor";
+import type { FreeProviderId, ModelSpeedTier } from "@/lib/ai/free-providers";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
   return ok(items, "AI tasks loaded.", { total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 }
 
-/** POST /api/v1/admin/ai-tasks — create a new AI task */
+/** POST /api/v1/admin/ai-tasks — create (and optionally execute immediately via Free AI Router) */
 export async function POST(req: NextRequest) {
   const guard = await requirePermission(req, "ai_tasks.create");
   if (guard.denied) return guard.response;
@@ -42,6 +44,7 @@ export async function POST(req: NextRequest) {
   if (!b.workflow || !b.objective || !b.prompt) {
     return fail("workflow, objective, prompt are required.", ["missing_fields"]);
   }
+  const executeNow = b.executeNow !== false;
   try {
     const task = await db.aiTask.create({
       data: {
@@ -54,10 +57,36 @@ export async function POST(req: NextRequest) {
         outputFormat: b.outputFormat ? String(b.outputFormat) : "markdown",
         approvalRequired: b.approvalRequired !== false,
         deadline: b.deadline ? new Date(String(b.deadline)) : null,
-        status: "draft",
+        status: executeNow ? "queued" : "draft",
       },
     });
-    await writeAudit(guard.session, "ai_task.create", "AiTask", task.id, { workflow: task.workflow });
+    await writeAudit(guard.session, "ai_task.create", "AiTask", task.id, {
+      workflow: task.workflow,
+      executeNow,
+    });
+
+    if (executeNow) {
+      const executed = await executeAiTaskWithFreeRouter(task.id, {
+        preferredProvider: (b.preferredProvider ? String(b.preferredProvider) : "auto") as FreeProviderId | "auto",
+        preferredModel: b.preferredModel ? String(b.preferredModel) : undefined,
+        tier: (b.tier ? String(b.tier) : "flagship") as ModelSpeedTier | "auto",
+      });
+      await writeAudit(guard.session, "ai_task.execute", "AiTask", task.id, {
+        providerUsed: executed.providerUsed,
+        modelUsed: executed.modelUsed,
+      });
+      return ok(
+        executed.task,
+        `AI task executed via ${executed.providerName} (${executed.modelUsed}).`,
+        {
+          providerUsed: executed.providerUsed,
+          modelUsed: executed.modelUsed,
+          latencyMs: executed.latencyMs,
+        },
+        201
+      );
+    }
+
     return ok(task, "AI task created.", {}, 201);
   } catch (e) {
     return fail("Failed to create AI task.", [(e as Error).message], 500);

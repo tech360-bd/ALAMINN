@@ -7,17 +7,6 @@
 import { Request, Response, NextFunction } from "express";
 import { verify } from "crypto";
 
-// Extend Express Request type to include user info
-declare global {
-  namespace Express {
-    interface Request {
-      userId?: string;
-      role?: string;
-      permissions?: string[];
-    }
-  }
-}
-
 export interface AuthMiddlewareOptions {
   skipPaths?: string[];
   requireAuth?: boolean;
@@ -85,7 +74,7 @@ export class AuthMiddleware {
 
       // Skip authentication for specific paths
       if (options.skipPaths && options.skipPaths.length > 0) {
-        const path = req.path || req.url;
+        const path = req.path || req.url || "";
         if (options.skipPaths.some(p => path === p || path.startsWith(p))) {
           return next();
         }

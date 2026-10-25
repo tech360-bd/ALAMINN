@@ -12,7 +12,8 @@
  * Run: npx tsx prisma/seed-higher-study-more.ts   (idempotent upserts)
  */
 import { PrismaClient } from "@prisma/client";
-let db: PrismaClient = new PrismaClient();
+import { db as sharedDb } from "@/lib/db";
+let db: PrismaClient = sharedDb;
 const UNIS: { slug: string; officialName: string; countrySlug: string; officialWebsite: string; catalogue: string }[] = [
   { slug: "university-of-manchester", officialName: "University of Manchester", countrySlug: "uk", officialWebsite: "https://www.manchester.ac.uk/", catalogue: "https://www.manchester.ac.uk/" },
   { slug: "university-of-edinburgh", officialName: "University of Edinburgh", countrySlug: "uk", officialWebsite: "https://www.ed.ac.uk/", catalogue: "https://www.ed.ac.uk/" },
