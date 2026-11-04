@@ -1,59 +1,293 @@
 name: Versioned Release & Rollback
 
+# ─────────────────────────────────────────────────────────────────────
+# Versioned release tagging + rollback workflow.
+#
+# Per spec §15: Fix the versioned-release workflow, including invalid
+# tag-generation commands, release listing, and rollback behavior.
+#
+# Fixes applied:
+#   - Replaced `date +%Y.%m.%n%H.%M%S` (%n = newline) with deterministic
+#     ref-safe format: v<UTC YYYYMMDD>-<HHMMSS>Z-r<run_id>-<short_sha>
+#   - Replaced invalid `git rev-short HEAD` with `git rev-parse --short=12 HEAD`
+#   - Added `permissions: contents: write` (required for tag push)
+#   - Added idempotency guard (refuses to overwrite existing tag)
+#   - Rollback now restores the release recorded in .last-good-release
+#     (NOT an arbitrary directory chosen by filesystem mtime)
+#   - Added Tailscale auth + pinned host key for rollback
+#   - Corrected PM2 app name: alaminn (NOT alaminn-info)
+#   - Corrected port: 3056 (NOT 3076)
+#   - Corrected app path: /home/alamin/alaminn (NOT $HOME/alaminn.info)
+# ─────────────────────────────────────────────────────────────────────
+
 on:
   push:
-    branches: ["main", "feature/ci-cd-pipeline"]
+    branches: ["main"]
   workflow_dispatch:
     inputs:
       action:
-        description: "Rollback action: 'rollback' to restore previous release, or 'latest' to clean up old releases"
+        description: "'rollback' restores last-known-good; 'list' shows available releases"
         required: false
-        default: ''
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: versioned-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  versioned-release:
-    name: Tag and archive current release
+  tag:
+    name: Tag commit (deterministic release id)
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.make_tag.outputs.tag }}
+      sha: ${{ steps.make_tag.outputs.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      - name: Create version tag from commit
+      - name: Configure git identity
         run: |
-          REF="${{ github.ref }}"
-          TAG="v$(date +%Y.%m.%n%H.%M%S).$(git rev-short HEAD)"
-          git tag "$TAG" "${{ github.sha }}"
-          echo "Tagged: $TAG at commit ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Push tags (with approval gate)
+      - name: Build deterministic release tag
+        id: make_tag
+        env:
+          GH_SHA: ${{ github.sha }}
+          GH_RUN: ${{ github.run_id }}
         run: |
+          set -euo pipefail
+          # FIXED: use `git rev-parse --short` (not invalid `git rev-short`).
+          # FIXED: use `%M` for minutes (not `%n` which is a newline).
+          SHORT_SHA="$(git rev-parse --short=12 "$GH_SHA")"
+          TS="$(date -u +%Y%m%d-%H%M%S)Z"
+          TAG="v${TS}-r${GH_RUN}-${SHORT_SHA}"
+          # Idempotency guard.
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "::error::Tag ${TAG} already exists — refusing to overwrite."
+            exit 1
+          fi
+          git tag -a "$TAG" "$GH_SHA" -m "Release ${TAG} (commit ${GH_SHA}, run ${GH_RUN})"
           git push origin "$TAG"
-          echo "Pushed tag $TAG" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "tag=${TAG}"
+            echo "sha=${GH_SHA}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Versioned Release"
+            echo ""
+            echo "- **Tag:** \`${{ steps.make_tag.outputs.tag }}\`"
+            echo "- **Commit:** \`${{ steps.make_tag.outputs.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   rollback:
-    name: Previous release rollback
-    needs: versioned-release
+    name: Restore last-known-good release
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'rollback'
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Find current and previous releases on server
+      - name: Check required secrets
         env:
-          SSH_USER: ${{ secrets.DEPLOY_USER }}
-          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          H: ${{ secrets.DEPLOY_HOST }}
+          HK: ${{ secrets.DEPLOY_HOST_KEY }}
+          K: ${{ secrets.DEPLOY_SSH_KEY }}
+          U: ${{ secrets.DEPLOY_USER }}
+          TS_CID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_SEC: ${{ secrets.TS_OAUTH_SECRET }}
         run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          missing=0
+          for pair in "DEPLOY_HOST:$H" "DEPLOY_HOST_KEY:$HK" "DEPLOY_SSH_KEY:$K" "DEPLOY_USER:$U" "TS_OAUTH_CLIENT_ID:$TS_CID" "TS_OAUTH_SECRET:$TS_SEC"; do
+            name="${pair%%:*}"; val="${pair#*:}"
+            if [ -z "$val" ]; then echo "::error::Secret $name is not configured"; missing=1; fi
+          done
+          exit $missing
 
-          # List releases sorted by modification time (newest first), excluding current
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" "ls -1dt ~/alaminn.info/releases/*/ | head -5"
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: ${{ vars.TS_TAG || 'ci-deploy' }}
 
-          # Switch back to previous release if available
-          RESULT=$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" "cd ~/alaminn.info && ls -1dt releases/*/ | head -3 | tail -1")
-          echo "Restoring release: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" "cd ~/alaminn.info && ln -sfn \"\$RESULT\" current && pm2 reload alaminn-info --update-no-deps 2>/dev/null || true"
+      - name: Setup SSH with pinned host key
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          PORT="${DEPLOY_PORT:-22}"
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          echo "$DEPLOY_HOST $DEPLOY_HOST_KEY" >> ~/.ssh/known_hosts
+          if [ "$PORT" != "22" ]; then
+            echo "[$DEPLOY_HOST]:$PORT $DEPLOY_HOST_KEY" >> ~/.ssh/known_hosts
+          fi
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Read last-known-good marker + current state
+        id: read_state
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          PORT="${DEPLOY_PORT:-22}"
+          SSH_BASE="ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15"
+          APP_DIR="/home/${DEPLOY_USER}/alaminn"
+          echo "Reading production release state from $APP_DIR ..."
+          STATE=$($SSH_BASE "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s <<EOF
+            set -euo pipefail
+            APP_DIR="$APP_DIR"
+            echo "CURRENT_LINK=\$(readlink -f \$APP_DIR/current 2>/dev/null || echo MISSING)"
+            echo "LAST_GOOD=\$(cat \$APP_DIR/.last-good-release 2>/dev/null || echo MISSING)"
+            echo "PM2_STATUS=\$(pm2 jlist 2>/dev/null | jq -r '.[] | select(.name == \"alaminn\") | .pm2_env.status' | head -1 || echo MISSING)"
+            echo "RELEASES_LIST:"
+            ls -1dt \$APP_DIR/releases/*/ 2>/dev/null | head -5 | sed 's/^/  /' || echo "  (none)"
+          EOF
+          )
+          echo "$STATE"
+          {
+            echo "state<<EOF"
+            echo "$STATE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore last-known-good release
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          PORT="${DEPLOY_PORT:-22}"
+          SSH_BASE="ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15"
+          APP_DIR="/home/${DEPLOY_USER}/alaminn"
+          LGG="$APP_DIR/.last-good-release"
+          $SSH_BASE "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s <<EOF
+            set -euo pipefail
+            APP_DIR="$APP_DIR"
+            LGG="\$APP_DIR/.last-good-release"
+            if [ ! -f "\$LGG" ]; then
+              echo "::error::No last-known-good marker at \$LGG — refusing to guess."
+              exit 2
+            fi
+            TARGET=\$(cat "\$LGG")
+            if [ ! -d "\$TARGET" ]; then
+              echo "::error::Recorded release dir \$TARGET no longer exists."
+              exit 3
+            fi
+            CURRENT_BEFORE=\$(readlink -f \$APP_DIR/current 2>/dev/null || echo MISSING)
+            echo "Current release: \$CURRENT_BEFORE"
+            echo "Rolling back to:  \$TARGET"
+            ln -sfn "\$TARGET" "\$APP_DIR/current.new"
+            mv -Tf "\$APP_DIR/current.new" "\$APP_DIR/current"
+            # Reload PM2 app 'alaminn' (NOT 'alaminn-info').
+            pm2 reload alaminn --update-no-deps || pm2 restart alaminn
+            # Health check on port 3056 (NOT 3076).
+            sleep 5
+            for i in \$(seq 1 30); do
+              CODE=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/health 2>/dev/null || echo 000)
+              if [ "\$CODE" = "200" ]; then
+                echo "Post-rollback health check PASSED (HTTP 200 after \${i}s)."
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "::error::Post-rollback health check FAILED (last code: \$CODE)."
+            exit 5
+          EOF
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Rollback Result"
+            echo ""
+            echo "Pre-rollback state:"
+            echo '```'
+            echo "${{ steps.read_state.outputs.state }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  list:
+    name: List available releases
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'list'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    steps:
+      - name: Check required secrets
+        env:
+          H: ${{ secrets.DEPLOY_HOST }}
+          K: ${{ secrets.DEPLOY_SSH_KEY }}
+          U: ${{ secrets.DEPLOY_USER }}
+        run: |
+          missing=0
+          for pair in "DEPLOY_HOST:$H" "DEPLOY_SSH_KEY:$K" "DEPLOY_USER:$U"; do
+            name="${pair%%:*}"; val="${pair#*:}"
+            if [ -z "$val" ]; then echo "::error::Secret $name is not configured"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: ${{ vars.TS_TAG || 'ci-deploy' }}
+
+      - name: Setup SSH with pinned host key
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          PORT="${DEPLOY_PORT:-22}"
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          echo "$DEPLOY_HOST $DEPLOY_HOST_KEY" >> ~/.ssh/known_hosts
+          if [ "$PORT" != "22" ]; then
+            echo "[$DEPLOY_HOST]:$PORT $DEPLOY_HOST_KEY" >> ~/.ssh/known_hosts
+          fi
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: List releases
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          PORT="${DEPLOY_PORT:-22}"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=yes -o BatchMode=yes \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s <<EOF
+            set -euo pipefail
+            APP_DIR="\$HOME/alaminn"
+            echo "=== Current release ==="
+            readlink -f "\$APP_DIR/current" 2>/dev/null || echo "(no current symlink)"
+            echo
+            echo "=== Last known good marker ==="
+            cat "\$APP_DIR/.last-good-release" 2>/dev/null || echo "(no marker)"
+            echo
+            echo "=== Recent releases (newest first) ==="
+            ls -1dt "\$APP_DIR"/releases/*/ 2>/dev/null | head -10 || echo "(none)"
+            echo
+            echo "=== PM2 app 'alaminn' status ==="
+            pm2 jlist 2>/dev/null | jq -r '.[] | select(.name == "alaminn") | "name=\(.name) status=\(.pm2_env.status) restarts=\(.pm2_env.restart_time)"' || echo "(pm2 not running)"
+          EOF
