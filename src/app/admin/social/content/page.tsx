@@ -1,14 +1,14 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHeader, ErrorState, EmptyState } from "@/components/admin/page-primitives";
+
+
+import { PageHeader, EmptyState } from "@/components/admin/page-primitives";
 import { adminFetch, fmtDate } from "@/components/admin/lib";
 import { toast } from "sonner";
 
@@ -18,7 +18,7 @@ export default function ContentPage() {
   const [rows, setRows] = useState<C[]>([]); const [, setLoading] = useState(false); const [accs, setAccs] = useState<Acc[]>([]); const [f, setF] = useState({ title: "", body: "", scheduledAt: "", accountIds: [] as string[] });
   async function load() { setLoading(true); try { const [a, b] = await Promise.all([adminFetch<{ contents: C[] }>("/api/v1/admin/social/content"), adminFetch<Acc[]>("/api/v1/admin/social/accounts")]); setRows(a.data.contents); setAccs(b.data); } catch { /* keep */ } finally { setLoading(false); }
   }
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);  
   async function create(e: React.FormEvent) { e.preventDefault(); try { await adminFetch("/api/v1/admin/social/content", { method: "POST", body: JSON.stringify({ ...f, status: f.scheduledAt ? "scheduled" : "draft", scheduledAt: f.scheduledAt || null }) }); toast.success(f.scheduledAt ? "Scheduled — publishing switch + approval checked again at publish time (cron: /api/cron/social-publish)." : "Draft saved."); setF({ title: "", body: "", scheduledAt: "", accountIds: [] }); load(); } catch (err) { toast.error(String(err)); } }
   async function setStatus(c: C, status: string) { try { await adminFetch(`/api/v1/admin/social/content/${c.id}`, { method: "PATCH", body: JSON.stringify({ status, scheduledAt: c.scheduledAt }) }); toast.success(`Status → ${status}`); load(); } catch (err) { toast.error(String(err)); } }
   return (<div className="p-6"><PageHeader title="Content Studio & Calendar" subtitle="Draft → review → approve → schedule → publish. Unapproved content is never published; publishing has its own switch, separate from auto-replies." />

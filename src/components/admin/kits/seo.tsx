@@ -7,7 +7,7 @@ import { adminFetch, fmtDate } from "@/components/admin/lib";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { SeoCheck } from "@/lib/kits/seo";
-import { KitHeading, Panel, Field, Notice, KitLoading, KitError, Stat, EmptyKit, useKitResource, downloadText, errorMessage } from "./shared";
+import { KitHeading, Panel, Field, Notice, KitLoading, KitError, EmptyKit, useKitResource, downloadText, errorMessage } from "./shared";
 type Audit = { id: string; url: string; score: number; checks: string; summary: string; createdAt: string };
 type Data = { history: Audit[]; articles: { id: string; title: string; slug: string; summary: string; status: string; coverMedia: string | null }[]; siteUrl: string };
 export default function SeoKit() {

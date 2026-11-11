@@ -30,7 +30,6 @@
  *   - The admin interface shows current plan limits and usage.
  */
 
-import { createHash } from "crypto";
 
 // ─── Configuration ─────────────────────────────────────────────────
 
@@ -160,8 +159,17 @@ export async function discoverOllamaCloudModels(
       };
     }
 
-    const data = (await response.json()) as { models?: unknown[] };
-    const models: OllamaCloudModel[] = (data.models || []).map((m: any) => ({
+    interface RawOllamaModel {
+      name?: string;
+      model?: string;
+      details?: { parameter_size?: string };
+      context_length?: number;
+      max_context_length?: number;
+      capabilities?: string[];
+      pricing?: { input?: number; output?: number };
+    }
+    const data = (await response.json()) as { models?: RawOllamaModel[] };
+    const models: OllamaCloudModel[] = (data.models || []).map((m: RawOllamaModel) => ({
       name: m.name || m.model || String(m),
       sizeB: m.details?.parameter_size ? parseFloat(m.details.parameter_size) : undefined,
       contextLength: m.context_length || m.max_context_length,

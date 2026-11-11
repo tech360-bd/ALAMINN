@@ -1,0 +1,14 @@
+{
+  "name": "messaging-channel-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Universal Messaging Channel (UMC) — open-source-first chat/messaging channel and adapter layer for the Universal Enterprise AI Calling Center. Real-time + REST + compliance control plane. Provider selection is environment-driven; no tenant, brand or domain identity is hard-coded.",
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.11.1",
+    "socket.io": "^4.8.0",
+    "z-ai-web-dev-sdk": "latest"
+  }
+}

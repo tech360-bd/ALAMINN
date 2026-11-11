@@ -1,8 +1,8 @@
 "use client";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
-import { Eye, Users, MessageSquare, CalendarCheck, RefreshCw, Database, Mail, Clock3, Headphones, ShieldCheck } from "lucide-react";
+import { Eye, Users, MessageSquare, CalendarCheck, RefreshCw, Database, Mail, Clock3, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { fmtDate } from "@/components/admin/lib";
+
 import { KitHeading, Panel, Notice, KitLoading, KitError, SelectField, Stat, EmptyKit, useKitResource } from "./shared";
 import { useState } from "react";
 type Data = { days: number; truncated: boolean; kpis: { views: number; sessions: number; inquiries: number; meetings: number; subscribers: number }; daily: { date: string; views: number; sessions: number }[]; byEvent: { name: string; count: number }[]; sources: { name: string; count: number }[]; pages: { name: string; count: number }[]; system: null | { database: boolean; emailConfigured: boolean; cronConfigured: boolean; publishingEnabled: boolean; engagementEnabled: boolean; scheduled: number; failedEmails: number; openChats: number; uptimeSeconds: number; heapMb: number; recentJobs: { id: string; action: string; createdAt: string }[] } };

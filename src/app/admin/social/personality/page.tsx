@@ -1,15 +1,15 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHeader, ErrorState, EmptyState } from "@/components/admin/page-primitives";
-import { adminFetch, fmtDate } from "@/components/admin/lib";
+
+import { PageHeader } from "@/components/admin/page-primitives";
+import { adminFetch } from "@/components/admin/lib";
 import { toast } from "sonner";
 
 type P = { id: string; name: string; isDefault: boolean; identity: string | null; brandContext: string | null; languages: string; formality: number; friendliness: number; greeting: string | null; signOff: string | null; faqs: string | null; neverAnswerTopics: string | null; examplePairs: string | null };
@@ -19,7 +19,7 @@ export default function PersonalityPage() {
   const [test, setTest] = useState({ message: "UK te MSc korte koto khoroch hobe?", platform: "whatsapp" }); const [testOut, setTestOut] = useState("");
   async function load() { setLoading(true); try { const e = await adminFetch<P[]>("/api/v1/admin/social/personality"); setRows(e.data); if (e.data[0]) { const p = e.data[0]; setF({ name: p.name, identity: p.identity || "", brandContext: p.brandContext || "", languages: p.languages, formality: String(p.formality), friendliness: String(p.friendliness), greeting: p.greeting || "", signOff: p.signOff || "", faqs: p.faqs || "[]", neverAnswerTopics: p.neverAnswerTopics || "[]", examplePairs: p.examplePairs || "[]" }); } } catch { /* keep defaults */ } finally { setLoading(false); }
   }
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);  
   async function save(e: React.FormEvent) { e.preventDefault(); try { const body = { ...f, formality: Number(f.formality), friendliness: Number(f.friendliness), isDefault: true, id: rows[0]?.id }; await adminFetch("/api/v1/admin/social/personality", { method: rows[0] ? "PUT" : "POST", body: JSON.stringify(body) }); toast.success("Personality saved — new drafts will use it immediately."); load(); } catch (err) { toast.error(String(err)); } }
   async function addKb(e: React.FormEvent) { e.preventDefault(); try { await adminFetch("/api/v1/admin/social/knowledge", { method: "POST", body: JSON.stringify(kb) }); toast.success("Knowledge saved. Only APPROVED knowledge grounds replies."); setKb({ ...kb, title: "", content: "" }); } catch (err) { toast.error(String(err)); } }
   async function runTest() { try { const e = await adminFetch<{ reply: string; classification: unknown; knowledgeRefs: string[] }>("/api/v1/admin/social/personality/test", { method: "POST", body: JSON.stringify(test) }); setTestOut(`${e.data.reply}\n\n— classification: ${JSON.stringify(e.data.classification)} · grounded in: ${e.data.knowledgeRefs.join(", ") || "none (safe fallback)"}`); } catch (err) { toast.error(String(err)); } }

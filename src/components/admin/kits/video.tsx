@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Clapperboard, Plus, Sparkles, Save, Play, Pause, Download, Trash2, ArrowUp, ArrowDown, Film, Clock3, FilePlus2 } from "lucide-react";
+import { Plus, Sparkles, Save, Play, Pause, Download, Trash2, ArrowUp, ArrowDown, Film } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch } from "@/components/admin/lib";
 import { Button } from "@/components/ui/button";

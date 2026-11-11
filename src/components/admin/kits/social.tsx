@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CalendarClock, Plus, ChevronLeft, ChevronRight, List, Settings2, Send, Clock3, XCircle, ExternalLink, ShieldCheck } from "lucide-react";
+import { CalendarClock, Plus, ChevronLeft, ChevronRight, Settings2, Send, XCircle, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch, fmtDate } from "@/components/admin/lib";
 import { Button } from "@/components/ui/button";

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
-import { ok, fail } from "@/lib/admin-api";
+import { ok } from "@/lib/admin-api";
 import { checkOllamaCloudHealth, getCircuitState } from "@/lib/ai/ollama-cloud";
 
 export const dynamic = "force-dynamic";

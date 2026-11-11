@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
-import { ok, fail, readJson, writeAudit, pagination } from "@/lib/admin-api";
+import { ok } from "@/lib/admin-api";
 import { db } from "@/lib/db";
 export const dynamic = "force-dynamic"; export const runtime = "nodejs";
 export async function GET(req: NextRequest) {

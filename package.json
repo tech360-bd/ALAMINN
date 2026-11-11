@@ -41,7 +41,9 @@
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
-    "db:seed:universities": "npx tsx prisma/seed-higher-study-more.ts"
+    "db:seed:universities": "npx tsx prisma/seed-higher-study-more.ts",
+    "test:live": "node tests/run_all.mjs",
+    "test:live:reset": "python3 scripts/reset_test_auth.py && node tests/run_all.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -96,14 +98,14 @@
     "next-intl": "^4.3.4",
     "next-themes": "^0.4.6",
     "nodemailer": "^9.0.3",
-    "prisma": "7.10.1",
-    "react": "^19.0.0",
+    "prisma": "6.19.0",
+    "react": "^19.3.1",
     "react-day-picker": "^9.8.0",
     "react-dom": "^19.3.1",
     "react-email": "^6.7.0",
     "react-hook-form": "^7.60.0",
     "react-markdown": "^10.1.0",
-    "react-resizable-panels": "^4.19.1",
+    "react-resizable-panels": "^3.0.6",
     "react-syntax-highlighter": "^15.6.1",
     "recharts": "^2.15.4",
     "sharp": "^0.35.5",
@@ -114,7 +116,8 @@
     "vaul": "^1.1.2",
     "z-ai-web-dev-sdk": "^0.0.18",
     "zod": "^4.6.7",
-    "zustand": "^5.0.6"
+    "zustand": "^5.0.6",
+    "socket.io-client": "^4.8.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

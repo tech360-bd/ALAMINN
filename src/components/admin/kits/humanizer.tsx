@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Sparkles, Save, Copy, PenLine, FilePlus2, ArrowRight } from "lucide-react";
+import { Sparkles, Save, Copy, FilePlus2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch } from "@/components/admin/lib";
 import { Button } from "@/components/ui/button";

@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { MessagesSquare, Send, Search, CheckCheck, Circle, UserRound, RefreshCw, Inbox } from "lucide-react";
+import { MessagesSquare, Send, Search, Circle, UserRound, RefreshCw, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch, fmtDate } from "@/components/admin/lib";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { KitHeading, Panel, Notice, KitLoading, KitError, SelectField, StatusBadge, EmptyKit, useKitResource, errorMessage } from "./shared";
+import { KitHeading, Notice, KitLoading, KitError, SelectField, StatusBadge, EmptyKit, useKitResource, errorMessage } from "./shared";
 type Message = { id: string; sender: string; senderName: string; body: string; createdAt: string };
 type Conversation = { id: string; visitorName: string; visitorEmail: string | null; status: string; lastMessageAt: string; messages: { body: string; sender: string }[] };
 type Thread = { id: string; visitorName: string; visitorEmail: string | null; status: string; messages: Message[] };

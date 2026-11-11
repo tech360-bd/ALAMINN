@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
-import { ok, fail, readJson, writeAudit, pagination } from "@/lib/admin-api";
+import { ok, fail, readJson, writeAudit } from "@/lib/admin-api";
 import { db } from "@/lib/db";
 export const dynamic = "force-dynamic"; export const runtime = "nodejs";
 export async function GET(req: NextRequest) { const g = await requirePermission(req, "social.view"); if (g.denied) return g.response; return ok(await db.socialAutomationRule.findMany({ orderBy: { createdAt: "asc" } })); }

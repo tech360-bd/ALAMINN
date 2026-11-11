@@ -5,8 +5,8 @@ import { proxy } from "@/proxy";
 import nextConfig from "../../next.config";
 
 describe("browser console regressions", () => {
-  it("keeps the required permissions and permits Cloudflare Web Analytics only on its specific origins", () => {
-    const response = proxy(new NextRequest("https://www.alaminn.info/"));
+  it("keeps the required permissions and permits Cloudflare Web Analytics only on its specific origins", async () => {
+    const response = await proxy(new NextRequest("https://www.alaminn.info/"));
     const permissions = response.headers.get("permissions-policy")!;
     expect(permissions).toContain("microphone=(self)");
     expect(permissions).not.toMatch(/browsing-topics|interest-cohort/);

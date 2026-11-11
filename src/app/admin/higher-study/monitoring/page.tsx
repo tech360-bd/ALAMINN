@@ -15,7 +15,7 @@ export default function MonitoringPage() {
   const [d, setD] = useState<Data | null>(null); const [, setLoading] = useState(false);
   const [src, setSrc] = useState({ url: "", sourceType: "university-course", owner: "" });
   async function load() { setLoading(true); try { const e = await adminFetch<Data>("/api/v1/higher-study/admin/monitoring"); setD(e.data); } catch { toast.error("Failed to load monitoring"); } finally { setLoading(false); } }
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);  
   async function act(id: string, action: string) { try { await adminFetch(`/api/v1/higher-study/admin/monitoring/changes/${id}`, { method: "POST", body: JSON.stringify({ action }) }); toast.success(`${action} recorded — production data only changes on approve of an allow-listed field.`); load(); } catch (e) { toast.error(String(e)); } }
   async function addSource(e: React.FormEvent) { e.preventDefault(); try { await adminFetch("/api/v1/higher-study/admin/monitoring", { method: "POST", body: JSON.stringify(src) }); toast.success("Official source registered for weekly monitoring."); setSrc({ url: "", sourceType: "university-course", owner: "" }); load(); } catch (err) { toast.error(String(err)); } }
   if (!d) return <div className="p-6 text-sm text-muted-foreground">Loading University Data Monitor…</div>;

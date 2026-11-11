@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { Workflow, Sparkles, Save, Plus, Download, Trash2, Link2, ZoomIn, ZoomOut, MousePointer2, FilePlus2 } from "lucide-react";
+import { Sparkles, Save, Plus, Download, Trash2, Link2, ZoomIn, ZoomOut, MousePointer2, FilePlus2 } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch } from "@/components/admin/lib";
 import { Button } from "@/components/ui/button";

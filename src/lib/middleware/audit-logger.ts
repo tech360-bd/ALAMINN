@@ -17,10 +17,10 @@ export interface AuditLogEntry {
   role?: string;
   statusCode?: number;
   responseTime?: number;
-  requestBody?: any;
-  responseBody?: any;
+  requestBody?: unknown;
+  responseBody?: unknown;
   error?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AuditLoggerConfig {
@@ -70,16 +70,16 @@ export class AuditLogger {
       }
 
       // Capture request body (with size limit)
-      let requestBody: any;
+      let requestBody: unknown;
       if (this.config.logRequests && req.body) {
         requestBody = this.sanitizeBody(req.body);
       }
 
       // Capture response body
       const originalSend = res.send;
-      let responseBody: any;
+      let responseBody: unknown;
 
-      res.send = ((body: any): Response => {
+      res.send = ((body: unknown): Response => {
         if (AuditLogger.config.logResponses) {
           try {
             const parsed = typeof body === "string" ? JSON.parse(body) : body;
@@ -108,8 +108,8 @@ export class AuditLogger {
           path: finishPath,
           ip: this.getClientIp(req),
           userAgent: req.headers["user-agent"],
-          userId: (req as any).userId,
-          role: (req as any).role,
+          userId: req.userId,
+          role: req.role,
           statusCode: res.statusCode,
           responseTime,
           requestBody,
@@ -142,8 +142,8 @@ export class AuditLogger {
       path: req.path || req.url || "",
       ip: this.getClientIp(req),
       userAgent: req.headers["user-agent"],
-      userId: (req as any).userId,
-      role: (req as any).role,
+      userId: req.userId,
+      role: req.role,
       statusCode: 500,
       error: error.message,
       metadata: {
@@ -158,7 +158,7 @@ export class AuditLogger {
   /**
    * Log a custom request.
    */
-  static logRequest(req: Request, metadata: Record<string, any> = {}): void {
+  static logRequest(req: Request, metadata: Record<string, unknown> = {}): void {
     if (!this.config.logRequests) return;
 
     const requestId = req.headers["x-request-id"] as string || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -170,8 +170,8 @@ export class AuditLogger {
       path: req.path || req.url || "",
       ip: this.getClientIp(req),
       userAgent: req.headers["user-agent"],
-      userId: (req as any).userId,
-      role: (req as any).role,
+      userId: req.userId,
+      role: req.role,
       metadata,
     };
 
@@ -181,7 +181,7 @@ export class AuditLogger {
   /**
    * Log a custom response.
    */
-  static logResponse(req: Request, metadata: Record<string, any> = {}): void {
+  static logResponse(req: Request, metadata: Record<string, unknown> = {}): void {
     if (!this.config.logResponses) return;
 
     const requestId = req.headers["x-request-id"] as string || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -193,8 +193,8 @@ export class AuditLogger {
       path: req.path || req.url || "",
       ip: this.getClientIp(req),
       userAgent: req.headers["user-agent"],
-      userId: (req as any).userId,
-      role: (req as any).role,
+      userId: req.userId,
+      role: req.role,
       metadata,
     };
 
@@ -260,7 +260,7 @@ export class AuditLogger {
   /**
    * Sanitize request/response body for logging.
    */
-  private static sanitizeBody(body: any): any {
+  private static sanitizeBody(body: unknown): unknown {
     if (!body) return body;
 
     const sanitized = JSON.parse(JSON.stringify(body));
@@ -268,14 +268,14 @@ export class AuditLogger {
 
     // Recursively sanitize sensitive fields
     const sensitiveFields = ["password", "token", "secret", "apiKey", "authorization", "auth", "credential"];
-    const sanitize = (obj: any): any => {
+    const sanitize = (obj: unknown): unknown => {
       if (typeof obj !== "object" || obj === null) return obj;
 
       if (Array.isArray(obj)) {
         return obj.map(sanitize);
       }
 
-      const result: any = {};
+      const result: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(obj)) {
         if (sensitiveFields.some(f => key.toLowerCase().includes(f))) {
           result[key] = "[REDACTED]";
@@ -293,7 +293,7 @@ export class AuditLogger {
     // Truncate if too large
     const jsonString = JSON.stringify(result);
     if (jsonString.length > maxLength) {
-      return { ...result, _truncated: true, _originalLength: jsonString.length };
+      return { ...(result as Record<string, unknown>), _truncated: true, _originalLength: jsonString.length };
     }
 
     return result;
