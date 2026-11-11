@@ -40,6 +40,47 @@ import {
   generateRequestId,
   incrementRequestCount,
 } from "@/lib/request-context";
+import { SESSION_COOKIE, verifyToken } from "@/lib/auth/token";
+import { rolesForPath } from "@/lib/auth/rbac";
+
+/**
+ * ALO Education staff dashboards + UCI/UMC APIs — coarse edge role gate.
+ * Verifies the HMAC-signed staff session cookie (Web Crypto) and enforces
+ * the per-path role matrix from @/lib/auth/rbac. Fine-grained permissions
+ * are re-checked inside every API route against the database. The admin
+ * CRM area (/admin/*) is NOT gated here — it uses its own session system
+ * (src/lib/auth.ts) enforced per route.
+ */
+async function staffGate(req: NextRequest): Promise<NextResponse | null> {
+  const { pathname, search } = req.nextUrl;
+  const roles = rolesForPath(pathname);
+  if (!roles) return null;
+
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  const secret = process.env.SESSION_SECRET ?? "";
+  const payload = secret ? await verifyToken(token, secret) : null;
+  const isApi = pathname.startsWith("/api/");
+
+  if (!payload) {
+    if (isApi) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+    const login = new URL("/login", req.url);
+    login.searchParams.set("next", pathname + search);
+    return NextResponse.redirect(login);
+  }
+
+  if (!roles.includes(payload.role as never)) {
+    if (isApi) {
+      return NextResponse.json({ error: "Forbidden for your role" }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL("/dashboard?denied=" + encodeURIComponent(pathname), req.url));
+  }
+
+  const res = NextResponse.next({ request: { headers: req.headers } });
+  res.headers.set("x-alo-session", payload.sid);
+  return res;
+}
 
 // Note: proxy.ts always runs on the Node.js runtime in Next.js 16,
 // so `export const runtime = "nodejs"` is not needed (and not allowed).
@@ -72,7 +113,11 @@ const SECURITY_HEADERS: Record<string, string> = {
   ].join("; "),
 };
 
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
+  // ── Staff RBAC gate (ALO Education dashboards, UCI/UMC APIs) ────────
+  const gated = await staffGate(req);
+  if (gated) return gated;
+
   // ── Request counter (read by /api/health/deep) ─────────────────────
   incrementRequestCount();
 

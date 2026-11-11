@@ -1835,3 +1835,446 @@ model AgentOsAudit {
   hash String
   createdAt DateTime @default(now())
 }
+
+// ════════════════════════════════════════════════════════════════════
+// ALO Education UCI + Universal Messaging Channel + Staff auth models
+// (MessagingUser was `User` in the standalone UCI build — renamed to avoid
+//  collision with the CRM `User` model above)
+// ════════════════════════════════════════════════════════════════════
+
+model Tenant {
+  id             String   @id @default(cuid())
+  slug           String   @unique // stable machine identifier used in URLs/rooms
+  name           String // provisioned per deployment; never hard-coded
+  timezone       String   @default("Asia/Dhaka")
+  messagingStart Int      @default(9) // allowed messaging window, tenant-local hours
+  messagingEnd   Int      @default(21)
+  languages      String   @default("bn,en,banglish")
+  aiAutoReply    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  users          MessagingUser[]
+  conversations  Conversation[]
+  consents       Consent[]
+  suppressions   SuppressEntry[]
+  moderationWord ModerationWord[]
+  reports        Report[]
+  auditEvents    AuditEvent[]
+  handoffs       HandoffEvent[]
+  tags           Tag[]
+}
+
+model MessagingUser {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  externalRef        String? // CRM/identity reference; uniqueness enforced per tenant only
+  displayName        String
+  role               String    @default("customer") // admin | agent | customer | ai
+  locale             String    @default("bn")
+  lastSeenAt         DateTime?
+  isBanned           Boolean   @default(false)
+  isVerifiedBusiness Boolean   @default(false)
+  blockedIds         String    @default("[]") // JSON array of blocked user ids
+  createdAt          DateTime  @default(now())
+
+  tenant          Tenant                 @relation(fields: [tenantId], references: [id])
+  participations  ConversationParticipant[]
+  messages        Message[]
+  receipts        Receipt[]
+  stars           Star[]
+  reportsFiled    Report[]               @relation("Reporter")
+  claimedHandoffs HandoffEvent[]
+
+  @@unique([tenantId, externalRef])
+  @@index([tenantId])
+}
+
+// ─────────────────────────── Conversations ───────────────────────────
+
+model Conversation {
+  id           String    @id @default(cuid())
+  tenantId     String
+  type         String // direct | group | channel | self
+  title        String?
+  mode         String    @default("two_way") // one_way | two_way (channels)
+  visibility   String    @default("private") // private | public
+  aiMode       Boolean   @default(true)
+  status       String    @default("active") // active | needs_human | closed
+  burnoutAfter DateTime? // whole-conversation auto-delete instant
+  createdAt    DateTime  @default(now())
+
+  tenant       Tenant                   @relation(fields: [tenantId], references: [id])
+  participants ConversationParticipant[]
+  messages     Message[]
+  handoffs     HandoffEvent[]
+  tags         Tag[]
+
+  @@index([tenantId])
+}
+
+model ConversationParticipant {
+  id               String    @id @default(cuid())
+  conversationId   String
+  userId           String
+  role             String    @default("member") // owner | admin | member
+  lastReadMessageId String?
+  joinedAt         DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         MessagingUser @relation(fields: [userId], references: [id])
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+// ───────────────────────────── Messages ─────────────────────────────
+
+model Message {
+  id             String    @id @default(cuid())
+  tenantId       String
+  conversationId String
+  senderId       String?
+  type           String    @default("text") // text | poll | admin | structured | custom | system | attachment
+  body           String    @default("")
+  payload        String? // JSON payload (poll options/votes, structured blocks, attachment meta)
+  mentions       String    @default("[]") // JSON array of mentioned user ids
+  language       String?
+  translation    String? // cached translation (JSON: {lang, text})
+  scheduledFor   DateTime?
+  sentAt         DateTime?
+  expiresAt      DateTime? // disappearing-message expiry
+  hidden         Boolean   @default(false) // moderation flag
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation              @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       MessagingUser?                     @relation(fields: [senderId], references: [id])
+  receipts     Receipt[]
+  stars        Star[]
+
+  @@index([conversationId, createdAt])
+  @@index([tenantId])
+}
+
+// per-recipient delivery/read receipts
+model Receipt {
+  id          String    @id @default(cuid())
+  tenantId    String
+  messageId   String
+  userId      String
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user         MessagingUser @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+model Star {
+  id        String   @id @default(cuid())
+  tenantId  String
+  messageId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user         MessagingUser @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+}
+
+model Tag {
+  id             String   @id @default(cuid())
+  tenantId       String
+  conversationId String
+  label          String
+  createdAt      DateTime @default(now())
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, label])
+}
+
+// ─────────────────────── Compliance control plane ───────────────────────
+// Stays inside the program; no third party ever owns consent state.
+
+model Consent {
+  id         String    @id @default(cuid())
+  tenantId   String
+  subjectRef String // external identity of the messaging/calling subject
+  channel    String // chat | voice | sms
+  purpose    String
+  grantedAt  DateTime?
+  revokedAt  DateTime?
+  proofRef   String? // record of how consent was captured
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, subjectRef])
+}
+
+model SuppressEntry {
+  id        String   @id @default(cuid())
+  tenantId  String
+  channel   String // chat | voice | sms | all
+  value     String // phone / externalRef / email
+  reason    String?
+  addedAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, channel, value])
+}
+
+model ModerationWord {
+  id       String @id @default(cuid())
+  tenantId String
+  word     String
+  severity String @default("block") // block | flag
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, word])
+}
+
+model Report {
+  id           String   @id @default(cuid())
+  tenantId     String
+  reporterId   String
+  targetUserId String?
+  messageId    String?
+  reason       String
+  status       String   @default("open") // open | reviewed | dismissed
+  createdAt    DateTime @default(now())
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  reporter     MessagingUser @relation("Reporter", fields: [reporterId], references: [id])
+
+  @@index([tenantId, status])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  type        String // e.g. consent.granted, message.blocked, hours.violation
+  actorId     String?
+  subjectType String?
+  subjectId   String?
+  detail      String?
+  at          DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, at])
+}
+
+model HandoffEvent {
+  id             String    @id @default(cuid())
+  tenantId       String
+  conversationId String
+  trigger        String // customer_request | low_confidence | negative_sentiment | repeated_failure | vip | compliance | manual
+  detail         String?
+  status         String    @default("open") // open | claimed | resolved
+  claimedById    String?
+  createdAt      DateTime  @default(now())
+  resolvedAt     DateTime?
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  claimedBy    MessagingUser?        @relation(fields: [claimedById], references: [id])
+
+  @@index([tenantId, status])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ALO EDUCATION — UNIVERSITY & COURSE INTELLIGENCE SYSTEM (UCI)
+// Additive module: collects, verifies, structures and monitors publicly
+// available university/course information with full source provenance.
+// Verification statuses follow the module specification §4. No value is
+// invented: unknown stays unknown.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model UciSource {
+  id              String   @id @default(cuid())
+  key             String   @unique // stable machine key, e.g. "official_lsbu", "platform_applyboard", "marge"
+  name            String
+  url             String?  // exact source URL when confirmed
+  level           String // OFFICIAL | PLATFORM | PUBLIC | INTERNAL
+  identityStatus  String   @default("CONFIRMED") // CONFIRMED | PENDING_IDENTITY | UNREACHABLE
+  permissionNotes String?  // permitted collection basis, robots/terms observations
+  robotsAllowed   Boolean? // null = not yet checked
+  lastCheckedAt   DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  jobs UciCollectionJob[]
+}
+
+model UciInstitution {
+  id              String   @id @default(cuid())
+  canonicalName   String   @unique
+  asWritten       String   @default("[]") // JSON array of name variants found in sources
+  country         String
+  cityNotes       String   @default("[]") // JSON array of city/campus strings as published
+  institutionType String   @default("UNKNOWN") // UNIVERSITY | COLLEGE | INSTITUTE | PATHWAY_PROVIDER | OTHER | UNKNOWN
+  priorityCohort  Boolean  @default(false) // member of the 27 priority UK universities
+  officialWebsite String?
+  status          String   @default("DISCOVERED")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  records    UciRequirementRecord[]
+  programmes UciProgramme[]
+}
+
+model UciRequirementRecord {
+  id                String    @id @default(cuid())
+  institutionId     String
+  context           String? // e.g. "UK Bangladesh 2026", "UK MOI policy 2027"
+  fieldsJson        String // verbatim captured fields (raw), JSON object
+  sourceFile        String // internal evidence file key
+  sheet             String
+  rowNumber         Int
+  sourceUrl         String? // official URL when captured with the record
+  academicYear      String?
+  verificationStatus String  @default("SOURCE_CHECK_REQUIRED")
+  collectedAt       DateTime  @default(now())
+  lastCheckedAt     DateTime?
+  lastVerifiedAt    DateTime?
+  reviewedBy        String?
+  retiredReason     String?
+
+  institution UciInstitution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  events      UciVerificationEvent[]
+
+  @@index([institutionId, verificationStatus])
+  @@index([verificationStatus])
+}
+
+model UciProgramme {
+  id                String   @id @default(cuid())
+  institutionId     String?
+  institutionName   String // as-written fallback when no institution row exists yet
+  country           String
+  level             String?
+  programName       String
+  duration          String?
+  tuition           String?
+  extraJson         String   @default("{}")
+  sourceFile        String
+  sheet             String
+  rowNumber         Int
+  sourceUrl         String?
+  verificationStatus String  @default("SOURCE_CHECK_REQUIRED")
+  collectedAt       DateTime @default(now())
+  lastCheckedAt     DateTime?
+  lastVerifiedAt    DateTime?
+  reviewedBy        String?
+
+  institution UciInstitution? @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionName])
+  @@index([level])
+  @@index([country])
+}
+
+model UciVerificationEvent {
+  id          String   @id @default(cuid())
+  recordId    String
+  action      String // VERIFY | CORRECT | RETIRE | APPROVE | FLAG_CONFLICT | RESOLVE_CONFLICT | NOTE
+  fromStatus  String?
+  toStatus    String?
+  actor       String   @default("admin")
+  note        String?
+  fieldPatch  String? // JSON object of corrected field values (never overwrites raw silently)
+  createdAt   DateTime @default(now())
+
+  record UciRequirementRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@index([recordId])
+}
+
+model UciCollectionJob {
+  id          String    @id @default(cuid())
+  sourceKey   String
+  targetUrl   String
+  type        String    @default("SOURCE_CHECK") // SOURCE_CHECK | DISCOVERY
+  status      String    @default("PENDING") // PENDING | RUNNING | SUCCESS | FAILED | ROBOTS_BLOCKED
+  httpStatus  Int?
+  contentHash String? // sha256 of response body for change detection
+  bytes       Int?
+  findings    String?
+  lastError   String?
+  attempts    Int       @default(0)
+  scheduledAt DateTime  @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  source UciSource @relation(fields: [sourceKey], references: [key])
+
+  @@index([status])
+}
+
+model UciAuditLog {
+  id         String   @id @default(cuid())
+  actor      String   @default("admin")
+  action     String
+  entity     String
+  entityId   String
+  detail     String? // JSON detail
+  createdAt  DateTime @default(now())
+
+  @@index([entity, entityId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STAFF AUTHENTICATION & RBAC
+// Application-level accounts for the dashboards (admin / editor / agent /
+// viewer). Passwords are stored as scrypt(salt:hash); sessions are revocable
+// DB rows referenced by an HMAC-signed cookie token. Roles are enforced in
+// middleware (edge) and re-verified server-side on every API route.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model StaffAccount {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String // scrypt format: salt:hash (hex)
+  name         String
+  role         String    @default("VIEWER") // ADMIN | EDITOR | AGENT | VIEWER
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions   StaffSession[]
+  resetCodes PasswordResetCode[]
+}
+
+model StaffSession {
+  id        String    @id @default(cuid())
+  accountId String
+  tokenHash String    @unique // sha256(hex) of the cookie token
+  ip        String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  account StaffAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+model PasswordResetCode {
+  id        String    @id @default(cuid())
+  accountId String
+  codeHash  String    // sha256 of the 6-digit OTP
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  account StaffAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
