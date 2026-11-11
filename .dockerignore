@@ -1,0 +1,73 @@
+# Build context exclusions — keep the Docker image small + leak-free.
+# Anything not needed at build time is excluded here so it never enters
+# the build cache or the final image.
+
+# ─── Version control + metadata ───────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+.github
+
+# ─── Secrets + environment ────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+
+# ─── Dependencies (will be installed fresh inside the image) ──────────
+node_modules
+**/node_modules
+
+# ─── Build artifacts + caches ─────────────────────────────────────────
+.next
+out
+dist
+coverage
+*.tsbuildinfo
+.npm
+.pnp.*
+yarn.lock
+bun.lock
+pnpm-lock.yaml
+
+# ─── Tests + docs (not needed in the runtime image) ───────────────────
+tests
+docs
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+tests-setup
+vitest.config.ts
+jest.config.*
+
+# ─── Misc project Markdown (the runner only needs runtime assets) ─────
+*.md
+!README.md
+LICENSE*
+
+# ─── Storage + runtime data (must NOT be baked into the image) ────────
+storage
+db
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+backups
+*.bak
+
+# ─── Tooling + IDE ────────────────────────────────────────────────────
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.tool-versions

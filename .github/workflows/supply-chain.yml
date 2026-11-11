@@ -1,0 +1,70 @@
+# Supply-chain security — secrets scan + dependency audit + dependency review
+# Runs on push, pull request, and a weekly schedule.
+name: "Supply Chain"
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+  schedule:
+    # Every Monday at 04:00 UTC.
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  # 1. Secret scanning with gitleaks.
+  gitleaks:
+    name: gitleaks (secret scan)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for scan
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 2. npm audit — fail on critical vulnerabilities in production deps.
+  npm-audit:
+    name: npm audit (production)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit (production only, fail on critical)
+        run: |
+          # --omit=dev excludes devDependencies.
+          # --audit-level=critical exits non-zero if any critical
+          # advisory is present in the production dependency tree.
+          npm audit --omit=dev --audit-level=critical
+
+  # 3. dependency-review — only on PRs. Enforces GitHub's dependency
+  #    review API to block known-vulnerable deps being introduced.
+  dependency-review:
+    name: dependency-review (PR only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: critical
