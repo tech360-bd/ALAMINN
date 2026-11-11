@@ -63,3 +63,4 @@ SHA256SUMS-NEW.txt
 
 # ─── Prisma CLI SQLite default location (dev DB) ────────────────────
 prisma/db/
+tests/results.json
