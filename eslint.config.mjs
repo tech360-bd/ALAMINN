@@ -64,6 +64,7 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "download/**",
     "upload/**",
     "mini-services/**",
+    "csvbox-io/**", // Vendored third-party reference clone — not app code
   ],
 }];
 
