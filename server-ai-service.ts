@@ -7,7 +7,7 @@
  * Keep model-server ports private to the server or internal network.
  */
 
-import express from "express";
+
 import { ApiGateway } from "./lib/ai/api-gateway";
 import { LocalInferenceEngine } from "./lib/ai/inference-engine";
 import { ModelRegistry, defaultModelRegistryConfig } from "./lib/ai/model-registry";

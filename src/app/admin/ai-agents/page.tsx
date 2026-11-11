@@ -1112,7 +1112,7 @@ export default function FreeAiAgentsHubPage() {
                 </Button>
                 {imgUrl && (
                   <div className="rounded-lg border p-2 bg-muted/20 space-y-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    { }
                     <img
                       src={imgUrl}
                       alt="Pollinations FLUX output"

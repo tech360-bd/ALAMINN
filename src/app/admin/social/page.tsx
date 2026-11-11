@@ -1,16 +1,16 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+
+
+
+
 import { PageHeader, ErrorState, EmptyState } from "@/components/admin/page-primitives";
 import { adminFetch, fmtDate } from "@/components/admin/lib";
-import { toast } from "sonner";
+
 
 type Data = { automation: { engagementEnabled: boolean; publishingEnabled: boolean; generationEnabled: boolean; version: number; changedByName: string | null } | null; accounts: { id: string; platform: string; displayName: string; status: string; automationEnabled: boolean; responseMode: string; tokenExpiresAt: string | null }[]; counts: Record<string, number>; activity: { id: string; action: string; createdAt: string }[] };
 export default function SocialOverview() {

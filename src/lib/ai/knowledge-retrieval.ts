@@ -38,7 +38,7 @@ export interface KnowledgeChunk {
 
 export interface RetrievalResult {
   text: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   sourceUrl?: string;
   accessedAt: Date;
 }
@@ -103,8 +103,8 @@ export class KnowledgeRetrievalService {
     content: string,
     url?: string,
     language?: string,
-    userId?: string,
-    role?: string
+    _userId?: string,
+    _role?: string
   ): Promise<DocumentInfo> {
     // Get permission (simplified - always allow in dev)
     // TODO: Implement proper access control
@@ -112,7 +112,7 @@ export class KnowledgeRetrievalService {
     return this.ingestDocument({ id: docId, title, source, url, content, language });
   }
 
-  private extractText(doc: any): string {
+  private extractText(doc: unknown): string {
     // Placeholder for actual extraction logic
     if (typeof doc === "string") return doc;
     return JSON.stringify(doc).replace(/\n/g, " ").substring(0, 50000);
@@ -209,7 +209,7 @@ export class KnowledgeRetrievalService {
       }
     }
 
-    results.sort((a, b) => b.metadata.score - a.metadata.score);
+    results.sort((a, b) => (b.metadata.score as number) - (a.metadata.score as number));
 
     return {
       results: results.slice(0, limit),
@@ -306,7 +306,7 @@ export class KnowledgeRetrievalService {
   sanitizeForPromptInjection(text: string): string {
     return text
       .replace(/<system>/gi, "")
-      .replace(/<im_start><|assistant|<|endo_sig|,*[A-Z][a-z]{2,}>[,*/,:;.~=<>?[][/\\{}[\]()’"!@#$?_%&§\^+\-–`~]/g, "")
+      .replace(/<im_start><|assistant|<|endo_sig|,*[A-Z][a-z]{2,}>[,*/,:;.~=<>?[][/\\{}[\]()’"!@#$?_%&§^+\-–`~]/g, "")
       .slice(0, 4000)
       .trim();
   }

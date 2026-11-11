@@ -5,18 +5,6 @@ import { can } from "@/lib/auth/rbac";
 
 export const dynamic = "force-dynamic";
 
-interface ImportRow {
-  canonical_name?: string;
-  country?: string;
-  institution_type?: string;
-  official_website?: string;
-  institution?: string;
-  level?: string;
-  program_name?: string;
-  duration?: string;
-  tuition?: string;
-  [k: string]: string | undefined;
-}
 
 /** Minimal CSV parser handling quoted cells. */
 function parseCsv(text: string): string[][] {

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Megaphone, Plus, ArrowUpRight, CalendarDays, Target, Pencil, Mail, Share2 } from "lucide-react";
+import { Megaphone, Plus, ArrowUpRight, Target, Pencil, Mail, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch, fmtDay } from "@/components/admin/lib";
 import { Button } from "@/components/ui/button";

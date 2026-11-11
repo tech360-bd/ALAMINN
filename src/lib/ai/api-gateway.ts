@@ -16,28 +16,29 @@ import { RateLimiter } from "../middleware/rate-limiter";
 import { AuditLogger } from "../middleware/audit-logger";
 
 // Express shim (module not installed in this build environment)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/* eslint-disable @typescript-eslint/no-explicit-any -- Express types shimmed for optional dynamic import */
 type ExpressApp = any;
 type ExpressRequest = any;
 type ExpressResponse = any;
 type ExpressNextFunction = any;
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export interface ApiRequest {
   userId: string;
   role: string;
   permissions: string[];
-  body: any;
-  query?: any;
-  headers: any;
+  body: unknown;
+  query?: unknown;
+  headers: Record<string, string | undefined>;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
   requestId: string;
 }
@@ -46,8 +47,8 @@ export interface KnowledgeRequest {
   query: string;
   category?: string;
   limit?: number;
-  context?: any[];
-  metadata?: Record<string, any>;
+  context?: unknown[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface KnowledgeResponse {
@@ -59,14 +60,14 @@ export interface KnowledgeResponse {
 
 export interface KnowledgeResult {
   text: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   sourceUrl?: string;
 }
 
 export class ApiError extends Error {
   public code: string;
   public status: number;
-  constructor(code: string, message: string, public details?: any, status: number = 500) {
+  constructor(code: string, message: string, public details?: unknown, status: number = 500) {
     super(message);
     this.name = "ApiError";
     this.code = code;
@@ -112,7 +113,7 @@ export class ApiGateway {
     this.setupRoutes();
 
     // Error handling
-    this.app.use((err: any, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
+    this.app.use((err: any, req: ExpressRequest, res: ExpressResponse, _next: ExpressNextFunction) => { // eslint-disable-line @typescript-eslint/no-explicit-any -- Express ErrorRequestHandler shim
       const apiError = err instanceof ApiError ? err : new ApiError("INTERNAL_ERROR", "Internal server error", { originalError: err });
       AuditLogger.logError(req, err);
       res.status(apiError.status || 500).json({
@@ -131,7 +132,7 @@ export class ApiGateway {
   private setupRoutes(): void {
     // Health check
     this.app.get("/health", async (req, res) => {
-      const { healthy, models } = await this.inferenceEngine.healthCheck();
+      const { models } = await this.inferenceEngine.healthCheck();
       res.json({
         success: true,
         status: "healthy",
@@ -147,7 +148,7 @@ export class ApiGateway {
 
     // Health check with detailed status
     this.app.get("/health/detailed", async (req, res) => {
-      const { healthy, models } = await this.inferenceEngine.healthCheck();
+      const { healthy } = await this.inferenceEngine.healthCheck();
       res.json({
         success: true,
         healthy,
@@ -251,7 +252,7 @@ export class ApiGateway {
 
     // Model status endpoint
     this.app.get("/api/v1/model-status", async (req, res) => {
-      const { healthy, models } = await this.inferenceEngine.healthCheck();
+      const { healthy } = await this.inferenceEngine.healthCheck();
       res.json({
         success: true,
         healthy,
@@ -264,7 +265,7 @@ export class ApiGateway {
   }
 
   private handleInference(req: ApiRequest, res: ExpressResponse): void {
-    const { model, provider, prompt, systemPrompt, context, maxTokens, temperature, timeoutMs, stream, metadata } = req.body;
+    const body = (req.body || {}) as { systemPrompt?: string };
 
     // Validate request
     const schema = z.object({
@@ -280,12 +281,12 @@ export class ApiGateway {
     });
 
     try {
-      const parsed = schema.parse({ ...req.body, ...req.query });
+      const parsed = schema.parse({ ...((req.body || {}) as Record<string, unknown>), ...((req.query || {}) as Record<string, unknown>) });
       const request: InferenceRequest = {
         model: parsed.model,
         provider: parsed.provider as ModelProvider,
         prompt: parsed.prompt,
-        systemPrompt,
+        systemPrompt: body.systemPrompt,
         context: parsed.context,
         maxTokens: parsed.maxTokens,
         temperature: parsed.temperature,
@@ -325,7 +326,7 @@ export class ApiGateway {
       const permissions = req.permissions;
 
       // Log request for audit
-      AuditLogger.logRequest(req, {
+      AuditLogger.logRequest(req as unknown as Parameters<typeof AuditLogger.logRequest>[0], {
         userId,
         role,
         model: request.model,
@@ -347,8 +348,9 @@ export class ApiGateway {
             role: role,
           }
         };
+        void response;
 
-        AuditLogger.logResponse(req, {
+        AuditLogger.logResponse(req as unknown as Parameters<typeof AuditLogger.logResponse>[0], {
           userId,
           role,
           model: request.model,
@@ -408,7 +410,6 @@ export class ApiGateway {
   }
 
   private handleKnowledgeRequest(req: ApiRequest, res: ExpressResponse): void {
-    const { query, category, limit, context, metadata } = req.body;
 
     // Validate request
     const schema = z.object({
@@ -420,7 +421,7 @@ export class ApiGateway {
     });
 
     try {
-      const parsed = schema.parse({ ...req.body, ...req.query });
+      const parsed = schema.parse({ ...((req.body || {}) as Record<string, unknown>), ...((req.query || {}) as Record<string, unknown>) });
       const request: KnowledgeRequest = {
         query: parsed.query,
         category: parsed.category,
@@ -430,7 +431,7 @@ export class ApiGateway {
       };
 
       // Authenticate and authorize (already done by middleware)
-      AuditLogger.logRequest(req, {
+      AuditLogger.logRequest(req as unknown as Parameters<typeof AuditLogger.logRequest>[0], {
         userId: req.userId,
         role: req.role,
         action: "knowledge_retrieval",
@@ -442,7 +443,7 @@ export class ApiGateway {
         "Test Document",
         "test",
         "",
-        query,
+        (parsed as { query: string }).query,
         "en"
       ).then(() => this.knowledgeService.search(request.query, request.limit));
 
@@ -459,7 +460,7 @@ export class ApiGateway {
           retrievedAt: knowledge.retrievedAt,
         };
 
-        AuditLogger.logResponse(req, {
+        AuditLogger.logResponse(req as unknown as Parameters<typeof AuditLogger.logResponse>[0], {
           userId: req.userId,
           role: req.role,
           action: "knowledge_retrieval",
@@ -482,7 +483,7 @@ export class ApiGateway {
           retrievedAt: new Date(),
         };
 
-        AuditLogger.logResponse(req, {
+        AuditLogger.logResponse(req as unknown as Parameters<typeof AuditLogger.logResponse>[0], {
           userId: req.userId,
           role: req.role,
           action: "knowledge_retrieval",

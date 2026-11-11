@@ -130,7 +130,7 @@ export default function AgentConsole() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const noteId = useRef(0);
 
-  const agent = users.find((u) => u.id === agentId) || null;
+  const _agent = users.find((u) => u.id === agentId) || null;
   const current = conversations.find((c) => c.id === activeConv) || null;
 
   const notify = useCallback((title: string, body: string) => {
@@ -188,6 +188,16 @@ export default function AgentConsole() {
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
+  const refreshThread = useCallback(() => {
+    if (!activeConv) return;
+    const q = starredOnly && agentId ? `starredBy=${agentId}` : search ? `search=${encodeURIComponent(search)}` : '';
+    api<{ messages: Message[] }>('GET', `/conversations/${activeConv}/messages${q ? `?${q}` : ''}`)
+      .then((r) => setMessages(r.messages))
+      .catch((e) => setError(String(e.message)));
+  }, [activeConv, starredOnly, search, agentId]);
+
+  useEffect(() => { refreshThread(); }, [refreshThread]);
+
   // ── realtime events ──
   useEffect(() => {
     const s = socketRef.current;
@@ -225,18 +235,9 @@ export default function AgentConsole() {
       s.off('typing', onTyping);
       s.off('handoff:update', onHandoffUpdate);
     };
-  }, [activeConv, agentId, tenantId, loadConversations, notify]);
+  }, [activeConv, agentId, tenantId, loadConversations, notify, refreshThread]);
 
   // ── thread loader ──
-  const refreshThread = useCallback(() => {
-    if (!activeConv) return;
-    const q = starredOnly && agentId ? `starredBy=${agentId}` : search ? `search=${encodeURIComponent(search)}` : '';
-    api<{ messages: Message[] }>('GET', `/conversations/${activeConv}/messages${q ? `?${q}` : ''}`)
-      .then((r) => setMessages(r.messages))
-      .catch((e) => setError(String(e.message)));
-  }, [activeConv, starredOnly, search, agentId]);
-
-  useEffect(() => { refreshThread(); }, [refreshThread]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
   const openConversation = (c: Conversation) => {
@@ -487,7 +488,7 @@ export default function AgentConsole() {
                     <div className="space-y-2">
                       {messages.map((m) => {
                         const mine = m.senderId === agentId;
-                        const isStaff = m.sender?.role === 'agent' || m.sender?.role === 'admin';
+                        const _isStaff = m.sender?.role === 'agent' || m.sender?.role === 'admin';
                         return (
                           <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm border ${mine ? 'bg-emerald-900/40 border-emerald-800' : m.sender?.role === 'ai' ? 'bg-violet-950/50 border-violet-800' : 'bg-zinc-800/70 border-zinc-700'}`}>

@@ -347,7 +347,7 @@ export function DashboardAiAgentBannerAndDrawer() {
       return;
     }
     window.speechSynthesis.cancel();
-    const plain = msg.content.replace(/[#*_`>\[\]()!-]/g, " ").replace(/\s+/g, " ").trim();
+    const plain = msg.content.replace(/[#*_`>[]()!-]/g, " ").replace(/\s+/g, " ").trim();
     const utter = new SpeechSynthesisUtterance(plain.slice(0, 2500));
     utter.onend = () => setSpeakingId(null);
     utter.onerror = () => setSpeakingId(null);
@@ -674,7 +674,7 @@ export function DashboardAiAgentBannerAndDrawer() {
                                 Open HD <ExternalLink className="h-3 w-3" />
                               </a>
                             </div>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            { }
                             <img
                               src={url}
                               alt="Generated Free AI Visual"

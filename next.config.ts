@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Pin the workspace root: a parent directory lockfile (bun.lock) otherwise
   // makes Turbopack treat the parent as root and load ITS .env/database.
-  turbopack: { root: __dirname },
+  turbopack: { root: process.cwd() },
   output: "standalone",
   // Production MUST NOT ignore TypeScript errors — build fails on type errors.
   typescript: {

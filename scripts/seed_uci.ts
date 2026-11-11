@@ -37,7 +37,7 @@ const PRIORITY_27 = new Set([
 
 const PATHWAY_HINT = /(pathway|international college|IC\/|ICP|BPC|HIC|KUIC|MMUIC|BCUIC|TCSU|UPIC|ICRGU|UA92|OIEG|UKIC|UBIC|ENUIC|QA Foundation|ARU COLLEGE|The College)/i;
 
-function institutionType(name: string, officialUrl: string | null): string {
+function institutionType(name: string, _officialUrl: string | null): string {
   if (PATHWAY_HINT.test(name)) return "PATHWAY_PROVIDER";
   if (/universit/i.test(name)) return "UNIVERSITY";
   if (/college/i.test(name)) return "COLLEGE";

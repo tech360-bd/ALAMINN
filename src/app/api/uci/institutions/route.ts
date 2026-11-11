@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   let items = institutions.map((i) => {
     const statuses: Record<string, number> = {};
     let hasScholarship = false;
-    let englishSeen = new Set<string>();
+    const englishSeen = new Set<string>();
     for (const r of i.records) {
       statuses[r.verificationStatus] = (statuses[r.verificationStatus] ?? 0) + 1;
       const f = fieldsOf(r);

@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
-import { ok, fail, readJson, writeAudit, pagination } from "@/lib/admin-api";
+import { ok, fail, readJson, writeAudit } from "@/lib/admin-api";
 import { db } from "@/lib/db";
 export const dynamic = "force-dynamic"; export const runtime = "nodejs";
-import { encryptToken, decryptToken } from "@/lib/social/crypto";
+import { encryptToken } from "@/lib/social/crypto";
 import { getAdapter } from "@/lib/social/adapters";
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) { const g = await requirePermission(req, "social.accounts.manage"); if (g.denied) return g.response; const { id } = await ctx.params;
   const b = await readJson<Record<string, unknown>>(req); if (!b) return fail("Invalid JSON", ["invalid_json"], 400);

@@ -4,15 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, AlertTriangle, Copy, History, Download, Upload, RefreshCw, CheckCircle2, XCircle, EyeOff, ShieldQuestion } from "lucide-react";
-import { VerificationBadge, fmtDate } from "@/components/uci/shared";
+import { Loader2, AlertTriangle, History, Download, Upload, RefreshCw, CheckCircle2, XCircle, EyeOff, ShieldQuestion } from "lucide-react";
+import { fmtDate } from "@/components/uci/shared";
 
 interface QueueRecord {
   id: string; context: string | null; fieldsJson: string; sourceFile: string;

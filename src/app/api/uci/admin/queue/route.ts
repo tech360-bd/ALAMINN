@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const status = sp.get("status")?.trim() ?? "SOURCE_CHECK_REQUIRED";
-  const q = sp.get("q")?.trim() ?? "";
+  const _q = sp.get("q")?.trim() ?? "";
   const page = Math.max(1, parseInt(sp.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(50, Math.max(5, parseInt(sp.get("pageSize") ?? "15", 10) || 15));
   const statusFilter = UCI_STATUSES.includes(status as never) ? status : undefined;

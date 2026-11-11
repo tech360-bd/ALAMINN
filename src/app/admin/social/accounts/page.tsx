@@ -1,15 +1,15 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
+
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHeader, ErrorState, EmptyState } from "@/components/admin/page-primitives";
-import { adminFetch, fmtDate } from "@/components/admin/lib";
+import { PageHeader, EmptyState } from "@/components/admin/page-primitives";
+import { adminFetch } from "@/components/admin/lib";
 import { toast } from "sonner";
 
 type Acc = { id: string; platform: string; externalId: string; displayName: string; username: string | null; status: string; hasToken: boolean; automationEnabled: boolean; responseMode: string; tokenExpiresAt: string | null; healthError: string | null; capabilities: string | null };
@@ -17,7 +17,7 @@ export default function AccountsPage() {
   const [rows, setRows] = useState<Acc[]>([]); const [, setLoading] = useState(false); const [f, setF] = useState({ platform: "facebook", externalId: "", displayName: "", username: "", accessToken: "", responseMode: "approval" });
   async function load() { setLoading(true); try { const e = await adminFetch<Acc[]>("/api/v1/admin/social/accounts"); setRows(e.data); } catch { toast.error("Failed to load accounts"); } finally { setLoading(false); }
   }
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);  
   async function add(e: React.FormEvent) { e.preventDefault(); try { await adminFetch("/api/v1/admin/social/accounts", { method: "POST", body: JSON.stringify(f) }); toast.success("Account saved (token encrypted at rest)."); setF({ ...f, externalId: "", displayName: "", accessToken: "" }); load(); } catch (err) { toast.error(String(err)); } }
   async function act(a: Acc, body: object, msg: string) { try { await adminFetch(`/api/v1/admin/social/accounts/${a.id}`, { method: "PATCH", body: JSON.stringify(body) }); toast.success(msg); load(); } catch (err) { toast.error(String(err)); } }
   return (<div className="p-6"><PageHeader title="Connected Accounts" subtitle="Official APIs only. Tokens are AES-256-GCM encrypted server-side and never shown. Capabilities per platform are detected, not assumed." />

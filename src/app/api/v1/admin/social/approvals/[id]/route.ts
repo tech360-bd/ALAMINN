@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
-import { ok, fail, readJson, writeAudit, pagination } from "@/lib/admin-api";
+import { ok, fail, readJson, writeAudit } from "@/lib/admin-api";
 import { db } from "@/lib/db";
 export const dynamic = "force-dynamic"; export const runtime = "nodejs";
 import { getAdapter } from "@/lib/social/adapters";
-import { assertAutomationAllowedNow } from "@/lib/social/policy-server";
+
 /** Approve / edit-approve / reject / escalate / resolve. Approval-send rechecks account connectivity (manual action: not blocked by global OFF). */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) { const g = await requirePermission(req, "social.approvals.decide"); if (g.denied) return g.response; const { id } = await ctx.params;
   const b = await readJson<{ action?: string; editedText?: string }>(req); const action = b?.action || "approve";

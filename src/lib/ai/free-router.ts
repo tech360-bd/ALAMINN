@@ -1444,7 +1444,7 @@ export async function testFreeProviderConnection(
   }
 
   // Never send stored/env API keys to a non-official host supplied via `baseUrlOverride` (SEC-03)
-  let effectiveApiKey = trimmedKeyOverride || baseCfg.apiKey;
+  const effectiveApiKey = trimmedKeyOverride || baseCfg.apiKey;
   if (!trimmedKeyOverride && effectiveApiKey && baseCfg.spec.defaultBaseUrl.startsWith("https://")) {
     try {
       const officialHost = new URL(

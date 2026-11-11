@@ -1,14 +1,14 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
+
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHeader, ErrorState, EmptyState } from "@/components/admin/page-primitives";
+import { PageHeader, EmptyState } from "@/components/admin/page-primitives";
 import { adminFetch, fmtDate } from "@/components/admin/lib";
 import { toast } from "sonner";
 
@@ -18,8 +18,8 @@ export default function RulesPage() {
   const [rows, setRows] = useState<Rule[]>([]); const [, setLoading] = useState(false); const [st, setSt] = useState<State | null>(null); const [f, setF] = useState({ name: "", category: "", action: "approval", minConfidence: "0.85" });
   async function load() { setLoading(true); try { const [a, b] = await Promise.all([adminFetch<Rule[]>("/api/v1/admin/social/rules"), adminFetch<State>("/api/v1/admin/social/automation")]); setRows(a.data); setSt(b.data); } catch { /* keep */ } finally { setLoading(false); }
   }
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  async function saveSwitch(k: string, v: boolean) { try { const e = await adminFetch<State>("/api/v1/admin/social/automation", { method: "PUT", body: JSON.stringify({ [k]: v }) }); setSt(e.data); toast.success("Saved — enforced server-side immediately."); } catch (err) { toast.error("Requires social.automation.manage (OWNER/SUPER_ADMIN)."); } }
+  useEffect(() => { load(); }, []);  
+  async function saveSwitch(k: string, v: boolean) { try { const e = await adminFetch<State>("/api/v1/admin/social/automation", { method: "PUT", body: JSON.stringify({ [k]: v }) }); setSt(e.data); toast.success("Saved — enforced server-side immediately."); } catch (_err) { toast.error("Requires social.automation.manage (OWNER/SUPER_ADMIN)."); } }
   async function add(e: React.FormEvent) { e.preventDefault(); try { await adminFetch("/api/v1/admin/social/rules", { method: "POST", body: JSON.stringify({ ...f, minConfidence: Number(f.minConfidence) }) }); toast.success("Rule saved"); load(); } catch (err) { toast.error(String(err)); } }
   return (<div className="p-6"><PageHeader title="Automation Rules & Switches" subtitle="Engagement, publishing and generation are separate controls. Turning engagement OFF suppresses queued unsent replies; delivered messages cannot be recalled." />
   {st && <Card className="mb-6"><CardContent className="pt-6 space-y-3 text-sm">

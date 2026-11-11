@@ -12,7 +12,7 @@
  * This is the foundation for Phase 2 implementation.
  */
 
-import { z } from "zod";
+
 import { runFreeAiRouter, generateFreeEmbeddings } from "./free-router";
 import type { FreeProviderId } from "./free-providers";
 
@@ -58,12 +58,12 @@ export interface InferenceRequest {
   provider: ModelProvider;
   prompt: string;
   systemPrompt?: string;
-  context?: any[];
+  context?: unknown[];
   maxTokens?: number;
   temperature?: number;
   timeoutMs?: number;
   stream?: boolean;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface InferenceResponse {
@@ -76,7 +76,7 @@ export interface InferenceResponse {
     totalTokens: number;
   };
   finishReason?: "stop" | "length" | "error" | "content_filter";
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ModelStatus {

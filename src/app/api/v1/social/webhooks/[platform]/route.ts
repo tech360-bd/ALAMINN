@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic"; export const runtime = "nodejs";
 import { createHash } from "crypto";
-import { db } from "@/lib/db";
 import { verifyMetaSignature } from "@/lib/social/classifier";
 import { processSocialEvent } from "@/lib/social/pipeline";
 import { parseInboundWebhook } from "@/lib/whatsapp/sender";
 /** GET: Meta webhook verification (facebook/instagram/whatsapp). POST: signature-verified, deduplicated ingestion. */
-export async function GET(req: NextRequest, ctx: { params: Promise<{ platform: string }> }) { const { platform } = await ctx.params;
+export async function GET(req: NextRequest, ctx: { params: Promise<{ platform: string }> }) { await ctx.params;
   const u = new URL(req.url); const token = process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
   if (!token) return new NextResponse("verify token not configured", { status: 503 });
   if (u.searchParams.get("hub.mode") === "subscribe" && u.searchParams.get("hub.verify_token") === token) return new NextResponse(u.searchParams.get("hub.challenge") || "", { status: 200 });

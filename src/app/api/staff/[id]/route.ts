@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { getSessionUser } from "@/lib/auth/session";
-import { can, STAFF_ROLES } from "@/lib/auth/rbac";
+import { can } from "@/lib/auth/rbac";
 
 export const dynamic = "force-dynamic";
 
