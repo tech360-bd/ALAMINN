@@ -84,7 +84,31 @@ const UNIS: { slug: string; officialName: string; countrySlug: string; officialW
   { slug: "new-york-university", officialName: "New York University (NYU)", countrySlug: "usa", officialWebsite: "https://www.nyu.edu/", catalogue: "https://www.nyu.edu/" },
   { slug: "university-of-michigan", officialName: "University of Michigan - Ann Arbor", countrySlug: "usa", officialWebsite: "https://umich.edu/", catalogue: "https://umich.edu/" },
   { slug: "ut-austin", officialName: "University of Texas at Austin", countrySlug: "usa", officialWebsite: "https://www.utexas.edu/", catalogue: "https://www.utexas.edu/" },
-  { slug: "ucla", officialName: "University of California, Los Angeles (UCLA)", countrySlug: "usa", officialWebsite: "https://www.ucla.edu/", catalogue: "https://www.ucla.edu/" }
+  { slug: "ucla", officialName: "University of California, Los Angeles (UCLA)", countrySlug: "usa", officialWebsite: "https://www.ucla.edu/", catalogue: "https://www.ucla.edu/" },
+
+  // ─── Priority UK expansion — 18 additional UK universities ───────────
+  // Added to widen the UK catalogue beyond the Russell Group. Each entry
+  // is created as verificationStatus="pending-review" with NULL fees /
+  // deadlines / entry requirements until the verification workflow
+  // confirms them from the official catalogue.
+  { slug: "university-of-east-london", officialName: "University of East London", countrySlug: "uk", officialWebsite: "https://www.uel.ac.uk/", catalogue: "https://www.uel.ac.uk/" },
+  { slug: "aston-university", officialName: "Aston University", countrySlug: "uk", officialWebsite: "https://www.aston.ac.uk/", catalogue: "https://www.aston.ac.uk/" },
+  { slug: "edinburgh-napier-university", officialName: "Edinburgh Napier University", countrySlug: "uk", officialWebsite: "https://www.napier.ac.uk/", catalogue: "https://www.napier.ac.uk/" },
+  { slug: "teesside-university", officialName: "Teesside University", countrySlug: "uk", officialWebsite: "https://www.tees.ac.uk/", catalogue: "https://www.tees.ac.uk/" },
+  { slug: "nottingham-trent-university", officialName: "Nottingham Trent University", countrySlug: "uk", officialWebsite: "https://www.ntu.ac.uk/", catalogue: "https://www.ntu.ac.uk/" },
+  { slug: "liverpool-hope-university", officialName: "Liverpool Hope University", countrySlug: "uk", officialWebsite: "https://www.hope.ac.uk/", catalogue: "https://www.hope.ac.uk/" },
+  { slug: "university-of-hull", officialName: "University of Hull", countrySlug: "uk", officialWebsite: "https://www.hull.ac.uk/", catalogue: "https://www.hull.ac.uk/" },
+  { slug: "abertay-university", officialName: "Abertay University", countrySlug: "uk", officialWebsite: "https://www.abertay.ac.uk/", catalogue: "https://www.abertay.ac.uk/" },
+  { slug: "cardiff-metropolitan-university", officialName: "Cardiff Metropolitan University", countrySlug: "uk", officialWebsite: "https://www.cardiffmet.ac.uk/", catalogue: "https://www.cardiffmet.ac.uk/" },
+  { slug: "university-of-gloucestershire", officialName: "University of Gloucestershire", countrySlug: "uk", officialWebsite: "https://www.glos.ac.uk/", catalogue: "https://www.glos.ac.uk/" },
+  { slug: "university-of-the-west-of-scotland", officialName: "University of the West of Scotland", countrySlug: "uk", officialWebsite: "https://www.uws.ac.uk/", catalogue: "https://www.uws.ac.uk/" },
+  { slug: "university-of-plymouth", officialName: "University of Plymouth", countrySlug: "uk", officialWebsite: "https://www.plymouth.ac.uk/", catalogue: "https://www.plymouth.ac.uk/" },
+  { slug: "university-of-bradford", officialName: "University of Bradford", countrySlug: "uk", officialWebsite: "https://www.bradford.ac.uk/", catalogue: "https://www.bradford.ac.uk/" },
+  { slug: "university-of-salford", officialName: "University of Salford", countrySlug: "uk", officialWebsite: "https://www.salford.ac.uk/", catalogue: "https://www.salford.ac.uk/" },
+  { slug: "university-of-derby", officialName: "University of Derby", countrySlug: "uk", officialWebsite: "https://www.derby.ac.uk/", catalogue: "https://www.derby.ac.uk/" },
+  { slug: "goldsmiths-university-of-london", officialName: "Goldsmiths, University of London", countrySlug: "uk", officialWebsite: "https://www.gold.ac.uk/", catalogue: "https://www.gold.ac.uk/" },
+  { slug: "anglia-ruskin-university", officialName: "Anglia Ruskin University (ARU)", countrySlug: "uk", officialWebsite: "https://www.aru.ac.uk/", catalogue: "https://www.aru.ac.uk/" },
+  { slug: "bath-spa-university", officialName: "Bath Spa University", countrySlug: "uk", officialWebsite: "https://www.bathspa.ac.uk/", catalogue: "https://www.bathspa.ac.uk/" }
 ];
 const PROGRAMMES: { level: string; qual: string; title: string; subject: string }[] = [
   { level: "msc", qual: "MSc", title: "MSc Computer Science", subject: "computer-science" },

@@ -1,0 +1,19 @@
+# CODEOWNERS — Alaminn.info
+# =========================
+# Default owner for every file in the repository. Each PR must be
+# approved by at least one owner of every path it touches.
+#
+# Format: <path-pattern> @owner [/ @owner ...]
+
+# Default — everything not matched below.
+* @tech360-bd
+
+# Critical paths — extra reviewer required.
+/.github/         @tech360-bd
+/deploy/          @tech360-bd
+/prisma/          @tech360-bd
+**/auth           @tech360-bd
+**/rbac           @tech360-bd
+**/ai             @tech360-bd
+**/social         @tech360-bd
+**/whatsapp       @tech360-bd
