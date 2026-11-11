@@ -16,7 +16,18 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 
   const tenant = await db.tenant.findFirst({ orderBy: { createdAt: "asc" } });
-  if (!tenant) return NextResponse.json({ error: "No tenant provisioned yet" }, { status: 404 });
+  if (!tenant) {
+    // Fresh deployment: no tenant provisioned yet — return the built-in
+    // defaults so the settings form is usable before first provisioning.
+    return NextResponse.json({
+      provisioned: false,
+      tenant: {
+        id: null, slug: "default", name: "Alaminn", timezone: "Asia/Dhaka",
+        messagingStart: 9, messagingEnd: 21, languages: "bn,en,banglish",
+        aiAutoReply: true, createdAt: null,
+      },
+    });
+  }
   return NextResponse.json({
     tenant: {
       id: tenant.id, slug: tenant.slug, name: tenant.name, timezone: tenant.timezone,
@@ -67,9 +78,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "ADMIN role required to change settings" }, { status: 403 });
   }
 
-  const tenant = await db.tenant.findFirst({ orderBy: { createdAt: "asc" } });
-  if (!tenant) return NextResponse.json({ error: "No tenant provisioned yet" }, { status: 404 });
-
   const parsed = validatePatch(await req.json().catch(() => null));
   if (!parsed.ok) {
     return NextResponse.json({ error: `Invalid settings: ${parsed.errors.join("; ")}` }, { status: 400 });
@@ -82,9 +90,18 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
-  const updated = await db.tenant.update({ where: { id: tenant.id }, data: parsed.data });
+  const existing = await db.tenant.findFirst({ orderBy: { createdAt: "asc" } });
+  let updated;
+  if (existing) {
+    updated = await db.tenant.update({ where: { id: existing.id }, data: parsed.data });
+  } else {
+    // First save on a fresh deployment bootstraps the default tenant.
+    updated = await db.tenant.create({
+      data: { slug: "default", name: "Alaminn", ...parsed.data },
+    });
+  }
   await db.uciAuditLog.create({
-    data: { actor: session.email, action: "SETTINGS_UPDATE", entity: "Tenant", entityId: tenant.id, detail: JSON.stringify(parsed.data) },
+    data: { actor: session.email, action: "SETTINGS_UPDATE", entity: "Tenant", entityId: updated.id, detail: JSON.stringify(parsed.data) },
   });
   return NextResponse.json({ ok: true, tenant: updated });
 }

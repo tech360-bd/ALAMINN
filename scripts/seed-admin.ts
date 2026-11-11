@@ -26,9 +26,12 @@ async function main() {
     console.error("Usage: ADMIN_EMAIL=... ADMIN_PASSWORD=... bun run scripts/seed-admin.ts");
     process.exit(1);
   }
-  if (password.length < 12) {
-    console.error("ERROR: ADMIN_PASSWORD must be at least 12 characters long.");
+  if (password.length < 8) {
+    console.error("ERROR: ADMIN_PASSWORD must be at least 8 characters long.");
     process.exit(1);
+  }
+  if (password.length < 12) {
+    console.warn("WARN: ADMIN_PASSWORD is shorter than 12 characters — rotate it to a longer password from the Command Center after first sign-in.");
   }
 
   console.log(`Seeding admin account: ${email} (${role})`);

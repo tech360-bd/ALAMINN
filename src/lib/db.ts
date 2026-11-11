@@ -1,28 +1,5 @@
-import path from 'node:path'
 import { PrismaClient } from '@prisma/client'
-import { PrismaLibSQL } from '@prisma/adapter-libsql'
-
-function isRelationalServerUrl(raw: string): boolean {
-  return /^(mysql|postgresql|postgres|sqlserver|cockroachdb):\/\//i.test(raw)
-}
-
-function resolveLibSqlUrl(): string {
-  const raw = process.env.DATABASE_URL?.trim() || 'file:./db/custom.db'
-  if (raw.startsWith('libsql://') || raw.startsWith('https://') || raw.startsWith('http://')) {
-    return raw
-  }
-  if (raw === ':memory:' || raw === 'file::memory:') {
-    return ':memory:'
-  }
-  if (raw.startsWith('file:')) {
-    const filePart = raw.slice('file:'.length)
-    const absPath = path.isAbsolute(filePart)
-      ? filePart
-      : path.resolve(process.cwd(), filePart)
-    return `file:${absPath}`
-  }
-  return raw
-}
+import { createDriverAdapter } from '@/lib/prisma-adapter'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -41,13 +18,9 @@ if (cachedVersion !== SCHEMA_VERSION && cachedPrisma) {
 }
 
 function createPrismaClient(): PrismaClient {
-  const rawUrl = process.env.DATABASE_URL?.trim() || 'file:./db/custom.db'
-  if (isRelationalServerUrl(rawUrl)) {
-    return new PrismaClient({
-      log: ['error', 'warn'],
-    })
-  }
-  const adapter = new PrismaLibSQL({ url: resolveLibSqlUrl() })
+  // engineType = "client" requires a driver adapter; the adapter is chosen
+  // from the DATABASE_URL scheme (mysql:// → MariaDb, file:/libsql: → LibSQL).
+  const adapter = createDriverAdapter()
   return new PrismaClient({
     adapter,
     log: ['error', 'warn'],

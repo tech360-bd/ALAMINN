@@ -1845,11 +1845,11 @@ model AgentOsAudit {
 model Tenant {
   id             String   @id @default(cuid())
   slug           String   @unique // stable machine identifier used in URLs/rooms
-  name           String // provisioned per deployment; never hard-coded
-  timezone       String   @default("Asia/Dhaka")
+  name           String @db.Text // provisioned per deployment; never hard-coded
+  timezone       String @db.Text   @default("Asia/Dhaka")
   messagingStart Int      @default(9) // allowed messaging window, tenant-local hours
   messagingEnd   Int      @default(21)
-  languages      String   @default("bn,en,banglish")
+  languages      String @db.Text   @default("bn,en,banglish")
   aiAutoReply    Boolean  @default(true)
   createdAt      DateTime @default(now())
 
@@ -1868,13 +1868,13 @@ model MessagingUser {
   id                 String    @id @default(cuid())
   tenantId           String
   externalRef        String? // CRM/identity reference; uniqueness enforced per tenant only
-  displayName        String
-  role               String    @default("customer") // admin | agent | customer | ai
-  locale             String    @default("bn")
+  displayName        String @db.Text
+  role               String @db.Text    @default("customer") // admin | agent | customer | ai
+  locale             String @db.Text    @default("bn")
   lastSeenAt         DateTime?
   isBanned           Boolean   @default(false)
   isVerifiedBusiness Boolean   @default(false)
-  blockedIds         String    @default("[]") // JSON array of blocked user ids
+  blockedIds         String @db.Text    @default("[]") // JSON array of blocked user ids
   createdAt          DateTime  @default(now())
 
   tenant          Tenant                 @relation(fields: [tenantId], references: [id])
@@ -1894,12 +1894,12 @@ model MessagingUser {
 model Conversation {
   id           String    @id @default(cuid())
   tenantId     String
-  type         String // direct | group | channel | self
-  title        String?
-  mode         String    @default("two_way") // one_way | two_way (channels)
-  visibility   String    @default("private") // private | public
+  type         String @db.Text // direct | group | channel | self
+  title        String? @db.Text
+  mode         String @db.Text    @default("two_way") // one_way | two_way (channels)
+  visibility   String @db.Text    @default("private") // private | public
   aiMode       Boolean   @default(true)
-  status       String    @default("active") // active | needs_human | closed
+  status       String @db.Text    @default("active") // active | needs_human | closed
   burnoutAfter DateTime? // whole-conversation auto-delete instant
   createdAt    DateTime  @default(now())
 
@@ -1916,7 +1916,7 @@ model ConversationParticipant {
   id               String    @id @default(cuid())
   conversationId   String
   userId           String
-  role             String    @default("member") // owner | admin | member
+  role             String @db.Text    @default("member") // owner | admin | member
   lastReadMessageId String?
   joinedAt         DateTime  @default(now())
 
@@ -1934,12 +1934,12 @@ model Message {
   tenantId       String
   conversationId String
   senderId       String?
-  type           String    @default("text") // text | poll | admin | structured | custom | system | attachment
-  body           String    @default("")
-  payload        String? // JSON payload (poll options/votes, structured blocks, attachment meta)
-  mentions       String    @default("[]") // JSON array of mentioned user ids
-  language       String?
-  translation    String? // cached translation (JSON: {lang, text})
+  type           String @db.Text    @default("text") // text | poll | admin | structured | custom | system | attachment
+  body           String @db.Text    @default("")
+  payload        String? @db.Text // JSON payload (poll options/votes, structured blocks, attachment meta)
+  mentions       String @db.Text    @default("[]") // JSON array of mentioned user ids
+  language       String? @db.Text
+  translation    String? @db.Text // cached translation (JSON: {lang, text})
   scheduledFor   DateTime?
   sentAt         DateTime?
   expiresAt      DateTime? // disappearing-message expiry
@@ -2004,11 +2004,11 @@ model Consent {
   id         String    @id @default(cuid())
   tenantId   String
   subjectRef String // external identity of the messaging/calling subject
-  channel    String // chat | voice | sms
-  purpose    String
+  channel    String @db.Text // chat | voice | sms
+  purpose    String @db.Text
   grantedAt  DateTime?
   revokedAt  DateTime?
-  proofRef   String? // record of how consent was captured
+  proofRef   String? @db.Text // record of how consent was captured
 
   tenant Tenant  @relation(fields: [tenantId], references: [id])
 
@@ -2020,7 +2020,7 @@ model SuppressEntry {
   tenantId  String
   channel   String // chat | voice | sms | all
   value     String // phone / externalRef / email
-  reason    String?
+  reason    String? @db.Text
   addedAt   DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
@@ -2032,7 +2032,7 @@ model ModerationWord {
   id       String @id @default(cuid())
   tenantId String
   word     String
-  severity String @default("block") // block | flag
+  severity String @db.Text @default("block") // block | flag
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
@@ -2045,7 +2045,7 @@ model Report {
   reporterId   String
   targetUserId String?
   messageId    String?
-  reason       String
+  reason       String @db.Text
   status       String   @default("open") // open | reviewed | dismissed
   createdAt    DateTime @default(now())
 
@@ -2058,11 +2058,11 @@ model Report {
 model AuditEvent {
   id          String   @id @default(cuid())
   tenantId    String
-  type        String // e.g. consent.granted, message.blocked, hours.violation
+  type        String @db.Text // e.g. consent.granted, message.blocked, hours.violation
   actorId     String?
-  subjectType String?
+  subjectType String? @db.Text
   subjectId   String?
-  detail      String?
+  detail      String? @db.Text
   at          DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
@@ -2074,8 +2074,8 @@ model HandoffEvent {
   id             String    @id @default(cuid())
   tenantId       String
   conversationId String
-  trigger        String // customer_request | low_confidence | negative_sentiment | repeated_failure | vip | compliance | manual
-  detail         String?
+  trigger        String @db.Text // customer_request | low_confidence | negative_sentiment | repeated_failure | vip | compliance | manual
+  detail         String? @db.Text
   status         String    @default("open") // open | claimed | resolved
   claimedById    String?
   createdAt      DateTime  @default(now())
@@ -2099,14 +2099,14 @@ model HandoffEvent {
 model UciSource {
   id              String   @id @default(cuid())
   key             String   @unique // stable machine key, e.g. "official_lsbu", "platform_applyboard", "marge"
-  name            String
-  url             String?  // exact source URL when confirmed
-  level           String // OFFICIAL | PLATFORM | PUBLIC | INTERNAL
-  identityStatus  String   @default("CONFIRMED") // CONFIRMED | PENDING_IDENTITY | UNREACHABLE
-  permissionNotes String?  // permitted collection basis, robots/terms observations
+  name            String @db.Text
+  url             String? @db.Text  // exact source URL when confirmed
+  level           String @db.Text // OFFICIAL | PLATFORM | PUBLIC | INTERNAL
+  identityStatus  String @db.Text   @default("CONFIRMED") // CONFIRMED | PENDING_IDENTITY | UNREACHABLE
+  permissionNotes String? @db.Text  // permitted collection basis, robots/terms observations
   robotsAllowed   Boolean? // null = not yet checked
   lastCheckedAt   DateTime?
-  notes           String?
+  notes           String? @db.Text
   createdAt       DateTime @default(now())
 
   jobs UciCollectionJob[]
@@ -2115,13 +2115,13 @@ model UciSource {
 model UciInstitution {
   id              String   @id @default(cuid())
   canonicalName   String   @unique
-  asWritten       String   @default("[]") // JSON array of name variants found in sources
-  country         String
-  cityNotes       String   @default("[]") // JSON array of city/campus strings as published
-  institutionType String   @default("UNKNOWN") // UNIVERSITY | COLLEGE | INSTITUTE | PATHWAY_PROVIDER | OTHER | UNKNOWN
+  asWritten       String @db.Text   @default("[]") // JSON array of name variants found in sources
+  country         String @db.Text
+  cityNotes       String @db.Text   @default("[]") // JSON array of city/campus strings as published
+  institutionType String @db.Text   @default("UNKNOWN") // UNIVERSITY | COLLEGE | INSTITUTE | PATHWAY_PROVIDER | OTHER | UNKNOWN
   priorityCohort  Boolean  @default(false) // member of the 27 priority UK universities
-  officialWebsite String?
-  status          String   @default("DISCOVERED")
+  officialWebsite String? @db.Text
+  status          String @db.Text   @default("DISCOVERED")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -2132,19 +2132,19 @@ model UciInstitution {
 model UciRequirementRecord {
   id                String    @id @default(cuid())
   institutionId     String
-  context           String? // e.g. "UK Bangladesh 2026", "UK MOI policy 2027"
-  fieldsJson        String // verbatim captured fields (raw), JSON object
-  sourceFile        String // internal evidence file key
-  sheet             String
+  context           String? @db.Text // e.g. "UK Bangladesh 2026", "UK MOI policy 2027"
+  fieldsJson        String @db.Text // verbatim captured fields (raw), JSON object
+  sourceFile        String @db.Text // internal evidence file key
+  sheet             String @db.Text
   rowNumber         Int
-  sourceUrl         String? // official URL when captured with the record
-  academicYear      String?
+  sourceUrl         String? @db.Text // official URL when captured with the record
+  academicYear      String? @db.Text
   verificationStatus String  @default("SOURCE_CHECK_REQUIRED")
   collectedAt       DateTime  @default(now())
   lastCheckedAt     DateTime?
   lastVerifiedAt    DateTime?
-  reviewedBy        String?
-  retiredReason     String?
+  reviewedBy        String? @db.Text
+  retiredReason     String? @db.Text
 
   institution UciInstitution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   events      UciVerificationEvent[]
@@ -2159,19 +2159,19 @@ model UciProgramme {
   institutionName   String // as-written fallback when no institution row exists yet
   country           String
   level             String?
-  programName       String
-  duration          String?
-  tuition           String?
-  extraJson         String   @default("{}")
-  sourceFile        String
-  sheet             String
+  programName       String @db.Text
+  duration          String? @db.Text
+  tuition           String? @db.Text
+  extraJson         String @db.Text   @default("{}")
+  sourceFile        String @db.Text
+  sheet             String @db.Text
   rowNumber         Int
-  sourceUrl         String?
-  verificationStatus String  @default("SOURCE_CHECK_REQUIRED")
+  sourceUrl         String? @db.Text
+  verificationStatus String @db.Text  @default("SOURCE_CHECK_REQUIRED")
   collectedAt       DateTime @default(now())
   lastCheckedAt     DateTime?
   lastVerifiedAt    DateTime?
-  reviewedBy        String?
+  reviewedBy        String? @db.Text
 
   institution UciInstitution? @relation(fields: [institutionId], references: [id])
 
@@ -2183,12 +2183,12 @@ model UciProgramme {
 model UciVerificationEvent {
   id          String   @id @default(cuid())
   recordId    String
-  action      String // VERIFY | CORRECT | RETIRE | APPROVE | FLAG_CONFLICT | RESOLVE_CONFLICT | NOTE
-  fromStatus  String?
-  toStatus    String?
-  actor       String   @default("admin")
-  note        String?
-  fieldPatch  String? // JSON object of corrected field values (never overwrites raw silently)
+  action      String @db.Text // VERIFY | CORRECT | RETIRE | APPROVE | FLAG_CONFLICT | RESOLVE_CONFLICT | NOTE
+  fromStatus  String? @db.Text
+  toStatus    String? @db.Text
+  actor       String @db.Text   @default("admin")
+  note        String? @db.Text
+  fieldPatch  String? @db.Text // JSON object of corrected field values (never overwrites raw silently)
   createdAt   DateTime @default(now())
 
   record UciRequirementRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
@@ -2199,14 +2199,14 @@ model UciVerificationEvent {
 model UciCollectionJob {
   id          String    @id @default(cuid())
   sourceKey   String
-  targetUrl   String
-  type        String    @default("SOURCE_CHECK") // SOURCE_CHECK | DISCOVERY
+  targetUrl   String @db.Text
+  type        String @db.Text    @default("SOURCE_CHECK") // SOURCE_CHECK | DISCOVERY
   status      String    @default("PENDING") // PENDING | RUNNING | SUCCESS | FAILED | ROBOTS_BLOCKED
   httpStatus  Int?
-  contentHash String? // sha256 of response body for change detection
+  contentHash String? @db.Text // sha256 of response body for change detection
   bytes       Int?
-  findings    String?
-  lastError   String?
+  findings    String? @db.Text
+  lastError   String? @db.Text
   attempts    Int       @default(0)
   scheduledAt DateTime  @default(now())
   startedAt   DateTime?
@@ -2219,11 +2219,11 @@ model UciCollectionJob {
 
 model UciAuditLog {
   id         String   @id @default(cuid())
-  actor      String   @default("admin")
-  action     String
+  actor      String @db.Text   @default("admin")
+  action     String @db.Text
   entity     String
   entityId   String
-  detail     String? // JSON detail
+  detail     String? @db.Text // JSON detail
   createdAt  DateTime @default(now())
 
   @@index([entity, entityId])
@@ -2240,9 +2240,9 @@ model UciAuditLog {
 model StaffAccount {
   id           String    @id @default(cuid())
   email        String    @unique
-  passwordHash String // scrypt format: salt:hash (hex)
-  name         String
-  role         String    @default("VIEWER") // ADMIN | EDITOR | AGENT | VIEWER
+  passwordHash String @db.Text // scrypt format: salt:hash (hex)
+  name         String @db.Text
+  role         String @db.Text    @default("VIEWER") // ADMIN | EDITOR | AGENT | VIEWER
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
@@ -2256,8 +2256,8 @@ model StaffSession {
   id        String    @id @default(cuid())
   accountId String
   tokenHash String    @unique // sha256(hex) of the cookie token
-  ip        String?
-  userAgent String?
+  ip        String? @db.Text
+  userAgent String? @db.Text
   expiresAt DateTime
   createdAt DateTime  @default(now())
 
@@ -2269,7 +2269,7 @@ model StaffSession {
 model PasswordResetCode {
   id        String    @id @default(cuid())
   accountId String
-  codeHash  String    // sha256 of the 6-digit OTP
+  codeHash  String @db.Text    // sha256 of the 6-digit OTP
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
