@@ -31,10 +31,13 @@
 set -euo pipefail
 
 # ── Configuration ───────────────────────────────────────────────────
-APP_DIR="/home/aloedu/alaminn.info"
+APP_DIR="${ALAMINN_APP_DIR:-/var/www/alaminn-info}"
 APP_USER="aloedu"
 SERVICE_NAME="alaminn-info"
-HEALTH_URL="http://127.0.0.1:3000/api/health"
+# Port follows the deployment .env (PORT=3056 on alaminn.info)
+APP_PORT=$(grep -E '^PORT=' "$APP_DIR/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' || true)
+APP_PORT="${APP_PORT:-3056}"
+HEALTH_URL="http://127.0.0.1:${APP_PORT}/api/health"
 HEALTH_TIMEOUT=30   # seconds to wait for healthy response
 
 # ── Flags ───────────────────────────────────────────────────────────
@@ -159,7 +162,7 @@ for i in $(seq 1 "$HEALTH_TIMEOUT"); do
     echo "  ═══════════════════════════════════════════════════════════"
     echo "  • Service:  systemctl status $SERVICE_NAME"
     echo "  • Logs:     journalctl -u $SERVICE_NAME -f"
-    echo "  • App:      http://127.0.0.1:3000  (via OLS → https://alaminn.info)"
+    echo "  • App:      http://127.0.0.1:${APP_PORT}  (proxy → https://alaminn.info)"
     echo ""
     exit 0
   fi

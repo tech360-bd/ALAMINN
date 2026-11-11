@@ -13,9 +13,12 @@ async function main() {
     console.error("Then run: ADMIN_BOOTSTRAP_PASSWORD='<your-password>' bun run db:seed\n");
     process.exit(1);
   }
-  if (adminPassword.length < 12) {
-    console.error("\n[FATAL] ADMIN_BOOTSTRAP_PASSWORD must be at least 12 characters long.\n");
+  if (adminPassword.length < 8) {
+    console.error("\n[FATAL] ADMIN_BOOTSTRAP_PASSWORD must be at least 8 characters long.\n");
     process.exit(1);
+  }
+  if (adminPassword.length < 12) {
+    console.warn("[WARN] ADMIN_BOOTSTRAP_PASSWORD is shorter than 12 characters — rotate it to a longer password from the admin panel after first sign-in.");
   }
   await db.user.upsert({
     where: { email: adminEmail },

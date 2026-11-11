@@ -10,17 +10,33 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { readFileSync } from "fs";
 
-// Same driver-adapter pattern as the app (prisma.config.ts / src/lib/db.ts):
-// the schema uses engine = "client", so every client needs the libsql adapter.
+// Same dual-mode driver-adapter pattern as the app (src/lib/db.ts):
+// the schema uses engine = "client", so every client needs an adapter
+// chosen from DATABASE_URL (mysql:// → MariaDb, file:/libsql: → LibSQL).
 const rawUrl = process.env.DATABASE_URL || "file:./db/custom.db";
-const url = rawUrl.startsWith("file:") && !require("path").isAbsolute(rawUrl.slice(5))
-  ? `file:${require("path").resolve(rawUrl.slice(5))}`
-  : rawUrl;
-const db = new PrismaClient({ adapter: new PrismaLibSQL({ url }) });
+let adapter: PrismaLibSQL | PrismaMariaDb;
+if (/^mysql:\/\//i.test(rawUrl)) {
+  const u = new URL(rawUrl);
+  adapter = new PrismaMariaDb({
+    host: u.hostname || "localhost",
+    port: u.port ? Number(u.port) : 3306,
+    user: decodeURIComponent(u.username || "root"),
+    password: decodeURIComponent(u.password || ""),
+    database: decodeURIComponent(u.pathname.replace(/^\//, "")),
+    connectionLimit: 5,
+  });
+} else {
+  const url = rawUrl.startsWith("file:") && !require("path").isAbsolute(rawUrl.slice(5))
+    ? `file:${require("path").resolve(rawUrl.slice(5))}`
+    : rawUrl;
+  adapter = new PrismaLibSQL({ url });
+}
+const db = new PrismaClient({ adapter });
 
-const DATASET = "/home/z/my-project/scripts/audit/alo_dataset.json";
+const DATASET = process.env.ALO_DATASET || "/home/z/my-project/scripts/audit/alo_dataset.json";
 
 const PRIORITY_27 = new Set([
   "University of Leicester", "University of East London", "Aston University",

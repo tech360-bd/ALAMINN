@@ -18,7 +18,7 @@
 # ═══════════════════════════════════════════════════════════════════
 set -euo pipefail
 
-APP_DIR="/home/aloedu/alaminn.info"
+APP_DIR="${ALAMINN_APP_DIR:-/var/www/alaminn-info}"
 APP_USER="aloedu"
 SERVICE_NAME="alaminn-info"
 
@@ -44,10 +44,11 @@ chown "$APP_USER":"$APP_USER" "$APP_DIR"
 ok "App directory ready (owned by $APP_USER)"
 
 # ── 3. systemd service ──────────────────────────────────────────────
-log "Installing systemd service: $SERVICE_NAME"
+log "Installing systemd service: $SERVICE_NAME (+ UMC messaging service)"
 cp deploy/alaminn-info.service /etc/systemd/system/"$SERVICE_NAME".service
+cp deploy/alaminn-umc.service /etc/systemd/system/alaminn-umc.service
 systemctl daemon-reload
-systemctl enable "$SERVICE_NAME"
+systemctl enable "$SERVICE_NAME" alaminn-umc
 ok "Service installed & enabled (not started yet — run deploy first)"
 
 # ── 4. MariaDB database ─────────────────────────────────────────────
@@ -56,7 +57,7 @@ if ! command -v mariadb &>/dev/null && ! command -v mysql &>/dev/null; then
   die "MariaDB not found. CyberPanel should have installed it. Install: apt install mariadb-server"
 fi
 
-read -rsp "Choose a password for the MariaDB user 'alaminn_app': " DB_PASS
+read -rsp "Choose a password for the MariaDB user 'aloeduca_alamin_crm': " DB_PASS
 echo ""
 read -rsp "Confirm password: " DB_PASS_CONFIRM
 echo ""
@@ -72,17 +73,24 @@ sed "s/CHANGE_ME_STRONG_PASSWORD/${URL_PASS}/g" deploy/mariadb-init.sql > "$TMP_
 log "Creating database & user"
 mariadb < "$TMP_SQL" || mysql < "$TMP_SQL"
 rm -f "$TMP_SQL"
-ok "MariaDB database 'alaminn_info' & user 'alaminn_app' created"
+ok "MariaDB database 'aloeduca_alamin_crm' & user 'aloeduca_alamin_crm' created"
 
 # ── 5. Write .env ───────────────────────────────────────────────────
 log "Writing .env"
 AUTH_SECRET=$(openssl rand -hex 32)
+SESSION_SECRET=$(openssl rand -hex 32)
+NEXTAUTH_SECRET=$(openssl rand -hex 32)
 cat > "$APP_DIR/.env" <<EOF
 NODE_ENV=production
 NEXT_PUBLIC_SITE_URL=https://alaminn.info
-PORT=3000
-DATABASE_URL="mysql://alaminn_app:${URL_PASS}@127.0.0.1:3306/alaminn_info"
+PORT=3056
+DATABASE_URL="mysql://aloeduca_alamin_crm:${URL_PASS}@localhost:3306/aloeduca_alamin_crm"
 AUTH_SECRET=${AUTH_SECRET}
+SESSION_SECRET=${SESSION_SECRET}
+NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+NEXTAUTH_URL=https://alaminn.info
+AUTH_EXPOSE_RESET_OTP=false
+UMC_URL=http://127.0.0.1:3010
 SMTP_HOST=127.0.0.1
 SMTP_PORT=25
 SMTP_USER=

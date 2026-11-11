@@ -24,7 +24,9 @@ function sha256(text: string): string {
 }
 
 export function sessionSecret(): string {
-  const secret = process.env.SESSION_SECRET;
+  // Production fallback: AUTH_SECRET (main CRM auth secret) may serve as the
+  // staff-session HMAC secret when SESSION_SECRET is not set explicitly.
+  const secret = process.env.SESSION_SECRET || process.env.AUTH_SECRET;
   if (!secret || secret.length < 16) {
     throw new Error("SESSION_SECRET is missing or too short — refusing to issue sessions.");
   }
