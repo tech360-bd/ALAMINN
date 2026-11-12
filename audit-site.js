@@ -48,7 +48,7 @@ const { chromium } = require('playwright');
               clickedCount++;
             }
           }
-        } catch (e) {
+        } catch (_e) {
           // Element might be detached or unclickable, safely skip
         }
       }
@@ -60,7 +60,7 @@ const { chromium } = require('playwright');
         try {
           await inputs[0].fill('Software Engineering');
           console.log(`   Tested typing into search/input field successfully.`);
-        } catch (e) {
+        } catch (_e) {
           // Input might not be writable
         }
       }
