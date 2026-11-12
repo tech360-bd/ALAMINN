@@ -110,6 +110,9 @@ For SSH access to a Linux server.
 - [ ] Set `NEXTAUTH_URL=https://alaminn.info`.
 - [ ] Generate a fresh `AUTH_SECRET` on the server (never reuse a dev
       one): `openssl rand -base64 32` — paste output into `AUTH_SECRET=`.
+- [ ] Generate a fresh `CRON_SECRET` (openssl rand -hex 32). All
+      `/api/cron/*` endpoints fail closed with 503 when it is unset —
+      the scheduler must also send it as the `x-cron-secret` header.
 - [ ] Set `DATABASE_URL` to an absolute path, never a relative one.
       cPanel: `file:/home/USERNAME/alaminn.info/db/custom.db`
       VPS (outside web root recommended): `file:/srv/alaminn.info/db/custom.db`
