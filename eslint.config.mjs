@@ -1,5 +1,6 @@
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
+import reactHooks from "eslint-plugin-react-hooks";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -7,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
+  plugins: { "react-hooks": reactHooks },
   rules: {
     // TypeScript rules — re-enabled as warnings to surface issues without blocking
     "@typescript-eslint/no-explicit-any": "warn",
@@ -21,7 +23,13 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "@typescript-eslint/no-unused-disable-directive": "off",
     "@typescript-eslint/no-require-imports": "off", // Allow CommonJS in server.js, scripts
 
-    // React rules (react-hooks plugin is bundled via next config)
+    // React rules
+    // react-hooks/set-state-in-effect: common in admin data-fetching (useEffect → load → setLoading)
+    "react-hooks/set-state-in-effect": "warn",
+    "react-hooks/purity": "warn",
+    "react-hooks/refs": "warn",
+    "react-hooks/immutability": "warn",
+    "react-hooks/preserve-manual-memoization": "warn",
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",
     "react/prop-types": "off",
