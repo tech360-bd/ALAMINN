@@ -4,17 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       commit:
-        description: "Commit SHA to deploy (defaults to branch HEAD — must have green CI)"
+        description: "Full commit SHA to check (blank means workflow branch HEAD)"
         required: false
         default: ""
       preflight_only:
-        description: "Run preflight checks only (no deploy). Safe read-only mode."
+        description: "Read-only Tailscale + SSH connectivity check; never deploy"
         type: boolean
         required: false
-        default: false
+        default: true
 
 permissions:
   contents: read
+  actions: read
+  checks: read
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -23,57 +25,125 @@ concurrency:
 jobs:
   guard:
     name: Verify deploy gate + CI status
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       sha: ${{ steps.pick.outputs.sha }}
       deploy_enabled: ${{ steps.check_gate.outputs.deploy_enabled }}
     steps:
-      - name: Check DEPLOY_ENABLED variable
+      - name: Check deployment gate
         id: check_gate
         env:
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          PREFLIGHT_ONLY: ${{ inputs.preflight_only }}
         run: |
           set -euo pipefail
-          VALUE="${DEPLOY_ENABLED:-false}"
-          if [ "$VALUE" = "true" ]; then
-            echo "deploy_enabled=true" >> $GITHUB_OUTPUT
-          else
-            echo "deploy_enabled=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Pick commit SHA
-        id: pick
-        run: |
-          INPUT_SHA="${{ github.event.inputs.commit }}"
-          if [ -z "$INPUT_SHA" ]; then
-            TARGET_SHA="${{ github.sha }}"
-          else
-            TARGET_SHA="$INPUT_SHA"
-          fi
-          echo "sha=$TARGET_SHA" >> $GITHUB_OUTPUT
-
-      - name: Check CI conclusion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMIT_SHA: ${{ steps.pick.outputs.sha }}
-        run: |
-          CONCLUSION=$(gh api repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs --jq '.check_runs[] | select(.name != "Verify deploy gate + CI status") | .conclusion' | sort -u || echo "")
-          if echo "$CONCLUSION" | grep -qE "failure|cancelled|timed_out"; then
-            echo "::error::Commit $COMMIT_SHA has failing checks!"
+          echo "deploy_enabled=false" >> "$GITHUB_OUTPUT"
+          if [[ "$PREFLIGHT_ONLY" != "true" ]]; then
+            echo "::error::Deployment is not implemented in this workflow; use preflight_only=true."
             exit 1
           fi
+          if [[ "${DEPLOY_ENABLED:-false}" == "true" ]]; then
+            echo "deploy_enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pick and validate commit SHA
+        id: pick
+        env:
+          INPUT_SHA: ${{ inputs.commit }}
+          EVENT_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TARGET_SHA="${INPUT_SHA:-$EVENT_SHA}"
+          if [[ ! "$TARGET_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::Specify a full 40-character commit SHA."
+            exit 1
+          fi
+          TARGET_SHA="${TARGET_SHA,,}"
+          MAIN_SHA="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "$TARGET_SHA" != "$MAIN_SHA" ]]; then
+            echo "::error::Preflight requires current main HEAD ($MAIN_SHA); received $TARGET_SHA."
+            exit 1
+          fi
+          echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Require successful CI workflow run for target commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TARGET_SHA: ${{ steps.pick.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # GitHub workflow_runs API distinguishes the CI workflow from unrelated checks.
+          GH_REPO="$GH_REPO" TARGET_SHA="$TARGET_SHA" python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+          repo = os.environ["GH_REPO"]
+          target = os.environ["TARGET_SHA"]
+          cmd = [
+              "gh", "api", "--paginate",
+              f"repos/{repo}/actions/workflows/ci.yml/runs",
+              "-f", "per_page=100", "-f", f"head_sha={target}",
+              "-f", "branch=main",
+          ]
+          # gh api -f sends POST; use -X GET for read-only API retrieval.
+          cmd.insert(2, "-X")
+          cmd.insert(3, "GET")
+          try:
+              raw = subprocess.check_output(cmd, text=True)
+              pages = []
+              dec = json.JSONDecoder()
+              offset = 0
+              while offset < len(raw):
+                  part = raw[offset:].lstrip()
+                  if not part:
+                      break
+                  obj, end = dec.raw_decode(part)
+                  pages.append(obj)
+                  offset = len(raw) - len(part) + end
+              runs = [run for page in pages for run in page.get("workflow_runs", [])]
+          except (subprocess.CalledProcessError, ValueError) as exc:
+              sys.exit(f"CI lookup failed closed: {exc}")
+          passed = [
+              run for run in runs
+              if run.get("head_sha") == target
+              and run.get("event") == "push"
+              and run.get("head_branch") == "main"
+              and run.get("status") == "completed"
+              and run.get("conclusion") == "success"
+          ]
+          if not passed:
+              sys.exit(f"No successful main-branch CI workflow for {target}. Preflight denied.")
+          print(f"Verified successful CI run: {passed[0].get('html_url', '')}")
+          PY
 
   preflight:
     name: Preflight — Tailscale + SSH verification
     needs: guard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Check required secrets
+      - name: Check required secrets and configuration
+        env:
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          if [ -z "${{ secrets.TS_AUTHKEY }}" ]; then
-            echo "::error::Missing TS_AUTHKEY secret in GitHub repository settings!"
+          set -euo pipefail
+          for name in TS_AUTHKEY DEPLOY_HOST DEPLOY_HOST_KEY DEPLOY_SSH_KEY DEPLOY_USER; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Required secret $name is missing."
+              exit 1
+            fi
+          done
+          if [[ "$DEPLOY_HOST_KEY" != ssh-* && "$DEPLOY_HOST_KEY" != ecdsa-* ]]; then
+            echo "::error::DEPLOY_HOST_KEY must be an SSH public host key type followed by base64 data."
             exit 1
           fi
 
@@ -82,14 +152,33 @@ jobs:
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
 
-      - name: Verify SSH access using PINNED host key
+      - name: Verify SSH access with configured pinned host key
         env:
-          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          SERVER_IP: 100.94.234.101
-          SERVER_USER: alamin
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
         run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
-          ssh -i ~/.ssh/id_rsa -o ConnectTimeout=10 -o StrictHostKeyChecking=yes "$SERVER_USER@$SERVER_IP" "uptime && node -v"
+          set -euo pipefail
+          PORT="${DEPLOY_PORT:-22}"
+          [[ "$PORT" =~ ^[0-9]{1,5}$ ]] && (( 10#$PORT >= 1 && 10#$PORT <= 65535 )) || {
+            echo "::error::Invalid DEPLOY_PORT"; exit 1;
+          }
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+          if [[ "$PORT" == "22" ]]; then
+            HOST_ENTRY="$DEPLOY_HOST"
+          else
+            HOST_ENTRY="[$DEPLOY_HOST]:$PORT"
+          fi
+          printf '%s %s\n' "$HOST_ENTRY" "$DEPLOY_HOST_KEY" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          ssh -i "$HOME/.ssh/deploy_key" -p "$PORT" \
+            -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=10 -- "$DEPLOY_USER@$DEPLOY_HOST" \
+            'uptime && node -v'
+          echo "Read-only preflight succeeded. No deployment was performed."
