@@ -1,9 +1,5 @@
 name: Deploy (manual approval)
 
-# ─────────────────────────────────────────────────────────────────────
-# Production deployment workflow for ALAMINN.INFO
-# ─────────────────────────────────────────────────────────────────────
-
 on:
   workflow_dispatch:
     inputs:
@@ -40,7 +36,6 @@ jobs:
         run: |
           set -euo pipefail
           VALUE="${DEPLOY_ENABLED:-false}"
-          echo "DEPLOY_ENABLED variable = '$VALUE'"
           if [ "$VALUE" = "true" ]; then
             echo "deploy_enabled=true" >> $GITHUB_OUTPUT
           else
@@ -55,7 +50,7 @@ jobs:
             TARGET_SHA="${{ github.sha }}"
           else
             TARGET_SHA="$INPUT_SHA"
-          echo "Using commit SHA: $TARGET_SHA"
+          fi
           echo "sha=$TARGET_SHA" >> $GITHUB_OUTPUT
 
       - name: Check CI conclusion
@@ -63,19 +58,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT_SHA: ${{ steps.pick.outputs.sha }}
         run: |
-          echo "Verifying check runs for commit $COMMIT_SHA..."
           CONCLUSION=$(gh api repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs --jq '.check_runs[] | select(.name != "Verify deploy gate + CI status") | .conclusion' | sort -u || echo "")
-          echo "Found check conclusions: $CONCLUSION"
           if echo "$CONCLUSION" | grep -qE "failure|cancelled|timed_out"; then
             echo "::error::Commit $COMMIT_SHA has failing checks!"
             exit 1
           fi
-
-      - name: Summary
-        run: |
-          echo "### Guard Check Passed 🚀" >> $GITHUB_STEP_SUMMARY
-          echo "- Target Commit: `${{ steps.pick.outputs.sha }}`" >> $GITHUB_STEP_SUMMARY
-          echo "- Deploy Enabled: `${{ steps.check_gate.outputs.deploy_enabled }}`" >> $GITHUB_STEP_SUMMARY
 
   preflight:
     name: Preflight — Tailscale + SSH verification
@@ -83,19 +70,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check required secrets
-        run: |
-          MISSING=0
-          if [ -z "${{ secrets.TS_OAUTH_CLIENT_ID }}" ]; then echo "::error::Missing TS_OAUTH_CLIENT_ID"; MISSING=1; fi
-          if [ -z "${{ secrets.TS_OAUTH_SECRET }}" ]; then echo "::error::Missing TS_OAUTH_SECRET"; MISSING=1; fi
-          if [ -z "${{ secrets.SERVER_SSH_KEY }}" ]; then echo "::error::Missing SERVER_SSH_KEY"; MISSING=1; fi
-          if [ "$MISSING" -eq 1 ]; then exit 1; fi
-
       - name: Setup Tailscale
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:server
 
       - name: Verify SSH access using PINNED host key
         env:
