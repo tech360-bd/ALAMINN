@@ -595,13 +595,14 @@ It reads `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` from `.env` and upserts t
 
 ## Environment Variables Reference
 
-All variables are documented in `deploy/.env.production.example`. Critical ones:
+All variables are documented in `.env.production.example` (repo root). Critical ones:
 
 | Variable                         | Required | Purpose                                         |
 | -------------------------------- | -------- | ----------------------------------------------- |
 | `NODE_ENV`                       | ✅       | Must be `production`                            |
 | `DATABASE_URL`                   | ✅       | `mysql://user:pass@host:3306/db`                |
 | `AUTH_SECRET`                    | ✅       | HMAC key for session cookies (64 hex chars)     |
+| `CRON_SECRET`                    | ✅       | Shared secret for `/api/cron/*` — fail-closed 503 when unset |
 | `NEXTAUTH_URL`                   | ✅       | Public URL (`https://alaminn.info`)             |
 | `ADMIN_EMAIL`                    | ✅       | First admin login email                         |
 | `ADMIN_PASSWORD`                 | ✅       | First admin login password (≥ 12 chars)         |
@@ -610,7 +611,7 @@ All variables are documented in `deploy/.env.production.example`. Critical ones:
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | ⚠️ | Needed for real email sending |
 | `EMAIL_FROM` / `EMAIL_REPLY_TO`  | ⚠️      | Sender addresses for outbound email             |
 | `RESEND_API_KEY`                 | ⚪       | Optional alternative to SMTP                    |
-| `PORT`                           | ✅       | `3001` (must match Nginx upstream)              |
+| `PORT`                           | ✅       | `3056` (must match Nginx upstream `127.0.0.1:3056`) |
 
 **Generate strong secrets:**
 ```bash
