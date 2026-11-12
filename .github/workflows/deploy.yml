@@ -70,12 +70,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.TS_AUTHKEY }}" ]; then
+            echo "::error::Missing TS_AUTHKEY secret in GitHub repository settings!"
+            exit 1
+          fi
+
       - name: Setup Tailscale
         uses: tailscale/github-action@v4
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:server
+          authkey: ${{ secrets.TS_AUTHKEY }}
 
       - name: Verify SSH access using PINNED host key
         env:
