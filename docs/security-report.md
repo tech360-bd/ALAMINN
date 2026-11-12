@@ -1,7 +1,7 @@
 # Alaminn.info — Automated Security Test Report
 
-**Date:** 2026-09-30T02:18:07.903Z  
-**Target:** http://localhost:3000 (live dev server)  
+**Date:** 2026-11-12T13:55:37.664Z  
+**Target:** http://localhost:3100 (live dev server)  
 **Script:** `scripts/security-tests.ts` (`bun run security:test`)  
 **Stack:** Next.js 16 App Router, TypeScript, Prisma + SQLite, custom HMAC session cookies.
 
@@ -22,7 +22,7 @@
 | # | Test | Severity | Result | Observed |
 |---|------|----------|--------|----------|
 | 8 | Header security | medium | PASS | XCTO=nosniff, XFO=DENY, RP=strict-origin-when-cross-origin, CSP=present |
-| 9 | Clickjacking | medium | PASS | XFO=DENY, CSP=default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests |
+| 9 | Clickjacking | medium | PASS | XFO=DENY, CSP=default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests |
 | 10 | Directory traversal | critical | PASS | HTTP 404, /etc/passwd content leaked=false |
 | 11 | Open redirect | medium | PASS | /api/redirect?url=https://evil.example.com → 404 (no redirect) \| /api/v1/redirect?url=https://evil.example.com → 404 (no redirect) \| /redirect?url=https://evil.example.com → 404 (no redirect) \| /api/v1/auth/redirect?next=https://evil.example.com → 404 (no redirect) \| /api/v1/newsletter/redirect?url=https://evil.example.com → 404 (no redirect) |
 | 4 | IDOR (admin dashboard) | critical | PASS | HTTP 401 |
@@ -30,7 +30,7 @@
 | 18 | Cookie tampering | critical | PASS | alaminn_session=fakepayload.fakesignatur → 401, alaminn_session=tampered.user.role.99999 → 401, alaminn_session= → 401, alaminn_session=AAAAAAAA.BBBBBBBB → 401 |
 | 6 | Broken authentication | high | PASS | HTTP 422 |
 | 14 | Mass assignment | critical | PASS | HTTP 200, returned role=VIEWER |
-| 7 | Cookie security | high | PASS | HttpOnly=true, SameSite=true, Secure=false |
+| 7 | Cookie security | high | PASS | HttpOnly=true, SameSite=true, Secure=true |
 | 16 | Session fixation | high | PASS | HTTP 200, new cookie issued=true |
 | 20 | Malformed JSON | low | PASS | HTTP 400 |
 | 21 | File upload abuse | medium | PASS | HTTP 400 |
@@ -64,7 +64,7 @@
 
 **Expected:** X-Frame-Options: DENY (or CSP frame-ancestors)
 
-**Observed:** XFO=DENY, CSP=default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
+**Observed:** XFO=DENY, CSP=default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
 
 **Details:** Clickjacking protection present (XFO=DENY, CSP frame-ancestors=true).
 
@@ -160,9 +160,9 @@
 
 **Expected:** HttpOnly + SameSite present (Secure in production only)
 
-**Observed:** HttpOnly=true, SameSite=true, Secure=false
+**Observed:** HttpOnly=true, SameSite=true, Secure=true
 
-**Details:** Session cookie has HttpOnly + SameSite. Secure=false (dev environment, will be true in production). Cookie: alaminn_session=cmunh72bm0000nzhrgh731kg9.VIEWER.1790763487.103b2a47d0ea2600f1be3b9bc8961d720dd6ff4150a28af1acbb76c9c1f5...
+**Details:** Session cookie has HttpOnly + SameSite. Secure=true (dev environment, will be true in production). Cookie: alaminn_session=cmwdm1ph600009irfvlch3u7y.VIEWER.1794520537.61ec68e52943dcdf3ca1a290a75741826eb36a21e108daf95e43f119a2ca...
 
 ---
 
