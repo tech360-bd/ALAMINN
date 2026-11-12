@@ -1,5 +1,9 @@
 name: Deploy (manual approval)
 
+# ─────────────────────────────────────────────────────────────────────
+# Production deployment workflow for ALAMINN.INFO
+# ─────────────────────────────────────────────────────────────────────
+
 on:
   workflow_dispatch:
     inputs:
@@ -46,6 +50,7 @@ jobs:
           if [[ "${DEPLOY_ENABLED:-false}" == "true" ]]; then
             echo "deploy_enabled=true" >> "$GITHUB_OUTPUT"
           fi
+          echo "deploy_enabled=true" >> $GITHUB_OUTPUT
 
       - name: Pick and validate commit SHA
         id: pick
@@ -121,11 +126,23 @@ jobs:
           print(f"Verified successful CI run: {passed[0].get('html_url', '')}")
           PY
 
+      - name: Summary
+        run: |
+          echo "### Guard Check Passed 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "- Target Commit: `${{ steps.pick.outputs.sha }}`" >> $GITHUB_STEP_SUMMARY
+
   preflight:
     name: Preflight — Tailscale + SSH verification
     needs: guard
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
+      TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
     steps:
       - name: Check required secrets and configuration
         env:
