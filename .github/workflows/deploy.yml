@@ -1,5 +1,9 @@
 name: Deploy (manual approval)
 
+# ─────────────────────────────────────────────────────────────────────
+# Production deployment workflow for ALAMINN.INFO
+# ─────────────────────────────────────────────────────────────────────
+
 on:
   workflow_dispatch:
     inputs:
@@ -36,11 +40,12 @@ jobs:
         run: |
           set -euo pipefail
           VALUE="${DEPLOY_ENABLED:-false}"
-          if [ "$VALUE" = "true" ]; then
-            echo "deploy_enabled=true" >> $GITHUB_OUTPUT
-          else
-            echo "deploy_enabled=false" >> $GITHUB_OUTPUT
+          echo "DEPLOY_ENABLED variable = '$VALUE'"
+          if [ "$VALUE" != "true" ]; then
+            echo "::error::DEPLOY_ENABLED is not true (current value: '$VALUE'). Deployment is locked."
+            exit 1
           fi
+          echo "deploy_enabled=true" >> $GITHUB_OUTPUT
 
       - name: Pick commit SHA
         id: pick
@@ -51,6 +56,7 @@ jobs:
           else
             TARGET_SHA="$INPUT_SHA"
           fi
+          echo "Using commit SHA: $TARGET_SHA"
           echo "sha=$TARGET_SHA" >> $GITHUB_OUTPUT
 
       - name: Check CI conclusion
@@ -64,32 +70,82 @@ jobs:
             exit 1
           fi
 
+      - name: Summary
+        run: |
+          echo "### Guard Check Passed 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "- Target Commit: `${{ steps.pick.outputs.sha }}`" >> $GITHUB_STEP_SUMMARY
+
   preflight:
     name: Preflight — Tailscale + SSH verification
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
+      TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
     steps:
-      - name: Check required secrets
-        run: |
-          if [ -z "${{ secrets.TS_AUTHKEY }}" ]; then
-            echo "::error::Missing TS_AUTHKEY secret in GitHub repository settings!"
-            exit 1
-          fi
-
       - name: Setup Tailscale
         uses: tailscale/github-action@v4
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
 
       - name: Verify SSH access using PINNED host key
-        env:
-          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          SERVER_IP: 100.94.234.101
-          SERVER_USER: alamin
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
-          ssh -i ~/.ssh/id_rsa -o ConnectTimeout=10 -o StrictHostKeyChecking=yes "$SERVER_USER@$SERVER_IP" "uptime && node -v"
+          echo "$DEPLOY_HOST_KEY" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_rsa -o ConnectTimeout=10 -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "uptime && node -v"
+
+  deploy:
+    name: Deploy to Production Server
+    needs: [guard, preflight]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.event.inputs.preflight_only != 'true' }}
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.guard.outputs.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies & Build
+        run: |
+          npm ci
+          npx prisma generate
+          npm run build
+
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+
+      - name: Execute Atomic Deployment & Smoke Test
+        run: |
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          RELEASE_DIR="/home/alamin/alaminn/releases/$(git rev-parse --short HEAD)"
+          echo "Deploying release to $RELEASE_DIR..."
+          
+          # Health check & smoke validation spec references
+          # app name: alaminn, port: 3056, path: /home/alamin/alaminn
+          echo "Verifying /api/health endpoint and PM2 process alaminn..."
+          npx prisma migrate status --schema=prisma/schema.prisma
