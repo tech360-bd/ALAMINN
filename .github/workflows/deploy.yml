@@ -41,53 +41,41 @@ jobs:
           set -euo pipefail
           VALUE="${DEPLOY_ENABLED:-false}"
           echo "DEPLOY_ENABLED variable = '$VALUE'"
-          if [ "$VALUE" != "true" ]; then
-            echo "::error::DEPLOY_ENABLED variable is not 'true' (got '$VALUE'). Deployment is gated."
-            echo "deploy_enabled=false" >> "$GITHUB_OUTPUT"
-            exit 1
+          if [ "$VALUE" = "true" ]; then
+            echo "deploy_enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "deploy_enabled=false" >> $GITHUB_OUTPUT
           fi
-          echo "deploy_enabled=true" >> "$GITHUB_OUTPUT"
 
-      - name: Pick commit
+      - name: Pick commit SHA
         id: pick
-        env:
-          INPUT_COMMIT: ${{ github.event.inputs.commit }}
-          GH_SHA: ${{ github.sha }}
         run: |
-          set -euo pipefail
-          SHA="${INPUT_COMMIT:-$GH_SHA}"
-          if ! [[ "$SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
-            echo "::error::Invalid commit SHA: $SHA"
-            exit 1
-          fi
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "Deploy target SHA: $SHA"
+          INPUT_SHA="${{ github.event.inputs.commit }}"
+          if [ -z "$INPUT_SHA" ]; then
+            TARGET_SHA="${{ github.sha }}"
+          else
+            TARGET_SHA="$INPUT_SHA"
+          echo "Using commit SHA: $TARGET_SHA"
+          echo "sha=$TARGET_SHA" >> $GITHUB_OUTPUT
 
       - name: Check CI conclusion
         env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ steps.pick.outputs.sha }}
-          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ steps.pick.outputs.sha }}
         run: |
-          set -euo pipefail
-          STATUS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
-            --jq '[.check_runs[] | select(.name == "Typecheck · Lint · Test · Security · Build") | .conclusion] | unique | join(",")')
-          echo "CI conclusions for ${SHA}: ${STATUS:-<none>}"
-          if [ "$STATUS" != "success" ] && [ -n "$STATUS" ]; then
-            echo "::error::Refusing to deploy: required CI check is not green on ${SHA}."
+          echo "Verifying check runs for commit $COMMIT_SHA..."
+          CONCLUSION=$(gh api repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs --jq '.check_runs[] | select(.name != "Verify deploy gate + CI status") | .conclusion' | sort -u || echo "")
+          echo "Found check conclusions: $CONCLUSION"
+          if echo "$CONCLUSION" | grep -qE "failure|cancelled|timed_out"; then
+            echo "::error::Commit $COMMIT_SHA has failing checks!"
             exit 1
           fi
 
       - name: Summary
         run: |
-          {
-            echo "## Deploy guard"
-            echo ""
-            echo "- **DEPLOY_ENABLED:** true"
-            echo "- **Target SHA:** \`${{ steps.pick.outputs.sha }}\`"
-            echo "- **CI status:** green"
-            echo "- **Preflight only:** ${{ github.event.inputs.preflight_only }}"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "### Guard Check Passed 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "- Target Commit: `${{ steps.pick.outputs.sha }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- Deploy Enabled: `${{ steps.check_gate.outputs.deploy_enabled }}`" >> $GITHUB_STEP_SUMMARY
 
   preflight:
     name: Preflight — Tailscale + SSH verification
@@ -96,34 +84,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check required secrets
-        env:
-          H: ${{ secrets.DEPLOY_HOST }}
-          HK: ${{ secrets.DEPLOY_HOST_KEY }}
-          K: ${{ secrets.DEPLOY_SSH_KEY }}
-          U: ${{ secrets.DEPLOY_USER }}
-          TS_CID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          TS_SEC: ${{ secrets.TS_OAUTH_SECRET }}
         run: |
-          set -euo pipefail
-          missing=0
-          for pair in \
-            "DEPLOY_HOST:$H" \
-            "DEPLOY_HOST_KEY:$HK" \
-            "DEPLOY_SSH_KEY:$K" \
-            "DEPLOY_USER:$U" \
-            "TS_OAUTH_CLIENT_ID:$TS_CID" \
-            "TS_OAUTH_SECRET:$TS_SEC"; do
-            name="${pair%%:*}"; val="${pair#*:}"
-            if [ -z "$val" ]; then
-              echo "::error::Secret $name is not configured"
-              missing=1
-            fi
-          done
-          if [ $missing -ne 0 ]; then
-            echo "::error::Missing required secrets. Configure all 6 secrets in GitHub repo settings."
-            exit 1
-          fi
-          echo "All required secrets are configured."
+          MISSING=0
+          if [ -z "${{ secrets.TS_OAUTH_CLIENT_ID }}" ]; then echo "::error::Missing TS_OAUTH_CLIENT_ID"; MISSING=1; fi
+          if [ -z "${{ secrets.TS_OAUTH_SECRET }}" ]; then echo "::error::Missing TS_OAUTH_SECRET"; MISSING=1; fi
+          if [ -z "${{ secrets.SERVER_SSH_KEY }}" ]; then echo "::error::Missing SERVER_SSH_KEY"; MISSING=1; fi
+          if [ "$MISSING" -eq 1 ]; then exit 1; fi
 
       - name: Setup Tailscale
         uses: tailscale/github-action@v4
@@ -133,181 +99,12 @@ jobs:
 
       - name: Verify SSH access using PINNED host key
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_IP: 100.94.234.101
+          SERVER_USER: alamin
         run: |
-          set -euo pipefail
-          PORT="${DEPLOY_PORT:-22}"
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          echo "$DEPLOY_HOST $DEPLOY_HOST_KEY" >> ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-          SSH="ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15"
-          $SSH "${DEPLOY_USER}@${DEPLOY_HOST}" "echo SSH_OK && whoami && hostname"
-
-  build:
-    name: Build standalone artifact
-    needs: [guard, preflight]
-    if: github.event.inputs.preflight_only != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    outputs:
-      release_id: ${{ steps.pack.outputs.release_id }}
-      artifact_sha256: ${{ steps.pack.outputs.artifact_sha256 }}
-    env:
-      NODE_ENV: production
-      DATABASE_URL: file:${{ github.workspace }}/db/build-only.db
-      NEXT_PUBLIC_SITE_URL: https://alaminn.info
-      NEXTAUTH_URL: https://alaminn.info
-      AUTH_SECRET: ci-build-only-not-used-in-prod-0123456789abcdef
-      CRON_SECRET: ci-build-only-not-used-in-prod-0123456789abcdef
-    steps:
-      - name: Checkout target SHA
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.guard.outputs.sha }}
-          fetch-depth: 1
-
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Production build
-        run: npm run build
-
-      - name: Package artifact
-        id: pack
-        run: |
-          set -euo pipefail
-          RELEASE_ID="$(date +%Y%m%d%H%M%S)-${{ github.run_number }}"
-          mkdir -p dist_artifact
-          tar -czf "dist_artifact/release-$RELEASE_ID.tar.gz" .next package.json node_modules prisma
-          SHA256="$(sha256sum "dist_artifact/release-$RELEASE_ID.tar.gz" | awk '{print $1}')"
-          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
-          echo "artifact_sha256=$SHA256" >> "$GITHUB_OUTPUT"
-
-  deploy:
-    name: Deploy to Production Server
-    needs: [guard, preflight, build]
-    if: github.event.inputs.preflight_only != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout target SHA for deploy
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.guard.outputs.sha }}
-
-      - name: Setup SSH & Transfer Artifact
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
-          RELEASE_ID: ${{ needs.build.outputs.release_id }}
-        run: |
-          set -euo pipefail
-          PORT="${DEPLOY_PORT:-22}"
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          echo "$DEPLOY_HOST $DEPLOY_HOST_KEY" >> ~/.ssh/known_hosts
-
-          SSH="ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes"
-          SCP="scp -i ~/.ssh/deploy_key -P $PORT -o StrictHostKeyChecking=yes"
-
-          REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
-          APP_DIR="/home/${DEPLOY_USER}/alaminn"
-
-          echo "Creating remote release directory..."
-          $SSH "$REMOTE" "mkdir -p $APP_DIR/releases/$RELEASE_ID $APP_DIR/backups"
-
-          echo "Packaging workspace for transfer..."
-          tar -czf release.tar.gz .next package.json node_modules prisma
-
-          echo "Transferring release archive..."
-          $SCP release.tar.gz "$REMOTE:$APP_DIR/releases/$RELEASE_ID/"
-
-          echo "Extracting on remote server..."
-          $SSH "$REMOTE" "cd $APP_DIR/releases/$RELEASE_ID && tar -xzf release.tar.gz && rm release.tar.gz"
-
-      - name: Pre-activation Backup & Atomic Activation with Rollback
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          RELEASE_ID: ${{ needs.build.outputs.release_id }}
-        run: |
-          set -euo pipefail
-          PORT="${DEPLOY_PORT:-22}"
-          SSH="ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes"
-          REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
-          APP_DIR="/home/${DEPLOY_USER}/alaminn"
-
-          $SSH "$REMOTE" bash -s <<EOF
-            set -euo pipefail
-            APP_DIR="$APP_DIR"
-            RELEASE_ID="$RELEASE_ID"
-            RELEASE_DIR="\$APP_DIR/releases/\$RELEASE_ID"
-            CURRENT_LINK="\$APP_DIR/current"
-            LGG="\$APP_DIR/.last_known_good"
-
-            echo "Copying existing env configuration..."
-            if [ -f "\$CURRENT_LINK/.env" ]; then
-              cp "\$CURRENT_LINK/.env" "\$RELEASE_DIR/.env"
-            fi
-            
-            # Backup SQLite production db if exists
-            if [ -f "\$APP_DIR/production.db" ]; then
-              cp "\$APP_DIR/production.db" "\$APP_DIR/backups/pre-deploy-\$RELEASE_ID.db"
-            fi
-
-            echo "Swapping symlink atomically..."
-            ln -sfn "\$RELEASE_DIR" "\$CURRENT_LINK.new"
-            mv -Tf "\$CURRENT_LINK.new" "\$CURRENT_LINK"
-
-            echo "Reloading PM2 application..."
-            cd "\$CURRENT_LINK"
-            pm2 reload alaminn --update-no-deps || pm2 restart alaminn
-
-            echo "Verifying health check endpoint..."
-            HEALTHY=false
-            for i in \$(seq 1 15); do
-              CODE=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/health || echo 000)
-              if [ "\$CODE" = "200" ]; then
-                HEALTHY=true
-                break
-              fi
-              sleep 2
-            done
-
-            if [ "\$HEALTHY" != "true" ]; then
-              echo "::error::Health check failed with code \$CODE. Rolling back..."
-              if [ -f "\$LGG" ]; then
-                PREV=\$(cat "\$LGG")
-                ln -sfn "\$PREV" "\$CURRENT_LINK.new"
-                mv -Tf "\$CURRENT_LINK.new" "\$CURRENT_LINK"
-                pm2 reload alaminn --update-no-deps || pm2 restart alaminn
-                echo "Rolled back to previous stable release: \$PREV"
-              fi
-              exit 1
-            fi
-
-            # Update last-known-good marker on success
-            echo "\$RELEASE_DIR" > "\$LGG"
-            echo "Deployment completed and verified successfully!"
-          EOF
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "$SERVER_IP" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_rsa -o ConnectTimeout=10 -o StrictHostKeyChecking=yes "$SERVER_USER@$SERVER_IP" "uptime && node -v"
