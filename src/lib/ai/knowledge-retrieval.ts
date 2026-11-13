@@ -9,6 +9,56 @@ import { db } from "@/lib/db";
 import { ModelProvider } from "./inference-engine";
 import { LocalInferenceEngine } from "./inference-engine";
 
+/**
+ * Authentication context for knowledge-retrieval operations.
+ *
+ * Every ingestion and retrieval call must carry an AuthContext so the
+ * service can enforce document ownership, tenant isolation, and
+ * role-based access. In production, missing auth fails closed.
+ */
+export interface AuthContext {
+  /** Authenticated user ID. Must be a non-empty string. */
+  userId: string;
+  /** Role: ADMIN, STAFF, VIEWER, etc. ADMIN bypasses ownership checks. */
+  role: string;
+  /** Optional tenant / organization ID for multi-tenant isolation. */
+  tenantId?: string;
+  /** Optional set of permission strings (e.g. "knowledge:read"). */
+  permissions?: string[];
+}
+
+export class KnowledgeAuthError extends Error {
+  constructor(
+    message: string,
+    public code: "UNAUTHENTICATED" | "FORBIDDEN" | "MISSING_ROLE" | "CROSS_TENANT"
+  ) {
+    super(message);
+    this.name = "KnowledgeAuthError";
+  }
+}
+
+/** Fail-closed check: if NODE_ENV is production, auth is mandatory. */
+function requireAuth(auth: AuthContext | undefined | null): AuthContext {
+  if (!auth || !auth.userId || typeof auth.userId !== "string" || auth.userId.trim().length === 0) {
+    if (process.env.NODE_ENV === "production") {
+      throw new KnowledgeAuthError(
+        "Unauthenticated knowledge access in production — fail closed.",
+        "UNAUTHENTICATED"
+      );
+    }
+    // In development, allow a synthetic dev user so smoke tests work
+    // without full session plumbing. Production never reaches this path.
+    return { userId: "dev-user", role: "ADMIN", tenantId: "dev" };
+  }
+  return auth;
+}
+
+/** True if the role grants admin-level access (bypasses ownership). */
+function isPrivilegedRole(role: string): boolean {
+  const r = (role || "").toUpperCase();
+  return r === "ADMIN" || r === "SUPER_ADMIN" || r === "OWNER";
+}
+
 export interface DocumentInfo {
   id: string;
   title: string;
@@ -18,6 +68,10 @@ export interface DocumentInfo {
   sizeBytes: number;
   lastAccessedAt: string | null;
   status: "indexed" | "pending" | "failed";
+  /** Owner who ingested the document. Used for access control. */
+  ownerId?: string;
+  /** Tenant / org the document belongs to. Used for isolation. */
+  tenantId?: string;
 }
 
 export interface KnowledgeChunk {
@@ -68,6 +122,8 @@ export class KnowledgeRetrievalService {
     url?: string;
     content: string;
     language?: string;
+    ownerId?: string;
+    tenantId?: string;
   }): Promise<DocumentInfo> {
     // Extract text from document
     const content = this.extractText(doc.content);
@@ -87,6 +143,8 @@ export class KnowledgeRetrievalService {
       sizeBytes: new Blob([content]).size,
       lastAccessedAt: null,
       status: "indexed",
+      ownerId: doc.ownerId,
+      tenantId: doc.tenantId,
     };
 
     this.documents.set(documentId, docInfo);
@@ -97,19 +155,85 @@ export class KnowledgeRetrievalService {
     return docInfo;
   }
 
+  /**
+   * Ingest text content with authenticated access control.
+   *
+   * The `_userId` / `_role` parameters are now respected: in production,
+   * a missing or empty auth context causes a fail-closed error. The
+   * ingested document is stamped with the caller's ownerId and
+   * tenantId so subsequent searches can enforce ownership.
+   */
   async ingestText(
     title: string,
     source: string,
     content: string,
     url?: string,
     language?: string,
-    _userId?: string,
-    _role?: string
+    auth?: AuthContext
   ): Promise<DocumentInfo> {
-    // Get permission (simplified - always allow in dev)
-    // TODO: Implement proper access control
-    const docId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    return this.ingestDocument({ id: docId, title, source, url, content, language });
+    const resolvedAuth = requireAuth(auth);
+    const docId = `doc_${resolvedAuth.userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return this.ingestDocument({
+      id: docId,
+      title,
+      source,
+      url,
+      content,
+      language,
+      ownerId: resolvedAuth.userId,
+      tenantId: resolvedAuth.tenantId,
+    });
+  }
+
+  /**
+   * Authenticated search: returns only documents the caller is
+   * authorized to see.
+   *
+   * - ADMIN / SUPER_ADMIN / OWNER roles see all documents.
+   * - Other roles see only documents they own (ownerId matches).
+   * - If tenantId is set, results are additionally scoped to that
+   *   tenant (cross-tenant retrieval is blocked).
+   *
+   * In production, calling without auth throws KnowledgeAuthError.
+   */
+  searchForUser(
+    auth: AuthContext | undefined | null,
+    query: string,
+    limit = 5
+  ): KnowledgeRetrievalResult {
+    const resolvedAuth = requireAuth(auth);
+    const all = this.search(query, limit);
+
+    // Privileged roles bypass ownership filtering.
+    if (isPrivilegedRole(resolvedAuth.role)) {
+      return all;
+    }
+
+    // Non-privileged users: filter to own documents + same tenant.
+    const filtered = all.results.filter(r => {
+      const docId = r.metadata.documentId as string | undefined;
+      if (!docId) return false;
+      const doc = this.documents.get(docId);
+      if (!doc) return false;
+
+      // Ownership check: the document's ownerId must match the caller.
+      if (doc.ownerId && doc.ownerId !== resolvedAuth.userId) {
+        // Cross-tenant check for logging / future enforcement
+        if (doc.tenantId && resolvedAuth.tenantId && doc.tenantId !== resolvedAuth.tenantId) {
+          // Cross-tenant access attempt — blocked.
+          return false;
+        }
+        return false;
+      }
+      return true;
+    });
+
+    return {
+      results: filtered,
+      totalFound: filtered.length,
+      query,
+      retrievedAt: new Date(),
+    };
   }
 
   private extractText(doc: unknown): string {

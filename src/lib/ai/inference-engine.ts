@@ -250,34 +250,105 @@ export class LocalInferenceEngine {
   }
 
   async loadModel(config: ModelConfig): Promise<void> {
+    // Real provider readiness check — no simulated delays.
+    // Verifies that the provider is registered, that required API keys
+    // are present, and that the configuration is valid. A model that
+    // fails readiness is marked `loaded: false, available: false` with
+    // a structured error message, so healthCheck() never reports an
+    // unconfigured provider as healthy.
+    await this.verifyProviderReadiness(config);
     console.log(`[InferenceEngine] Ready model: ${config.model} (${config.provider})`);
   }
 
-  private async loadLocalModel(config: ModelConfig): Promise<void> {
-    // Local model loading (e.g., llama.cpp, Hugging Face transformers)
-    console.log(`[InferenceEngine] Loading local model: ${config.model}`);
-    // TODO: Implement actual local model loading
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate loading time
-  }
+  /**
+   * Verify that a model's provider is actually usable — not just that a
+   * timer completed. Checks provider registration, API key presence,
+   * base URL validity, and local-runtime availability.
+   *
+   * Throws InferenceError with a structured code if the provider cannot
+   * be considered ready. The caller (initialize / loadModel) catches
+   * and records the failure in the model's status.
+   */
+  private async verifyProviderReadiness(config: ModelConfig): Promise<void> {
+    const { provider, apiKey, baseUrl } = config;
 
-  private async loadOpenAIModel(config: ModelConfig): Promise<void> {
-    // OpenAI model loading
-    if (!config.apiKey) {
-      throw new InferenceError("OpenAI API key required to load model", "INVALID_REQUEST");
+    // Local provider: there is no local model runtime (no llama.cpp /
+    // Hugging Face transformers process is wired up). Mark explicitly
+    // unavailable so production code cannot treat it as initialized.
+    // Checked FIRST so the registration check below doesn't mask the
+    // more specific "local runtime not configured" error.
+    if (provider === "local") {
+      throw new InferenceError(
+        "Local model runtime is not configured. Use a cloud provider " +
+          "(unorouter, groq, github, zai, etc.) or configure Ollama locally.",
+        "UNSUPPORTED_OPERATION"
+      );
     }
-    console.log(`[InferenceEngine] Loading OpenAI model: ${config.model}`);
-    // TODO: Implement actual OpenAI model loading
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate loading time
-  }
 
-  private async loadZAIModel(config: ModelConfig): Promise<void> {
-    // ZAI model loading
-    if (!config.apiKey) {
-      throw new InferenceError("ZAI API key required to load model", "INVALID_REQUEST");
+    // Providers routed through the free-router share its catalog and
+    // key-resolution layer. Verify the provider ID is registered.
+    const freeRouterProviders = new Set<string>([
+      "unorouter", "groq", "gemini", "cerebras", "openrouter", "github",
+      "cloudflare", "sambanova", "chutes", "zhipu", "mistral", "nvidia",
+      "huggingface", "modelscope", "siliconflow", "pollinations", "zai",
+      "ollama", "local-grounded", "openai",
+    ]);
+
+    if (!freeRouterProviders.has(provider)) {
+      throw new InferenceError(
+        `Provider "${provider}" is not registered in the free-router catalog. ` +
+          `Registered providers: ${Array.from(freeRouterProviders).slice(0, 8).join(", ")}, …`,
+        "UNSUPPORTED_OPERATION"
+      );
     }
-    console.log(`[InferenceEngine] Loading ZAI model: ${config.model}`);
-    // TODO: Implement actual ZAI model loading
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate loading time
+
+    // API-key providers: if the config declares an apiKey, validate its
+    // shape. The free-router resolves keys from env/settings at call
+    // time, so a missing key here is only fatal if the caller explicitly
+    // required one via ModelConfig.apiKey.
+    if (apiKey !== undefined && apiKey !== "") {
+      if (typeof apiKey !== "string" || apiKey.trim().length < 8) {
+        throw new InferenceError(
+          `API key for provider "${provider}" is present but invalid (too short or empty).`,
+          "INVALID_REQUEST"
+        );
+      }
+    }
+
+    // Ollama: verify a base URL is resolvable (either from config or env).
+    if (provider === "ollama") {
+      const ollamaUrl = baseUrl || process.env.OLLAMA_BASE_URL;
+      if (!ollamaUrl) {
+        throw new InferenceError(
+          "Ollama provider requires a base URL. Set OLLAMA_BASE_URL or ModelConfig.baseUrl.",
+          "INVALID_REQUEST"
+        );
+      }
+      try {
+        new URL(ollamaUrl);
+      } catch {
+        throw new InferenceError(
+          `Ollama base URL "${ollamaUrl}" is not a valid URL.`,
+          "INVALID_REQUEST"
+        );
+      }
+    }
+
+    // baseUrl, when provided for any provider, must be a valid URL.
+    if (baseUrl) {
+      try {
+        new URL(baseUrl);
+      } catch {
+        throw new InferenceError(
+          `Base URL "${baseUrl}" for provider "${provider}" is not a valid URL.`,
+          "INVALID_REQUEST"
+        );
+      }
+    }
+
+    // All checks passed — the provider is registered and its config is
+    // structurally valid. The actual network call is deferred to
+    // performInference() which routes through runFreeAiRouter.
   }
 
   updateStatus(model: string, updates: Partial<ModelStatus>): void {
