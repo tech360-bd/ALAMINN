@@ -2,7 +2,7 @@
   "name": "alaminn-info",
   "version": "1.0.0",
   "private": true,
-  "description": "alaminn.info — Premium executive authority platform for Al Aminn (Next.js 16 standalone production build)",
+  "description": "alaminn.info \u2014 Premium executive authority platform for Al Aminn (Next.js 16 standalone production build)",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -142,6 +142,7 @@
   },
   "overrides": {
     "mariadb": "^3.5.5",
-    "deepmerge-ts": "^8.0.0"
+    "deepmerge-ts": "^8.0.0",
+    "minimatch": "^11.0.1"
   }
 }
