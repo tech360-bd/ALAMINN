@@ -124,7 +124,7 @@ describe("LocalInferenceEngine — provider readiness", () => {
         provider: "groq",
         model: "groq-test",
         capabilities: ["chat"],
-        apiKey: "fake-test-key-not-a-real-secret-0123456789",
+        apiKey: "test-fake-api-key-1234567890abcdef",
       };
       await expect(engine.loadModel(config)).resolves.toBeUndefined();
     });
