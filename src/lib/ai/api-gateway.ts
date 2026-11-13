@@ -438,14 +438,21 @@ export class ApiGateway {
         query: request.query,
       });
 
-      // Retrieve knowledge
+      // Retrieve knowledge — pass the authenticated user context so
+      // ingestion stamps ownership and retrieval enforces access control.
+      // searchForUser filters results to documents the caller is
+      // authorized to see (own documents, or all if ADMIN role).
+      const authContext = req.userId
+        ? { userId: req.userId, role: req.role || "VIEWER" }
+        : undefined;
       const knowledgePromise = this.knowledgeService.ingestText(
         "Test Document",
         "test",
         "",
         (parsed as { query: string }).query,
-        "en"
-      ).then(() => this.knowledgeService.search(request.query, request.limit));
+        "en",
+        authContext
+      ).then(() => this.knowledgeService.searchForUser(authContext, request.query, request.limit));
 
       knowledgePromise.then(knowledge => {
         // Format response

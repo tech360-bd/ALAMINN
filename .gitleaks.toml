@@ -1,0 +1,17 @@
+# gitleaks configuration — extends the default rule set with allowlists
+# for test fixtures that intentionally contain fake API key patterns.
+#
+# The default gitleaks config (used when this file is absent) flags any
+# `apiKey: "…"` literal with 8+ characters as a potential secret. Test
+# files routinely contain fake keys for validation testing — these are
+# not real secrets and should not block CI.
+#
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+
+[allowlist]
+description = "Allow test fixture files that contain fake API keys for validation testing"
+paths = [
+  '''tests/.*\.test\.ts''',
+  '''tests/.*\.test\.tsx''',
+  '''tests/.*\.spec\.ts''',
+]
