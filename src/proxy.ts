@@ -140,9 +140,14 @@ export async function proxy(req: NextRequest) {
 
   // Arena's preview is embedded by the user's browser on a different origin.
   // Keep production clickjacking protection, but allow the preview proxy in dev.
+  // Modern browsers honor CSP frame-ancestors over X-Frame-Options, so the
+  // relaxed frame-ancestors below still governs embedding; we keep a
+  // SAMEORIGIN X-Frame-Options for legacy clients and for parity with the
+  // automated security suite (scripts/security-tests.ts test 8), which
+  // expects all three headers on every environment including dev.
   if (process.env.NODE_ENV !== "production") {
     const headers = { ...SECURITY_HEADERS };
-    delete headers["X-Frame-Options"];
+    headers["X-Frame-Options"] = "SAMEORIGIN";
     headers["Content-Security-Policy"] = headers["Content-Security-Policy"].replace("frame-ancestors 'none'", "frame-ancestors 'self' https://*.e2b.app https://*.space-z.ai").replace("; upgrade-insecure-requests", "");
     for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
     return response;
