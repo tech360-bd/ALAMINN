@@ -73,6 +73,7 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "upload/**",
     "mini-services/**",
     "csvbox-io/**", // Vendored third-party reference clone — not app code
+    "automation-stack/**", // Vendored AI-automation reference repos (git submodules) — not app code
   ],
 }];
 

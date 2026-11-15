@@ -24,3 +24,4 @@ dev-quick.log
 ALAMINN-INFO-*.zip
 alaminn-info-*.zip
 alaminn-info-*.tar.gz
+automation-stack/*
