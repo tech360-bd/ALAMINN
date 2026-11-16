@@ -64,7 +64,7 @@ that referenced those technologies have been retired in the v6 rebuild.
 - **Insights / Articles** — published articles with markdown rendering.
 - **Ecosystem** — ALO Labs, ALO Education, Tech360.
 - **Resources** — downloadable resources.
-- **Testimonials**, **FAQ**, **Newsletter**, **Contact Finale**, **Work With Me**, **Profile**.
+- **LinkedIn recommendations** (consent-gated, admin-managed), **FAQ**, **Newsletter**, **Contact Finale**, **Work With Me**, **Profile**.
 
 ### 2.2 Higher Study Platform
 

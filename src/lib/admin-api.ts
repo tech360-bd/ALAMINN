@@ -1,138 +1,154 @@
 /**
- * Admin API helpers — shared response + audit helpers for /api/v1/admin/*.
- * -----------------------------------------------------------------
- * Every admin route follows the same shape:
- *   - AuthN/Z via `requirePermission` (signed session cookie).
- *   - JSON envelope: { success, message, data, meta, errors }.
- *   - Audit log entry on every state-changing action.
+ * Admin API client — frontend only (Rule 1d / Rule 9.7).
+ * ----------------------------------------------------
+ * Every admin request goes through here so that:
  *
- * This module keeps the routes thin — the routes call `ok()` / `fail()`
- * and `writeAudit()` instead of repeating boilerplate.
+ *   - `credentials: "include"` is always set, and the httpOnly
+ *     `auth_token` cookie authenticates the request.
+ *   - A 401 sends the browser to `/admin/login` (once), instead of
+ *     leaving the UI in a half-loaded state.
+ *   - No token is ever read from localStorage and no
+ *     `Authorization: Bearer` header is ever sent. There is ONE auth
+ *     mechanism: the JWT session cookie.
+ *
+ * Usage (client components):
+ *   const { data } = await adminApi.get<Contact[]>("/api/v1/admin/contacts");
+ *   await adminApi.post("/api/v1/admin/contacts", { name: "..." });
+ *
+ * Server-side route helpers live in `@/lib/admin-api-server`; do not import
+ * this module from a route handler.
  */
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import type { Session } from "@/lib/auth";
 
-export type ApiMeta = Record<string, unknown>;
+export type ApiEnvelope<T> = {
+  success: boolean;
+  data: T | null;
+  meta?: Record<string, unknown>;
+  message?: string;
+  error?: string | null;
+  errors?: unknown[];
+};
 
-export function ok(data: unknown, message = "OK", meta: ApiMeta = {}, status: number = 200) {
-  return NextResponse.json({ success: true, message, data, meta, errors: [] }, { status });
-}
+export class ApiError extends Error {
+  status: number;
+  errors: unknown[];
 
-export function fail(
-  message: string,
-  errors: unknown[] = [],
-  status = 400,
-  meta: ApiMeta = {}
-) {
-  return NextResponse.json(
-    { success: false, message, data: null, meta, errors },
-    { status }
-  );
-}
-
-/** Parse ?page=N&pageSize=N (defaults: 1/25, capped at 100). */
-export function pagination(req: Request) {
-  const url = new URL(req.url);
-  const page = Math.max(1, Number(url.searchParams.get("page") || "1") || 1);
-  const pageSize = Math.min(
-    100,
-    Math.max(1, Number(url.searchParams.get("pageSize") || "25") || 25)
-  );
-  return { page, pageSize, skip: (page - 1) * pageSize, take: pageSize };
-}
-
-/** Read ?q=search and any ?field=value filters as a Prisma `where` clause. */
-export function searchField(req: Request, _fields: string[]): string | null {
-  const q = new URL(req.url).searchParams.get("q")?.trim();
-  return q || null;
-}
-
-/** Build a Prisma `where` for case-insensitive search across multiple string fields. */
-export function searchWhere(q: string | null, fields: string[]) {
-  if (!q) return {};
-  // SQLite uses `contains` (case-insensitive by default for ASCII).
-  // We OR across the requested fields.
-  return {
-    OR: fields.map((f) => ({ [f]: { contains: q } })),
-  };
-}
-
-/** Write an audit log row. Best-effort — never throws. */
-export async function writeAudit(
-  session: Session,
-  action: string,
-  resource: string,
-  resourceId?: string,
-  meta?: Record<string, unknown>
-) {
-  try {
-    await db.auditLog.create({
-      data: {
-        actorId: session.userId,
-        action,
-        resource,
-        resourceId,
-        meta: meta ? JSON.stringify(meta) : null,
-      },
-    });
-  } catch {
-    // non-fatal
+  constructor(message: string, status: number, errors: unknown[] = []) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.errors = errors;
   }
 }
 
-/** Read JSON body safely. Returns null on parse error. */
-export async function readJson<T = Record<string, unknown>>(
-  req: Request
-): Promise<T | null> {
-  try {
-    return (await req.json()) as T;
-  } catch {
-    return null;
+function adminLoginUrl(): string {
+  if (typeof window === "undefined") return "/admin/login";
+  const next = window.location.pathname + window.location.search;
+  const safeNext = next.startsWith("/admin") && next !== "/admin/login" ? next : "/admin";
+  return `/admin/login?next=${encodeURIComponent(safeNext)}`;
+}
+
+function redirectToLogin(): void {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname === "/admin/login") return;
+  window.location.assign(adminLoginUrl());
+}
+
+/** Resolve a path: full `/api/...` paths pass through, bare names are admin-scoped. */
+function resolveUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) {
+    throw new ApiError("Absolute URLs are not allowed in the admin client.", 400);
   }
+  if (path.startsWith("/")) return path;
+  return `/api/v1/admin/${path.replace(/^\/+/, "")}`;
 }
 
-/** Get a single query param as a string, or null. */
-export function param(req: Request, key: string): string | null {
-  return new URL(req.url).searchParams.get(key);
-}
+export type RequestOptions = {
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  /** Plain object — serialized as JSON automatically. */
+  body?: unknown;
+  /** Query string parameters. */
+  query?: Record<string, string | number | boolean | null | undefined>;
+  signal?: AbortSignal;
+  /** Set false to handle 401 yourself (defaults to true). */
+  redirectOn401?: boolean;
+};
 
-/** Check whether a Setting key holds a secret, password, API key, or token. */
-export function isSensitiveSettingKey(key: string): boolean {
-  return /(pass|secret|token|apikey|api_key|\.key$|credential|private|accountid)/i.test(key);
-}
+/**
+ * Low-level request helper. Throws `ApiError` for non-2xx responses.
+ */
+export async function apiRequest<T>(
+  path: string,
+  options: RequestOptions = {}
+): Promise<ApiEnvelope<T>> {
+  const { method = "GET", body, query, signal, redirectOn401 = true } = options;
 
-// ─── Bounded sliding-window in-memory rate limiter for Admin AI endpoints ────
-interface AdminRateBucket {
-  count: number;
-  resetAt: number;
-}
-const adminRateBuckets = new Map<string, AdminRateBucket>();
-const MAX_RATE_BUCKETS = 4096;
+  let url = resolveUrl(path);
+  if (query) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value === undefined || value === null || value === "") continue;
+      params.set(key, String(value));
+    }
+    const qs = params.toString();
+    if (qs) url += (url.includes("?") ? "&" : "?") + qs;
+  }
 
-export function checkAdminRateLimit(
-  bucketKey: string,
-  maxRequests: number,
-  windowMs = 60_000
-): { allowed: boolean; retryAfterSec: number } {
-  const now = Date.now();
-  if (adminRateBuckets.size > MAX_RATE_BUCKETS) {
-    for (const [k, v] of adminRateBuckets.entries()) {
-      if (v.resetAt <= now) adminRateBuckets.delete(k);
+  const headers: Record<string, string> = { accept: "application/json" };
+  let payload: BodyInit | undefined;
+  if (body !== undefined) {
+    if (typeof FormData !== "undefined" && body instanceof FormData) {
+      payload = body; // browser sets the multipart boundary
+    } else {
+      headers["content-type"] = "application/json";
+      payload = JSON.stringify(body);
     }
   }
-  const existing = adminRateBuckets.get(bucketKey);
-  if (!existing || existing.resetAt <= now) {
-    adminRateBuckets.set(bucketKey, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, retryAfterSec: 0 };
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      credentials: "include",
+      headers,
+      body: payload,
+      signal,
+      cache: "no-store",
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    throw new ApiError("Network error — check your connection and try again.", 0);
   }
-  if (existing.count >= maxRequests) {
-    return {
-      allowed: false,
-      retryAfterSec: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
-    };
+
+  if (res.status === 401) {
+    if (redirectOn401) redirectToLogin();
+    throw new ApiError("Your session has expired. Please sign in again.", 401, ["unauthenticated"]);
   }
-  existing.count += 1;
-  return { allowed: true, retryAfterSec: 0 };
+
+  const json = (await res.json().catch(() => null)) as ApiEnvelope<T> | null;
+
+  if (!res.ok || !json || json.success !== true) {
+    const message =
+      json?.error ||
+      json?.message ||
+      (res.status === 403
+        ? "You do not have permission to do that."
+        : `Request failed (${res.status}).`);
+    throw new ApiError(message, res.status, json?.errors ?? []);
+  }
+
+  return json;
 }
 
+export const adminApi = {
+  request: apiRequest,
+  /**
+   * GET a resource. `path` may be a full `/api/v1/admin/...` path or a bare
+   * resource name such as `"contacts"`.
+   */
+  get: <T>(path: string, query?: RequestOptions["query"], signal?: AbortSignal) =>
+    apiRequest<T>(path, { method: "GET", query, signal }),
+  post: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: "POST", body }),
+  put: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: "PUT", body }),
+  patch: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: "PATCH", body }),
+  delete: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: "DELETE", body }),
+};

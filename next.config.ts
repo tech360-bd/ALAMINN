@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import { loadEnvConfig } from "./src/lib/load-env";
+
+// Rule 5: .env.config (not .env) — loaded before Next reads any env.
+loadEnvConfig();
 
 const nextConfig: NextConfig = {
   // Pin the workspace root: a parent directory lockfile (bun.lock) otherwise

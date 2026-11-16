@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
-import { ok, fail, readJson, writeAudit } from "@/lib/admin-api";
+import { ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

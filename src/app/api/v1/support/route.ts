@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { checkAdminRateLimit } from "@/lib/admin-api";
+import { checkAdminRateLimit } from "@/lib/admin-api-server";
 import { newSupportToken, hashSupportToken, supportRateKey, sameOrigin } from "@/lib/kits/support";
 export const dynamic = "force-dynamic";
 const schema = z.object({ name: z.string().trim().min(1).max(100), email: z.string().email().max(254).optional().or(z.literal("")), message: z.string().trim().min(1).max(2000) });

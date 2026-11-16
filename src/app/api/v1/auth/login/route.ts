@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyPassword, setSessionCookie } from "@/lib/auth";
+import {
+  verifyPassword,
+  setSessionCookie,
+  hashPassword,
+  needsPasswordRehash,
+  TIMING_DUMMY_HASH,
+  TOKEN_TTL_SECONDS,
+} from "@/lib/auth";
 import { normalizeRole, ALL_ROLES } from "@/lib/rbac";
 import { createHash } from "crypto";
 
@@ -10,7 +17,10 @@ function ok(data: unknown, message = "OK", meta: Record<string, unknown> = {}) {
   return NextResponse.json({ success: true, message, data, meta, errors: [] });
 }
 function fail(message: string, errors: unknown[] = [], status = 400) {
-  return NextResponse.json({ success: false, message, data: null, meta: {}, errors }, { status });
+  return NextResponse.json(
+    { success: false, message, error: message, data: null, meta: {}, errors },
+    { status }
+  );
 }
 
 // ─── Rate limiting (per IP hash) ────────────────────────────────────────
@@ -62,9 +72,8 @@ export async function POST(req: NextRequest) {
 
     // Find the user
     const user = await db.user.findUnique({ where: { email } });
-    // Always run a verify against a dummy hash to keep timing consistent
-    const DUMMY_HASH = "scrypt$00000000000000000000000000000000$0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-    const storedHash = user?.passwordHash || DUMMY_HASH;
+    // Always run a verify against a dummy bcrypt hash to keep timing consistent
+    const storedHash = user?.passwordHash || TIMING_DUMMY_HASH;
     const valid = user ? verifyPassword(password, storedHash) : false;
 
     if (!user || !user.passwordHash || !valid || user.status !== "active") {
@@ -127,7 +136,20 @@ export async function POST(req: NextRequest) {
     // Reset failure count on success
     loginAttempts.delete(hash);
 
-    // Set session cookie
+    // Upgrade legacy scrypt hashes to bcrypt on the next successful login.
+    // Best-effort: a failed upgrade must never block sign-in.
+    if (user.passwordHash && needsPasswordRehash(user.passwordHash)) {
+      try {
+        await db.user.update({
+          where: { id: user.id },
+          data: { passwordHash: hashPassword(password) },
+        });
+      } catch {
+        // non-fatal
+      }
+    }
+
+    // Set the JWT session cookie (httpOnly `auth_token`, 24h)
     await setSessionCookie({ id: user.id, email: user.email, name: user.name, role: user.role });
 
     // Audit log (successful login)
@@ -154,7 +176,7 @@ export async function POST(req: NextRequest) {
           name: user.name,
           role,
         },
-        expiresAt: Math.floor(Date.now() / 1000) + 60 * 60 * 8,
+        expiresAt: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
       },
       "Signed in."
     );

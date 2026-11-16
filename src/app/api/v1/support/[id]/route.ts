@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { checkAdminRateLimit } from "@/lib/admin-api";
+import { checkAdminRateLimit } from "@/lib/admin-api-server";
 import { visitorConversation, supportRateKey, sameOrigin } from "@/lib/kits/support";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store" };

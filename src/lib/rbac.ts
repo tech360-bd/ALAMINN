@@ -11,6 +11,7 @@
  * SECURITY: This file is the single source of truth. Do not duplicate
  * role logic on the client.
  */
+import { NextResponse } from "next/server";
 
 export type UserRole =
   | "SUPER_ADMIN"
@@ -93,6 +94,9 @@ export type Permission =
   | "case_studies.create"
   | "case_studies.update"
   | "case_studies.delete"
+  // LinkedIn endorsements (public credibility content)
+  | "endorsements.view"
+  | "endorsements.update"
   | "impact_records.view"
   | "impact_records.create"
   | "impact_records.update"
@@ -251,6 +255,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "ai_tasks.create",
     "ai_tasks.update",
     "articles.view",
+    "endorsements.view",
     "newsletter.view",
   ],
   CRM_MANAGER: [
@@ -305,6 +310,8 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "impact_records.update",
     "case_studies.view",
     "case_studies.update",
+    "endorsements.view",
+    "endorsements.update",
     "newsletter.view",
     "newsletter.send",
     "ai_tasks.view", "ai_tasks.create", "ai_tasks.update",
@@ -320,6 +327,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "projects.update",
     "case_studies.view",
     "case_studies.update",
+    "endorsements.view",
     "impact_records.view",
     "impact_records.update",
     "newsletter.view",
@@ -381,6 +389,7 @@ const ALL_PERMISSIONS: Permission[] = [
   "resources.view", "resources.create", "resources.update", "resources.delete",
   "projects.view", "projects.create", "projects.update", "projects.delete",
   "case_studies.view", "case_studies.create", "case_studies.update", "case_studies.delete",
+  "endorsements.view", "endorsements.update",
   "impact_records.view", "impact_records.create", "impact_records.update", "impact_records.delete",
   "newsletter.view", "newsletter.export", "newsletter.send",
   "partnerships.view", "partnerships.update",
@@ -470,4 +479,91 @@ export const SELECTABLE_ROLES: UserRole[] = ALL_ROLES.filter((r) => r !== "OWNER
 export function normalizeRole(value: unknown): UserRole | null {
   if (typeof value !== "string") return null;
   return ALL_ROLES.includes(value as UserRole) ? (value as UserRole) : null;
+}
+
+// ─── Role hierarchy (Rule 1f) ──────────────────────────────────────────────
+/**
+ * Numeric authority ranking. Higher wins.
+ *
+ *   SUPER_ADMIN (100) > OWNER (90) > EXECUTIVE_ASSISTANT / *_MANAGER (70-80)
+ *   > SECURITY_AUDITOR (60) > AI_REVIEWER (50) > VIEWER (10)
+ *
+ * This is a coarse gate used by `requireRole()`. Fine-grained, per-resource
+ * access is still governed by the permission matrix above.
+ */
+export const ROLE_RANK: Record<UserRole, number> = {
+  SUPER_ADMIN: 100,
+  OWNER: 90,
+  EXECUTIVE_ASSISTANT: 80,
+  CRM_MANAGER: 70,
+  PARTNERSHIP_MANAGER: 70,
+  CONTENT_MANAGER: 70,
+  MARKETING_MANAGER: 70,
+  PROJECT_MANAGER: 70,
+  SECURITY_AUDITOR: 60,
+  AI_REVIEWER: 50,
+  VIEWER: 10,
+};
+
+/** True when `role` sits at or above `minimum` in the hierarchy. */
+export function hasMinimumRole(
+  role: UserRole | string | null | undefined,
+  minimum: UserRole
+): boolean {
+  const normalized = normalizeRole(role);
+  if (!normalized) return false;
+  return ROLE_RANK[normalized] >= ROLE_RANK[minimum];
+}
+
+export type RoleCheck =
+  | { ok: true; role: UserRole }
+  | { ok: false; error: Response };
+
+/**
+ * Route-handler guard for the role hierarchy.
+ *
+ *   const check = requireRole(auth.user.role, "VIEWER");
+ *   if (!check.ok) return check.error;
+ *
+ * Returns 401 when no role was supplied (unauthenticated) and 403 when the
+ * role exists but is below `minimum`. Never throws.
+ */
+export function requireRole(
+  role: UserRole | string | null | undefined,
+  minimum: UserRole
+): RoleCheck {
+  const normalized = normalizeRole(role);
+  if (!normalized) {
+    return {
+      ok: false,
+      error: NextResponse.json(
+        {
+          success: false,
+          error: "unauthorized",
+          message: "Authentication required.",
+          data: null,
+          meta: {},
+          errors: ["unauthenticated"],
+        },
+        { status: 401 }
+      ),
+    };
+  }
+  if (ROLE_RANK[normalized] < ROLE_RANK[minimum]) {
+    return {
+      ok: false,
+      error: NextResponse.json(
+        {
+          success: false,
+          error: "forbidden",
+          message: `Requires ${minimum} or higher.`,
+          data: null,
+          meta: {},
+          errors: ["insufficient_role"],
+        },
+        { status: 403 }
+      ),
+    };
+  }
+  return { ok: true, role: normalized };
 }

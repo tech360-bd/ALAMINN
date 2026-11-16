@@ -9,7 +9,7 @@
  */
 import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
-import { ok } from "@/lib/admin-api";
+import { ok } from "@/lib/admin-api-server";
 import {
   whatsappConfig,
   getAgentStatus,
