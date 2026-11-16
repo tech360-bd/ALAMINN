@@ -94,6 +94,9 @@ export type Permission =
   | "case_studies.create"
   | "case_studies.update"
   | "case_studies.delete"
+  // LinkedIn endorsements (public credibility content)
+  | "endorsements.view"
+  | "endorsements.update"
   | "impact_records.view"
   | "impact_records.create"
   | "impact_records.update"
@@ -252,6 +255,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "ai_tasks.create",
     "ai_tasks.update",
     "articles.view",
+    "endorsements.view",
     "newsletter.view",
   ],
   CRM_MANAGER: [
@@ -306,6 +310,8 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "impact_records.update",
     "case_studies.view",
     "case_studies.update",
+    "endorsements.view",
+    "endorsements.update",
     "newsletter.view",
     "newsletter.send",
     "ai_tasks.view", "ai_tasks.create", "ai_tasks.update",
@@ -321,6 +327,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "projects.update",
     "case_studies.view",
     "case_studies.update",
+    "endorsements.view",
     "impact_records.view",
     "impact_records.update",
     "newsletter.view",
@@ -382,6 +389,7 @@ const ALL_PERMISSIONS: Permission[] = [
   "resources.view", "resources.create", "resources.update", "resources.delete",
   "projects.view", "projects.create", "projects.update", "projects.delete",
   "case_studies.view", "case_studies.create", "case_studies.update", "case_studies.delete",
+  "endorsements.view", "endorsements.update",
   "impact_records.view", "impact_records.create", "impact_records.update", "impact_records.delete",
   "newsletter.view", "newsletter.export", "newsletter.send",
   "partnerships.view", "partnerships.update",
