@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { checkAdminRateLimit, ok, fail, readJson, writeAudit } from "@/lib/admin-api";
+import { checkAdminRateLimit, ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 import {
   FREE_PROVIDER_MAP,
   encryptStoredAiSecret,

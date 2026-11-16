@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       return jsonResponse(false, "Invalid request body.", null, {}, ["invalid_body"], 400);
     }
 
-    const ctx = resolveCaller(req, body as Record<string, unknown>);
+    const ctx = await resolveCaller(req, body as Record<string, unknown>);
     if (!ctx.userId && !ctx.sessionId) {
       return jsonResponse(
         false,

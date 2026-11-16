@@ -9,6 +9,11 @@
  * SECURITY: Never access `process.env` directly outside this file.
  * Import from here so every access is validated and typed.
  */
+import { loadEnvConfig } from "@/lib/load-env";
+import { resolveAuthSecret } from "@/lib/auth/secret";
+
+// Load .env.config before anything reads process.env (Rule 5).
+loadEnvConfig();
 
 export type AppEnv = {
   /** Node environment — "development" | "production" | "test" */
@@ -60,8 +65,6 @@ export type AppEnv = {
 };
 
 const DEV_SITE_URL = "http://localhost:3000";
-const DEV_FALLBACK_SECRET =
-  "dev-fallback-secret-please-set-AUTH_SECRET-to-a-32+-byte-random-string";
 
 function parsePort(v: string | undefined, def: number): number {
   const n = Number(v);
@@ -78,22 +81,23 @@ function buildEnv(): AppEnv {
   const databaseUrl =
     process.env.DATABASE_URL || "file:./db/custom.db";
 
-  // AUTH_SECRET — required in production, dev-fallback in development
-  const authSecret = process.env.AUTH_SECRET || "";
+  // JWT_SECRET (preferred, see .env.config) or legacy AUTH_SECRET.
+  // Required in production, dev-fallback in development.
+  const authSecret = process.env.JWT_SECRET || process.env.AUTH_SECRET || "";
   if (!authSecret) {
     if (isProd) {
       throw new Error(
-        "[env] FATAL: AUTH_SECRET is missing in production. " +
-          "Generate one with `openssl rand -hex 32` and set it in your environment."
+        "[env] FATAL: JWT_SECRET is missing in production. " +
+          "Generate one with `openssl rand -hex 32` and set it in .env.config."
       );
     }
     console.warn(
-      "[env] WARNING: AUTH_SECRET not set. Using insecure dev fallback. DO NOT use in production."
+      "[env] WARNING: JWT_SECRET not set. Using insecure dev fallback. DO NOT use in production."
     );
   }
   if (authSecret && authSecret.length < 32 && isProd) {
     throw new Error(
-      "[env] FATAL: AUTH_SECRET must be at least 32 bytes in production."
+      "[env] FATAL: JWT_SECRET must be at least 32 bytes in production."
     );
   }
 
@@ -171,7 +175,7 @@ function buildEnv(): AppEnv {
     isDev,
     siteUrl,
     databaseUrl,
-    authSecret: authSecret || DEV_FALLBACK_SECRET,
+    authSecret: resolveAuthSecret(),
     smtpHost,
     smtpPort,
     smtpUser,

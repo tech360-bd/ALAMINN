@@ -11,6 +11,7 @@
  * SECURITY: This file is the single source of truth. Do not duplicate
  * role logic on the client.
  */
+import { NextResponse } from "next/server";
 
 export type UserRole =
   | "SUPER_ADMIN"
@@ -470,4 +471,91 @@ export const SELECTABLE_ROLES: UserRole[] = ALL_ROLES.filter((r) => r !== "OWNER
 export function normalizeRole(value: unknown): UserRole | null {
   if (typeof value !== "string") return null;
   return ALL_ROLES.includes(value as UserRole) ? (value as UserRole) : null;
+}
+
+// ─── Role hierarchy (Rule 1f) ──────────────────────────────────────────────
+/**
+ * Numeric authority ranking. Higher wins.
+ *
+ *   SUPER_ADMIN (100) > OWNER (90) > EXECUTIVE_ASSISTANT / *_MANAGER (70-80)
+ *   > SECURITY_AUDITOR (60) > AI_REVIEWER (50) > VIEWER (10)
+ *
+ * This is a coarse gate used by `requireRole()`. Fine-grained, per-resource
+ * access is still governed by the permission matrix above.
+ */
+export const ROLE_RANK: Record<UserRole, number> = {
+  SUPER_ADMIN: 100,
+  OWNER: 90,
+  EXECUTIVE_ASSISTANT: 80,
+  CRM_MANAGER: 70,
+  PARTNERSHIP_MANAGER: 70,
+  CONTENT_MANAGER: 70,
+  MARKETING_MANAGER: 70,
+  PROJECT_MANAGER: 70,
+  SECURITY_AUDITOR: 60,
+  AI_REVIEWER: 50,
+  VIEWER: 10,
+};
+
+/** True when `role` sits at or above `minimum` in the hierarchy. */
+export function hasMinimumRole(
+  role: UserRole | string | null | undefined,
+  minimum: UserRole
+): boolean {
+  const normalized = normalizeRole(role);
+  if (!normalized) return false;
+  return ROLE_RANK[normalized] >= ROLE_RANK[minimum];
+}
+
+export type RoleCheck =
+  | { ok: true; role: UserRole }
+  | { ok: false; error: Response };
+
+/**
+ * Route-handler guard for the role hierarchy.
+ *
+ *   const check = requireRole(auth.user.role, "VIEWER");
+ *   if (!check.ok) return check.error;
+ *
+ * Returns 401 when no role was supplied (unauthenticated) and 403 when the
+ * role exists but is below `minimum`. Never throws.
+ */
+export function requireRole(
+  role: UserRole | string | null | undefined,
+  minimum: UserRole
+): RoleCheck {
+  const normalized = normalizeRole(role);
+  if (!normalized) {
+    return {
+      ok: false,
+      error: NextResponse.json(
+        {
+          success: false,
+          error: "unauthorized",
+          message: "Authentication required.",
+          data: null,
+          meta: {},
+          errors: ["unauthenticated"],
+        },
+        { status: 401 }
+      ),
+    };
+  }
+  if (ROLE_RANK[normalized] < ROLE_RANK[minimum]) {
+    return {
+      ok: false,
+      error: NextResponse.json(
+        {
+          success: false,
+          error: "forbidden",
+          message: `Requires ${minimum} or higher.`,
+          data: null,
+          meta: {},
+          errors: ["insufficient_role"],
+        },
+        { status: 403 }
+      ),
+    };
+  }
+  return { ok: true, role: normalized };
 }

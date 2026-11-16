@@ -46,7 +46,7 @@ export async function DELETE(
       return jsonResponse(false, "ID is required.", null, {}, ["id_required"], 400);
     }
 
-    const ctx = resolveCaller(req);
+    const ctx = await resolveCaller(req);
     const where = callerWhere(ctx);
     if (!where) {
       return jsonResponse(

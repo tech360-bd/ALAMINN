@@ -26,11 +26,11 @@ export interface CallerContext {
  * precedence; otherwise the caller must provide a `sessionId` query
  * param (GET) or `sessionId` body field (POST/DELETE).
  */
-export function resolveCaller(
+export async function resolveCaller(
   req: NextRequest,
   body?: Record<string, unknown> | null,
-): CallerContext {
-  const session = getSessionFromRequest(req);
+): Promise<CallerContext> {
+  const session = await getSessionFromRequest(req);
   if (session?.userId) {
     return { userId: session.userId, sessionId: null, authenticated: true };
   }

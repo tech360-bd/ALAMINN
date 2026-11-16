@@ -16,6 +16,7 @@ import { env, _resetEnv, type AppEnv } from "@/lib/env";
 
 const KEYS_WE_TOUCH = [
   "NODE_ENV",
+  "JWT_SECRET",
   "AUTH_SECRET",
   "SMTP_HOST",
   "SMTP_PORT",
@@ -51,6 +52,7 @@ function setProd() {
   process.env.NODE_ENV = "production";
 }
 function clearAuthSecret() {
+  delete process.env.JWT_SECRET;
   delete process.env.AUTH_SECRET;
 }
 function clearEmailEnv() {
@@ -98,34 +100,45 @@ describe("env() — development fallbacks", () => {
 });
 
 describe("env() — production hardening", () => {
-  it("throws when AUTH_SECRET is missing in production", () => {
+  it("throws when JWT_SECRET is missing in production", () => {
     setProd();
     clearAuthSecret();
     // EMAIL_FROM must also be set in prod to avoid a separate throw — set it
     // so we isolate the AUTH_SECRET check.
     process.env.EMAIL_FROM = "Al Aminn <hello@alaminn.info>";
-    expect(() => env()).toThrow(/AUTH_SECRET is missing/);
+    expect(() => env()).toThrow(/JWT_SECRET is missing/);
   });
 
-  it("throws when AUTH_SECRET is shorter than 32 bytes in production", () => {
+  it("throws when JWT_SECRET is shorter than 32 bytes in production", () => {
     setProd();
-    process.env.AUTH_SECRET = "short"; // < 32 bytes
+    clearAuthSecret();
+    process.env.JWT_SECRET = "short"; // < 32 bytes
     process.env.EMAIL_FROM = "Al Aminn <hello@alaminn.info>";
     expect(() => env()).toThrow(/at least 32 bytes/);
   });
 
-  it("accepts a >=32-byte AUTH_SECRET in production", () => {
+  it("accepts a >=32-byte JWT_SECRET in production", () => {
     setProd();
-    process.env.AUTH_SECRET = "x".repeat(64);
+    clearAuthSecret();
+    process.env.JWT_SECRET = "x".repeat(64);
     process.env.EMAIL_FROM = "Al Aminn <hello@alaminn.info>";
     const e = env();
     expect(e.isProd).toBe(true);
     expect(e.authSecret).toBe("x".repeat(64));
   });
 
+  it("accepts the legacy AUTH_SECRET when JWT_SECRET is absent", () => {
+    setProd();
+    clearAuthSecret();
+    process.env.AUTH_SECRET = "y".repeat(64);
+    process.env.EMAIL_FROM = "Al Aminn <hello@alaminn.info>";
+    expect(env().authSecret).toBe("y".repeat(64));
+  });
+
   it("throws when EMAIL_FROM is missing in production", () => {
     setProd();
-    process.env.AUTH_SECRET = "x".repeat(64);
+    clearAuthSecret();
+    process.env.JWT_SECRET = "x".repeat(64);
     delete process.env.EMAIL_FROM;
     expect(() => env()).toThrow(/EMAIL_FROM is missing/);
   });

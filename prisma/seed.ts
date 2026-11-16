@@ -26,7 +26,9 @@ async function main() {
     create: {
       email: adminEmail,
       name: "Al Aminn (Admin)",
-      role: "OWNER",
+      // Rule 2h: the bootstrap account is SUPER_ADMIN. Existing accounts are
+      // never demoted or promoted by re-running the seed (update is empty).
+      role: "SUPER_ADMIN",
       status: "active",
       passwordHash: hashPassword(adminPassword),
     },

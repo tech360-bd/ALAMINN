@@ -9,7 +9,7 @@
  */
 import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
-import { ok, fail, readJson, writeAudit } from "@/lib/admin-api";
+import { ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 import { sendWhatsappMessage, normalizeWhatsappNumber } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
