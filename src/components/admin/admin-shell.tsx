@@ -12,6 +12,7 @@ import {
   FlaskConical, CalendarDays, GraduationCap, ClipboardList, HelpCircle, Mail,
   MessageCircle, Share2, Inbox, UserRound, CalendarClock as CalIcon, Megaphone, ListChecks,
   Activity, Sparkles, Briefcase, Workflow, Kanban, SearchCheck, PenLine, Mails, ChartNoAxesCombined, Clapperboard, MessagesSquare, Plug,
+  Quote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,7 @@ const NAV_GROUPS: {
       { href: "/admin/articles", label: "Articles", icon: Newspaper },
       { href: "/admin/projects", label: "Projects", icon: FolderKanban },
       { href: "/admin/case-studies", label: "Case Studies", icon: FileText },
+      { href: "/admin/endorsements", label: "Endorsements", icon: Quote },
       { href: "/admin/media", label: "Media", icon: ImageIcon },
       { href: "/admin/documents", label: "Documents", icon: FileBarChart },
       { href: "/admin/newsletter", label: "Newsletter", icon: Mail },

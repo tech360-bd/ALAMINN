@@ -20,7 +20,7 @@
 import { db } from "@/lib/db";
 import type { Session } from "@/lib/auth";
 import { hasPermission } from "@/lib/rbac";
-import { writeAudit } from "@/lib/admin-api";
+import { writeAudit } from "@/lib/admin-api-server";
 import {
   DASHBOARD_AGENT_BY_ID,
   type AgentToolName,

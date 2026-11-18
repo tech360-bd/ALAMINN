@@ -10,7 +10,7 @@ import { Impact, type ImpactItem } from "@/components/site/sections/impact";
 import { Ecosystem, type ProjectItem } from "@/components/site/sections/ecosystem";
 import { CaseStudies, type CaseStudyItem } from "@/components/site/sections/case-studies";
 import { PhotoGallery } from "@/components/site/sections/photo-gallery";
-import { Testimonials } from "@/components/site/sections/testimonials";
+import { LinkedInRecommendations } from "@/components/site/sections/linkedin-recommendations";
 import { AloLabs } from "@/components/site/sections/alo-labs";
 import { AudiencePathways } from "@/components/site/sections/audience-pathways";
 import { Insights, type ArticleItem } from "@/components/site/sections/insights";
@@ -28,6 +28,7 @@ import { ScrollUtilities } from "@/components/site/scroll-utilities";
 import { JsonLd } from "@/components/site/json-ld";
 import { AnalyticsInit } from "@/components/site/analytics-init";
 import type { LatestUpdate } from "@/lib/site-data";
+import { getPublicEndorsements } from "@/lib/endorsements-server";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ async function getPublicData() {
     articles,
     resources,
     newslettersCount,
+    endorsements,
   ] = await Promise.all([
     db.project.findMany({
       where: { visibility: "public" },
@@ -77,6 +79,7 @@ async function getPublicData() {
         take: 8,
       }),
       db.newsletterSubscriber.count({ where: { status: "confirmed" } }),
+      getPublicEndorsements(),
     ]);
 
   // Map DB articles → LatestUpdate shape for the LatestUpdates section.
@@ -99,6 +102,7 @@ async function getPublicData() {
     latestUpdates,
     resources: resources as ResourceItem[],
     newslettersCount,
+    endorsements,
   };
 }
 
@@ -120,7 +124,10 @@ export default async function Home() {
         <Ecosystem projects={data.projects} />
         <CaseStudies items={data.caseStudies} />
         <PhotoGallery />
-        <Testimonials />
+        <LinkedInRecommendations
+          items={data.endorsements.items}
+          profileUrl={data.endorsements.profileUrl}
+        />
         <AloLabs />
         <AudiencePathways />
         <Insights items={data.articles} />

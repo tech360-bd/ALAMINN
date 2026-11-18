@@ -402,14 +402,6 @@
     animation: progress-fill 1.5s ease-out forwards;
   }
 
-  /* Autoplay progress bar for the testimonials carousel.
-     Runs over AUTOPLAY_INTERVAL_MS (6s); play-state is toggled
-     inline via `animation-play-state` to freeze on hover/pause. */
-  @keyframes testimonials-progress {
-    from { transform: scaleX(0); }
-    to { transform: scaleX(1); }
-  }
-
   /* Confetti burst dots for success state */
   @keyframes confetti-dot {
     0% { transform: translate(0, 0) scale(1); opacity: 1; }

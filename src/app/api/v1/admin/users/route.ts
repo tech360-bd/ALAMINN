@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth";
-import { ok, fail, pagination, searchWhere, readJson, writeAudit } from "@/lib/admin-api";
+import { ok, fail, pagination, searchWhere, readJson, writeAudit } from "@/lib/admin-api-server";
 import { ALL_ROLES, normalizeRole, ROLE_LABELS } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";

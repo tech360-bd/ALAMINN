@@ -687,12 +687,12 @@ async function test15_privilegeEscalation(): Promise<TestResult> {
 
 /**
  * Test 16 — Session fixation
- * Send a pre-existing (fake) alaminn_session cookie, then log in.
+ * Send a pre-existing (fake) auth_token cookie, then log in.
  * Expected: the response Set-Cookie contains a NEW cookie value,
  * NOT the pre-existing one. The pre-existing value should be replaced.
  */
 async function test16_sessionFixation(): Promise<TestResult> {
-  const fakeCookie = "alaminn_session=fake-fixation-attempt-value.000000000000";
+  const fakeCookie = "auth_token=fake-fixation-attempt-value.000000000000";
   const res = await fetch(`${BASE}/api/v1/auth/login`, {
     method: "POST",
     headers: {
@@ -703,8 +703,8 @@ async function test16_sessionFixation(): Promise<TestResult> {
   });
   const sc = cookieHeader(res);
   // PASS if login succeeded AND the new cookie value is different from "fake-fixation-attempt-value"
-  const newCookieHasValue = /alaminn_session=([^;]+)/.test(sc);
-  const newCookieValue = newCookieHasValue ? sc.match(/alaminn_session=([^;]+)/)?.[1] : "";
+  const newCookieHasValue = /auth_token=([^;]+)/.test(sc);
+  const newCookieValue = newCookieHasValue ? sc.match(/auth_token=([^;]+)/)?.[1] : "";
   const pass = res.status === 200 && newCookieHasValue && !newCookieValue?.startsWith("fake-fixation");
   return {
     id: 16,
@@ -768,18 +768,17 @@ async function test17_replay(): Promise<TestResult> {
 }
 
 /**
- * Test 18 — Cookie tampering (JWT/session)
- * The system uses HMAC-signed session cookies (not JWT). Tamper with
- * the alaminn_session cookie and verify the session endpoint rejects
- * it with 401.
+ * Test 18 — Cookie tampering (JWT)
+ * The system uses jose-signed JWTs in the httpOnly auth_token cookie.
+ * Tamper with that cookie and verify the session endpoint rejects it 401.
  */
 async function test18_cookieTampering(): Promise<TestResult> {
   // Tampered cookie: valid-looking format `payload.signature` but bad signature
   const tamperedCookies = [
-    "alaminn_session=fakepayload.fakesignature",
-    "alaminn_session=tampered.user.role.9999999999.deadbeef",
-    "alaminn_session=", // empty
-    "alaminn_session=AAAAAAAA.BBBBBBBB", // garbage
+    "auth_token=fakepayload.fakesignature",
+    "auth_token=eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiU1VQRVJfQURNSU4ifQ.deadbeef",
+    "auth_token=", // empty
+    "auth_token=AAAAAAAA.BBBBBBBB", // garbage
   ];
   let allRejected = true;
   const observations: string[] = [];
@@ -794,7 +793,7 @@ async function test18_cookieTampering(): Promise<TestResult> {
   return {
     id: 18,
     name: "Cookie tampering",
-    description: "Send modified alaminn_session cookies → expect 401",
+    description: "Send modified auth_token cookies → expect 401",
     expected: "All tampered cookies rejected with 401",
     pass,
     severity: "critical",

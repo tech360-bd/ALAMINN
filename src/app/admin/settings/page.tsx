@@ -18,6 +18,7 @@ const FIELDS = [
   { key: "site.url", label: "Site URL" },
   { key: "site.name", label: "Site Name" },
   { key: "site.tagline", label: "Tagline" },
+  { key: "social.linkedin_url", label: "LinkedIn Profile URL" },
   { key: "email.from", label: "From Email" },
   { key: "email.replyTo", label: "Reply-To" },
   { key: "smtp.host", label: "SMTP Host" },

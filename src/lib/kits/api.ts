@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import type { Permission } from "@/lib/rbac";
-import { checkAdminRateLimit, writeAudit } from "@/lib/admin-api";
+import { checkAdminRateLimit, writeAudit } from "@/lib/admin-api-server";
 import type { Session } from "@/lib/auth";
 import { sameOrigin } from "./support";
 

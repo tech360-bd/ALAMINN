@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { isSensitiveSettingKey, ok, fail, readJson, writeAudit } from "@/lib/admin-api";
+import { isSensitiveSettingKey, ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 import {
   decryptStoredAiSecret,
   encryptStoredAiSecret,

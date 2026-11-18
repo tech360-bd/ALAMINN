@@ -22,7 +22,7 @@ demoted to `unverified` immediately and slated for removal within 30 days.
 
 | Field | Value |
 | --- | --- |
-| **Last updated** | 2026-07-11 |
+| **Last updated** | 2026-11-16 |
 | **Reviewer** | Al Aminn (pending sign-off) |
 | **Next mandatory review** | 2026-10-09 (90 days) |
 | **Total claims logged** | 38 |
@@ -84,9 +84,9 @@ demoted to `unverified` immediately and slated for removal within 30 days.
 | 28 | "Three verified stories of structure replacing chaos" | Case Studies | `case-studies.tsx` | SectionHeading title | 3 CaseStudy rows in the DB with `evidenceStatus: "verified"` and an internal evidence package | approved | evidence_verified | "Three verified stories of structure replacing chaos." | 2026-07-11 | 2027-01-08 | Al Aminn |
 | 29 | Each case study's `outcome` field carries a "Verified outcome" label | Case Studies | `case-studies.tsx` | `<ShieldCheck />` + "Verified outcome" in the orange outcome box | Each CaseStudy has `evidenceStatus: "verified"` in the DB (internal evidence package); confidentiality = summary-only | pending | evidence_verified | Per-case-study outcome text + "Verified outcome" label | 2026-07-11 | 2027-01-08 | Al Aminn |
 | 30 | "This case study reports qualitative outcomes only. No fabricated metrics." | Case Studies | `case-studies.tsx` | Modal footer note ("Evidence governance") | Governance policy; supported by audit §3 | approved | approved | "This case study reports qualitative outcomes only. No fabricated metrics. Where client confidentiality applies, identifiers are redacted and outcomes are summarised." | 2026-07-11 | 2027-07-11 | Al Aminn |
-| 31 | "Professional endorsements from collaborators and partners" | Testimonials | `testimonials.tsx` | SectionHeading title | The 6 endorsements are written by real professional contacts; consent obtained | approved | approved | "Professional endorsements from collaborators and partners." | 2026-07-11 | 2027-01-08 | Al Aminn |
-| 32 | 6 named endorsements (Dr. Sarah Mahmud, Tanvir Hossain, Priya Nair, Imran Chowdhury, Nadia Karim, Dr. Marcus Lindqvist) | Testimonials | `testimonials.tsx` | `ENDORSEMENTS` array | The quotes were provided with consent; the named individuals' identities and affiliations have not been independently verified against public records | pending | unverified | Per-endorsement name + role + organization + quote | — | 2026-10-09 | Al Aminn |
-| 33 | "Endorsements shared with consent. No fabricated testimonials." | Testimonials | `testimonials.tsx` | Bottom consent / no-fabricated-testimonials note | Governance policy; supported by audit §3 | approved | approved | "Endorsements shared with consent. No fabricated testimonials." | 2026-07-11 | 2027-07-11 | Al Aminn |
+| 31 | "Professional endorsements from collaborators and partners" | ~~Testimonials~~ | ~~`testimonials.tsx`~~ | Removed 2026-11-16 (demo section) | Demo endorsements removed at owner request — no verified consent evidence on file. Superseded by row 57. | rejected | rejected | — (removed) | 2026-11-16 | — | Al Aminn |
+| 32 | 6 named endorsements (Dr. Sarah Mahmud, Tanvir Hossain, Priya Nair, Imran Chowdhury, Nadia Karim, Dr. Marcus Lindqvist) | ~~Testimonials~~ | ~~`testimonials.tsx`~~ → removed | `ENDORSEMENTS` array deleted; no longer in the bundle | Identities were not independently verified and consent was not evidenced. Deleted 2026-11-16. | rejected | rejected | — (removed) | 2026-11-16 | — | Al Aminn |
+| 33 | "Endorsements shared with consent. No fabricated testimonials." | ~~Testimonials~~ | ~~`testimonials.tsx`~~ → removed | Bottom consent note removed with the demo section | Note retired with the section; the replacement section states its own consent rule (row 57). | rejected | rejected | — (removed) | 2026-11-16 | — | Al Aminn |
 | 34 | "AI agents would live centrally in ALO Labs" — planned, not active | ALO Labs | `alo-labs.tsx` | SectionHeading description | ALO Labs is a planned capability (status: planned); wording uses "would" not "live" since Task 10-A correction | approved | approved | "AI agents would live centrally in ALO Labs. Alaminn.info would request approved workflows; outputs return as drafts, sensitive tasks require permission, public content requires human approval, and all activity is logged." | 2026-07-11 | 2027-07-11 | Al Aminn |
 | 35 | 8-stage governed AI workflow (Request → Authentication → Router → Approved Agents → Execution → Safety Review → Human Approval → Publish) | ALO Labs | `alo-labs.tsx` | `AI_WORKFLOW_STEPS` array | Architectural intent / process model; the workflow is not yet deployed (ALO Labs is planned) | approved | approved | "Governed AI Workflow · 8-stage approval pipeline" | 2026-07-11 | 2027-07-11 | Al Aminn |
 | 36 | 6 AI agents all status `planned` (Executive Content, Research, Operations Audit, CRM Summary, Newsletter, Partnership Brief) | ALO Labs | `alo-labs.tsx` | `AI_AGENT_STATUSES` array — all 6 entries `status: "planned"` | Honest status; corrected from fake "available"/"configured"/"connected" in Task 10-A | approved | approved | Each agent card displays the "planned" badge (gray/ink) | 2026-07-11 | 2027-07-11 | Al Aminn |
@@ -110,6 +110,7 @@ demoted to `unverified` immediately and slated for removal within 30 days.
 | 54 | Public contact email `hello@alaminn.info` | Contact + Footer + JSON-LD | `contact-finale.tsx`, `footer.tsx`, `json-ld.tsx` | Mailto link + JSON-LD Person/ContactPage `email` field | Active inbox monitored by Al Aminn; reflected in Privacy/Terms modals (Task 10-B) | approved | approved | "hello@alaminn.info" | 2026-07-11 | 2027-07-11 | Al Aminn |
 | 55 | "We respond within 1 business day" response-time commitment | Contact + Work With Me | `contact-finale.tsx`, `work-with-me.tsx` | Status pill ("We respond within 1 business day") + Work With Me modal note ("Most inquiries receive an acknowledgement within one business day") | Owner-stated SLA; no third-party SLA enforcement | pending | awaiting_owner_approval | "We respond within 1 business day" / "Most inquiries receive an acknowledgement within one business day" | — | 2026-10-09 | Al Aminn |
 | 56 | "Remote-first · Based in Dhaka, Bangladesh (UTC+6)" working model | Contact | `contact-finale.tsx` | Status pill with MapPin icon | Owner-stated working model | approved | approved | "Remote-first · Based in Dhaka, Bangladesh (UTC+6)" | 2026-07-11 | 2027-07-11 | Al Aminn |
+| 57 | "What colleagues and partners say on LinkedIn" / "Recommendations live on LinkedIn" | LinkedIn recommendations | `linkedin-recommendations.tsx` + `/admin/endorsements` | SectionHeading title + empty-state panel | Only recommendations stored in Setting `endorsements.linkedin` with `consented: true` and a valid linkedin.com URL are rendered; the admin editor requires consent before publishing, quotes link back to LinkedIn, and no demo/generated content exists in the codebase. | approved | approved | "What colleagues and partners say on LinkedIn" / "Recommendations live on LinkedIn" | 2026-11-16 | 2027-11-16 | Al Aminn |
 
 ---
 
@@ -119,11 +120,10 @@ These claims appear on the public site today but are **not yet verified** or
 **not yet approved**. They must be either verified and signed off, or removed
 from the public HTML, before the next production deploy.
 
-### `unverified` (4 claims)
+### `unverified` (2 claims)
 
 | # | Claim | Location | Action required |
 | --- | --- | --- | --- |
-| 32 | 6 named endorsements (Sarah Mahmud, Tanvir Hossain, Priya Nair, Imran Chowdhury, Nadia Karim, Marcus Lindqvist) | `testimonials.tsx` → `ENDORSEMENTS` | Either (a) obtain written consent from each named individual to publish their name + role + organization on alaminn.info, and store the consent record in the CRM, or (b) replace with anonymised quotes ("Director, International Partnerships — Global University Consortium" etc.) until consent is captured. Until then the endorsement identities are publicly asserted without verification. |
 | 44 | Social icons (LinkedIn, Twitter, Facebook) in the profile card | `profile.tsx` → `[Linkedin, Twitter, Facebook].map(...)` | Either (a) wire each icon to Al Aminn's actual public profile URL, or (b) remove the icon row entirely. Decorative icons with no `href` currently imply a public social presence that may not exist. |
 | 45 | "Profile" download button in the profile card | `profile.tsx` → `<button>…Profile</button>` | Either (a) attach an approved PDF and convert to `<a href="…" download>`, or (b) remove the button. The title attribute already states "Download appears only when an approved file exists" but the button is still rendered, which is misleading. |
 
@@ -141,9 +141,9 @@ from the public HTML, before the next production deploy.
 
 ### Summary
 
-- **3 claims must be removed or replaced before production launch** (the 3 `unverified` claims that assert something that may not be true: endorsement identities, social profile links, profile download).
+- **2 claims must be removed or replaced before production launch** (the `unverified` claims that assert something that may not be true: social profile links and the profile download). The endorsement claims were removed on 2026-11-16.
 - **7 claims must be either approved or softened before production launch** (the 7 `awaiting_owner_approval` claims).
-- **All other 28 claims** are either `approved`, `evidence_verified`, or `not_required` and may remain on the public site through the next review cycle.
+- **All remaining claims** are either `approved`, `evidence_verified`, `rejected` (removed) or `not_required` and may remain on the public site through the next review cycle.
 
 ---
 

@@ -26,7 +26,9 @@ async function main() {
     create: {
       email: adminEmail,
       name: "Al Aminn (Admin)",
-      role: "OWNER",
+      // Rule 2h: the bootstrap account is SUPER_ADMIN. Existing accounts are
+      // never demoted or promoted by re-running the seed (update is empty).
+      role: "SUPER_ADMIN",
       status: "active",
       passwordHash: hashPassword(adminPassword),
     },
@@ -396,6 +398,11 @@ async function main() {
     { key: "seo.home.title", value: "Al Aminn — Executive Operations, Growth & AI Systems" },
     { key: "seo.home.description", value: "Al Aminn transforms strategy into scalable operations, growth and intelligent systems." },
     { key: "maintenance.enabled", value: "false" },
+    // LinkedIn recommendations — deliberately empty. Real, consented
+    // recommendations are entered in /admin/endorsements. Never seed demo
+    // testimonials (docs/CLAIM_REGISTER.md rows 31–33).
+    { key: "social.linkedin_url", value: "" },
+    { key: "endorsements.linkedin", value: '{"version":1,"items":[]}' },
     { key: "sitemap.priority", value: "0.7" },
     { key: "robots.txt", value: "User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/" },
   ];

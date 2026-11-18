@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { ok, fail, readJson, writeAudit } from "@/lib/admin-api";
+import { ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 
 export const dynamic = "force-dynamic";
 
