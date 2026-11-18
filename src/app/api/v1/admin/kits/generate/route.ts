@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { kitAction, kitOk, kitError } from "@/lib/kits/api";
-import { checkAdminRateLimit } from "@/lib/admin-api";
+import { checkAdminRateLimit } from "@/lib/admin-api-server";
 import { generateSchema } from "@/lib/kits/contracts";
 import { generateKit, AiUnavailableError } from "@/lib/kits/ai";
 export const dynamic = "force-dynamic";

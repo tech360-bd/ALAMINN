@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/rbac";
-import { ok } from "@/lib/admin-api";
+import { ok } from "@/lib/admin-api-server";
 import { DASHBOARD_AGENTS, DASHBOARD_AGENT_GROUPS } from "@/lib/ai/dashboard-agents";
 import {
   maskSecret,

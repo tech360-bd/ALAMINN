@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { writeAudit } from "@/lib/admin-api";
+import { writeAudit } from "@/lib/admin-api-server";
 import { toCsv, yyyymmdd, type CsvColumn } from "@/lib/csv";
 
 export const dynamic = "force-dynamic";

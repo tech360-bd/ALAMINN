@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { kitRead, kitAction, kitOk } from "@/lib/kits/api";
-import { writeAudit } from "@/lib/admin-api";
+import { writeAudit } from "@/lib/admin-api-server";
 import { INTEGRATIONS, INTEGRATION_BY_ID, INTEGRATION_CATEGORIES, isConnectable } from "@/lib/integrations/registry";
 import { readConnectionPublic, saveConnection } from "@/lib/integrations/store";
 

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { ok, fail, writeAudit } from "@/lib/admin-api";
+import { ok, fail, writeAudit } from "@/lib/admin-api-server";
 import { writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import sharp from "sharp";

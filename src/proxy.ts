@@ -23,10 +23,14 @@
  *   3. Increment the in-process request counter used by /api/health/deep
  *      for the `runtime.requestCount` metric.
  *
- * This proxy is PASS-THROUGH: it never blocks, redirects, or
- * rewrites a request. Its only effect is header injection + counter
- * increment. Authentication, rate limiting, and validation live in the
- * route handlers themselves.
+ * Authentication gate (Rule 1c):
+ *   /admin, /admin/* and /api/v1/admin/* require a valid JWT in the
+ *   httpOnly `auth_token` cookie. Unauthenticated page requests are
+ *   redirected to /admin/login; unauthenticated API requests get a
+ *   JSON 401. Every other path is public at the proxy layer (the route
+ *   handler still enforces any additional auth it needs).
+ *
+ * Everything else is PASS-THROUGH: header injection + counter increment.
  *
  * Matched paths: all routes EXCEPT static assets and Next.js internals
  * (see `config.matcher` below). This guarantees security headers are
@@ -41,6 +45,7 @@ import {
   incrementRequestCount,
 } from "@/lib/request-context";
 import { SESSION_COOKIE, verifyToken } from "@/lib/auth/token";
+import { AUTH_COOKIE, verifyToken as verifyAuthToken } from "@/lib/auth/jwt";
 import { rolesForPath } from "@/lib/auth/rbac";
 
 /**
@@ -82,6 +87,60 @@ async function staffGate(req: NextRequest): Promise<NextResponse | null> {
   return res;
 }
 
+/** Admin pages/APIs that do not require a session. */
+const PUBLIC_ADMIN_PAGES = new Set(["/admin/login", "/admin/forgot-password", "/admin/reset-password"]);
+
+/**
+ * JWT gate for the Command Center (Rule 1c).
+ *
+ *   - /api/v1/admin/*  → 401 JSON when the `auth_token` JWT is missing/invalid
+ *   - /admin, /admin/* → redirect to /admin/login?next=… (except the public
+ *     auth pages above)
+ *
+ * Returns null when the request should continue down the normal path.
+ */
+async function adminGate(req: NextRequest): Promise<NextResponse | null> {
+  const { pathname } = req.nextUrl;
+  const isAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isAdminApi = pathname === "/api/v1/admin" || pathname.startsWith("/api/v1/admin/");
+  if (!isAdminPage && !isAdminApi) return null;
+
+  // Let CORS preflight through; the route decides how to answer it.
+  if (req.method === "OPTIONS") return null;
+
+  const token = req.cookies.get(AUTH_COOKIE)?.value;
+  const payload = token ? await verifyAuthToken(token) : null;
+
+  if (isAdminApi) {
+    if (payload) return null;
+    return NextResponse.json(
+      {
+        success: false,
+        error: "unauthorized",
+        message: "Authentication required.",
+        data: null,
+        meta: {},
+        errors: ["unauthenticated"],
+      },
+      {
+        status: 401,
+        headers: { "cache-control": "no-store" },
+      }
+    );
+  }
+
+  // Page routes
+  if (PUBLIC_ADMIN_PAGES.has(pathname)) return null;
+
+  if (!payload) {
+    const login = new URL("/admin/login", req.url);
+    login.searchParams.set("next", pathname + req.nextUrl.search);
+    return NextResponse.redirect(login);
+  }
+
+  return null;
+}
+
 // Note: proxy.ts always runs on the Node.js runtime in Next.js 16,
 // so `export const runtime = "nodejs"` is not needed (and not allowed).
 
@@ -114,6 +173,26 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 export async function proxy(req: NextRequest) {
+  // ── Command Center JWT gate (/admin, /api/v1/admin/*) ───────────────
+  const adminDenied = await adminGate(req);
+  if (adminDenied) {
+    // Gated responses (401 JSON / login redirects) must still carry the
+    // standard security headers.
+    for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+      if (!adminDenied.headers.has(key)) adminDenied.headers.set(key, value);
+    }
+    if (process.env.NODE_ENV !== "production") {
+      adminDenied.headers.set("X-Frame-Options", "SAMEORIGIN");
+      adminDenied.headers.set(
+        "Content-Security-Policy",
+        (SECURITY_HEADERS["Content-Security-Policy"] ?? "")
+          .replace("frame-ancestors 'none'", "frame-ancestors 'self' https://*.e2b.app https://*.space-z.ai")
+          .replace("; upgrade-insecure-requests", "")
+      );
+    }
+    return adminDenied;
+  }
+
   // ── Staff RBAC gate (ALO Education dashboards, UCI/UMC APIs) ────────
   const gated = await staffGate(req);
   if (gated) return gated;

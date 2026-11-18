@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   try {
     // Best-effort audit log (we don't strictly need a session here)
     const { getSessionFromRequest } = await import("@/lib/auth");
-    const session = getSessionFromRequest(req);
+    const session = await getSessionFromRequest(req);
     if (session) {
       try {
         await db.auditLog.create({

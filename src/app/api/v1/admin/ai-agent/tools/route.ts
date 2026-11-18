@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
-import { checkAdminRateLimit, ok, fail, readJson, writeAudit } from "@/lib/admin-api";
+import { checkAdminRateLimit, ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 import {
   buildPollinationsImageUrl,
   cosineSimilarity,

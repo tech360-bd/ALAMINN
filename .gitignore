@@ -9,6 +9,10 @@ node_modules/
 .env.*.local
 .env.production
 .env.production.local
+# Rule 5: all real config lives in .env.config (never commit it)
+.env.config
+.env.config.local
+.env.config.*.local
 *.pem
 *.key
 

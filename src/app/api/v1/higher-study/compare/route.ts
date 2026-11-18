@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const ctx = resolveCaller(req);
+    const ctx = await resolveCaller(req);
     const where = callerWhere(ctx);
     if (!where) {
       return jsonResponse(
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
       return jsonResponse(false, "Invalid request body.", null, {}, ["invalid_body"], 400);
     }
 
-    const ctx = resolveCaller(req, body as Record<string, unknown>);
+    const ctx = await resolveCaller(req, body as Record<string, unknown>);
     if (!ctx.userId && !ctx.sessionId) {
       return jsonResponse(
         false,

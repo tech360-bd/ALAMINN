@@ -1,5 +1,10 @@
 import { PrismaClient } from '@prisma/client'
 import { createDriverAdapter } from '@/lib/prisma-adapter'
+import { loadEnvConfig } from '@/lib/load-env'
+
+// Rule 5: configuration comes from .env.config, loaded before the adapter
+// reads DATABASE_URL. Idempotent and safe in every entry point (app, seed, scripts).
+loadEnvConfig()
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined

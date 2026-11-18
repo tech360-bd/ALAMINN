@@ -19,6 +19,9 @@ Built with **Next.js 16.1.3** (App Router, Turbopack), **TypeScript 5**,
 **Tailwind CSS 4**, **shadcn/ui**, **Prisma ORM 6** (SQLite for dev, MySQL for
 production), **Framer Motion 12**, and **Bun 1.3.14** runtime.
 
+> **Phase 1 foundation (JWT auth, `.env.config`, PM2, RBAC hierarchy):**
+> see [`docs/PHASE-1-FOUNDATION.md`](./docs/PHASE-1-FOUNDATION.md).
+>
 > **📖 For the complete, exhaustive developer guide covering every file, every
 > command, every env variable, and every route — see
 > [DEVELOPMENT.md](./DEVELOPMENT.md).** That document is the single source of
@@ -80,13 +83,15 @@ This ZIP supersedes `ALAMINN-INFO-UPDATED-2026-08-13.zip` and
 # 1. Install dependencies (requires Bun — https://bun.sh)
 bun install
 
-# 2. Configure environment
-cp .env.example .env
-#   → Edit .env: set AUTH_SECRET (openssl rand -hex 32)
+# 2. Configure environment (Rule 5: .env.config — never .env)
+cp .env.config.example .env.config
+#   → Edit .env.config: set JWT_SECRET (openssl rand -hex 32),
+#     DATABASE_URL, ADMIN_BOOTSTRAP_PASSWORD
+npm run env:check
 
 # 3. Initialize database
-bun run db:push       # Push schema.prisma → SQLite (dev)
-# bun run db:seed     # Optional: populate demo content
+npm run db:push       # Push schema.prisma → SQLite (dev)
+# npm run db:seed     # Optional: populate demo content (needs ADMIN_BOOTSTRAP_PASSWORD)
 
 # 4. Start dev server
 bun run dev

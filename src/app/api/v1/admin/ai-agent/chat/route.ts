@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/rbac";
-import { checkAdminRateLimit, ok, fail, readJson, writeAudit } from "@/lib/admin-api";
+import { checkAdminRateLimit, ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 import { AgentPermissionError, runDashboardAgentChat } from "@/lib/ai/free-router";
 import { DASHBOARD_AGENT_BY_ID, resolveDashboardAgent } from "@/lib/ai/dashboard-agents";
 import type { FreeProviderId, ModelSpeedTier } from "@/lib/ai/free-providers";

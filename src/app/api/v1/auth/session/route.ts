@@ -17,10 +17,10 @@ function ok(data: unknown, message = "OK") {
  * session cookie and skip the login form.
  */
 export async function GET(req: NextRequest) {
-  const session = getSessionFromRequest(req);
+  const session = await getSessionFromRequest(req);
   if (!session) {
     return NextResponse.json(
-      { success: false, message: "Not authenticated.", data: null, meta: {}, errors: ["unauthenticated"] },
+      { success: false, message: "Not authenticated.", error: "unauthorized", data: null, meta: {}, errors: ["unauthenticated"] },
       { status: 401 }
     );
   }
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     });
     if (!user || user.status !== "active") {
       return NextResponse.json(
-        { success: false, message: "Session invalid.", data: null, meta: {}, errors: ["session_invalid"] },
+        { success: false, message: "Session invalid.", error: "unauthorized", data: null, meta: {}, errors: ["session_invalid"] },
         { status: 401 }
       );
     }
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error("[auth/session] error", e);
     return NextResponse.json(
-      { success: false, message: "Session check failed.", data: null, meta: {}, errors: ["server_error"] },
+      { success: false, message: "Session check failed.", error: "server_error", data: null, meta: {}, errors: ["server_error"] },
       { status: 500 }
     );
   }

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { ok, fail, pagination, readJson, writeAudit } from "@/lib/admin-api";
+import { ok, fail, pagination, readJson, writeAudit } from "@/lib/admin-api-server";
 import { executeAiTaskWithFreeRouter } from "@/lib/ai/workflow-executor";
 import type { FreeProviderId, ModelSpeedTier } from "@/lib/ai/free-providers";
 

@@ -65,13 +65,13 @@ const PUBLIC_ADMIN_AUTH_ROUTES = new Set([
   "/admin/reset-password",
 ]);
 
-describe("Admin Dashboard AI Agents Registry (all 64 dashboards)", () => {
-  it("registers 64 unique dashboard agents across all 9 module groups", () => {
-    expect(DASHBOARD_AGENTS.length).toBe(64);
+describe("Admin Dashboard AI Agents Registry (all 65 dashboards)", () => {
+  it("registers 65 unique dashboard agents across all 9 module groups", () => {
+    expect(DASHBOARD_AGENTS.length).toBe(65);
     const ids = new Set(DASHBOARD_AGENTS.map((a) => a.id));
     const routes = new Set(DASHBOARD_AGENTS.map((a) => a.route));
-    expect(ids.size).toBe(64);
-    expect(routes.size).toBe(64);
+    expect(ids.size).toBe(65);
+    expect(routes.size).toBe(65);
     expect(DASHBOARD_AGENT_GROUPS.length).toBe(9);
   });
 
@@ -80,7 +80,7 @@ describe("Admin Dashboard AI Agents Registry (all 64 dashboards)", () => {
     const pageRoutes = collectAdminRoutes(adminDir).filter(
       (r) => !PUBLIC_ADMIN_AUTH_ROUTES.has(r)
     );
-    expect(pageRoutes.length).toBe(64);
+    expect(pageRoutes.length).toBe(65);
 
     for (const route of pageRoutes) {
       const normalizedSample = route.replace(/\[[^\]]+\]/g, "sample-id");
