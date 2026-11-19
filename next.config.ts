@@ -5,6 +5,10 @@ import { loadEnvConfig } from "./src/lib/load-env";
 loadEnvConfig();
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    const umc = process.env.UMC_SERVICE_URL ?? "http://127.0.0.1:3010";
+    return [{ source: "/socket.io/umc/:path*", destination: `${umc.replace(/\/$/, "")}/socket.io/umc/:path*` }];
+  },
   // Pin the workspace root: a parent directory lockfile (bun.lock) otherwise
   // makes Turbopack treat the parent as root and load ITS .env/database.
   turbopack: { root: process.cwd() },

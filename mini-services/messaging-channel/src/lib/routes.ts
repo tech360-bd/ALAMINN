@@ -11,13 +11,15 @@ import { sendMessage, unreadCounts, markRead, markDelivered, serialiseMessage, S
 import { getTranslationProvider } from './translate';
 import { raiseHandoff, aiSenderId, detectCustomerRequest } from './ai-agent';
 import { audit, tenantLocalHour } from './compliance';
-import { onlineUserIds, getIo } from './realtime';
+import { onlineUserIds, joinConversationSockets } from './realtime';
+import { messagingStaff, tenantActor, conversationMember, staffRef, type MessagingStaff } from './access';
 
 type Handler = (req: RequestContext) => Promise<unknown>;
 interface RequestContext {
   params: Record<string, string>;
   body: any;
   query: URLSearchParams;
+  staff: MessagingStaff;
 }
 
 const routes: Array<{ method: string; pattern: RegExp; handler: Handler }> = [];
@@ -52,12 +54,12 @@ route('GET', '/api/umc/health', async () => ({
 
 // ─────────────────────────────── Tenants ──────────────────────────────
 
-route('GET', '/api/umc/tenants', async () => {
-  const tenants = await db.tenant.findMany({ orderBy: { createdAt: 'asc' } });
+route('GET', '/api/umc/tenants', async ({ staff }) => {
+  const tenants = await db.tenant.findMany({ where: { users: { some: { externalRef: staffRef(staff.accountId), role: { in: ['agent', 'admin'] }, isBanned: false } } }, orderBy: { createdAt: 'asc' } });
   return { tenants };
 });
 
-route('POST', '/api/umc/tenants', async ({ body }) => {
+route('POST', '/api/umc/tenants', async ({ body, staff }) => {
   const tenant = await db.tenant.create({
     data: {
       name: String(body.name ?? '').slice(0, 120),
@@ -67,6 +69,7 @@ route('POST', '/api/umc/tenants', async ({ body }) => {
       messagingEnd: Number(body.messagingEnd ?? 21),
       languages: body.languages ?? 'bn,en,banglish',
       aiAutoReply: body.aiAutoReply ?? true,
+      users: { create: { displayName: staff.name, externalRef: staffRef(staff.accountId), role: 'admin' } },
     },
   });
   await audit(tenant.id, 'tenant.created', { subjectType: 'tenant', subjectId: tenant.id });
@@ -85,7 +88,8 @@ route('PATCH', '/api/umc/tenants/:tenantId', async ({ params, body }) => {
 
 // ──────────────────────────────── Users ───────────────────────────────
 
-route('GET', '/api/umc/tenants/:tenantId/users', async ({ params }) => ({
+route('GET', '/api/umc/tenants/:tenantId/users', async ({ params, staff }) => ({
+  me: (await tenantActor(staff, params.tenantId))?.id,
   users: await db.messagingUser.findMany({ where: { tenantId: params.tenantId }, orderBy: { createdAt: 'asc' } }),
 }));
 
@@ -173,7 +177,7 @@ route('POST', '/api/umc/conversations/:conversationId/join', async ({ params, bo
     create: { conversationId: conv.id, userId: body.userId },
     update: {},
   });
-  getIo().socketsJoin(`conv:${conv.id}`); // connected sockets of that user re-join via auth; direct join keeps room fresh
+  joinConversationSockets(body.userId, conv.id);
   return { joined: true };
 });
 
@@ -194,7 +198,7 @@ route('PATCH', '/api/umc/conversations/:conversationId', async ({ params, body }
 route('GET', '/api/umc/conversations/:conversationId/messages', async ({ params, query }) => {
   const search = query.get('search');
   const starredBy = query.get('starredBy');
-  const limit = Math.min(Number(query.get('limit') ?? 100), 200);
+  const limit = Math.max(1, Math.min(Number.parseInt(query.get('limit') ?? '100', 10) || 100, 200));
 
   const starredIds: string[] = [];
   if (starredBy) {
@@ -334,7 +338,7 @@ route('GET', '/api/umc/tenants/:tenantId/reports', async ({ params }) => ({
 
 route('GET', '/api/umc/tenants/:tenantId/handoffs', async ({ params, query }) => ({
   handoffs: await db.handoffEvent.findMany({
-    where: { tenantId: params.tenantId, ...(query.get('status') ? { status: query.get('status')! } : {}) },
+    where: { tenantId: params.tenantId, conversation: { participants: { some: { userId: query.get('userId') ?? '' } } }, ...(query.get('status') ? { status: query.get('status')! } : {}) },
     orderBy: { createdAt: 'desc' },
     take: 100,
     include: { conversation: { select: { id: true, title: true, type: true } } },
@@ -460,37 +464,101 @@ route('DELETE', '/api/umc/tenants/:tenantId/moderation-words', async ({ params, 
 
 // ─────────────────────────────── Router ───────────────────────────────
 
+const deny = () => new SendMessageError('Not authorized for this resource', 'forbidden', 403);
+
+async function scopeRequest(path: string, method: string, context: RequestContext) {
+  const { params, body, query, staff } = context;
+  if (path === '/api/umc/health') return;
+  if (path === '/api/umc/tenants') {
+    if (method !== 'GET' && staff.role !== 'ADMIN') throw deny();
+    return;
+  }
+  if (params.userId || /\/(moderation-words|suppressions)$/.test(path) ||
+      (params.tenantId && path === `/api/umc/tenants/${params.tenantId}`)) {
+    if (staff.role !== 'ADMIN') throw deny();
+  }
+  let conversationId = params.conversationId;
+  if (params.messageId) {
+    const message = await db.message.findFirst({ where: { id: params.messageId, hidden: false, sentAt: { not: null } }, select: { conversationId: true } });
+    if (!message) throw deny();
+    conversationId = message.conversationId;
+  }
+  if (params.handoffId) {
+    const handoff = await db.handoffEvent.findUnique({ where: { id: params.handoffId }, select: { conversationId: true } });
+    if (!handoff) throw deny();
+    conversationId = handoff.conversationId;
+  }
+  const conversation = conversationId ? await db.conversation.findUnique({ where: { id: conversationId }, select: { tenantId: true, visibility: true } }) : null;
+  if (conversationId && !conversation) throw deny();
+  const userTarget = params.userId ? await db.messagingUser.findUnique({ where: { id: params.userId }, select: { tenantId: true } }) : null;
+  const tenantId = params.tenantId ?? conversation?.tenantId ?? userTarget?.tenantId ?? (path === '/api/umc/reports' ? body.tenantId : null);
+  if (typeof tenantId !== 'string' || tenantId.length > 191) throw deny();
+  const actor = await tenantActor(staff, tenantId);
+  if (!actor) throw deny();
+  if (conversationId && !(path.endsWith('/join') && conversation?.visibility === 'public') &&
+      !await conversationMember(conversationId, actor.id, tenantId)) throw deny();
+
+  // Every identity used downstream is derived from the authenticated staff/tenant binding.
+  Object.assign(body, { tenantId, userId: actor.id, senderId: actor.id, actorId: actor.id, agentId: actor.id, reporterId: actor.id });
+  query.set('userId', actor.id);
+  if (query.has('starredBy')) query.set('starredBy', actor.id);
+
+  if (method === 'POST' && path.endsWith('/users')) {
+    // Only an administrator provisioned in this tenant may link a staff identity.
+    if (body.staffAccountId !== undefined) {
+      if (staff.role !== 'ADMIN' || typeof body.staffAccountId !== 'string') throw deny();
+      const account = await db.staffAccount.findUnique({ where: { id: body.staffAccountId } });
+      if (!account?.isActive || !['ADMIN', 'AGENT'].includes(account.role)) throw deny();
+      body.externalRef = staffRef(account.id);
+      body.role = account.role === 'ADMIN' ? 'admin' : 'agent';
+    } else {
+      if (typeof body.externalRef === 'string' && /^staff:/i.test(body.externalRef.trim())) throw deny();
+      body.role = 'customer';
+      body.isVerifiedBusiness = false;
+    }
+  }
+  if (method === 'POST' && path.endsWith('/conversations')) {
+    if (!Array.isArray(body.memberIds) || body.memberIds.length > 100 || body.memberIds.some((id: unknown) => typeof id !== 'string')) {
+      throw new SendMessageError('Invalid participants', 'bad_request', 400);
+    }
+    const members = [...new Set<string>([actor.id, ...body.memberIds])];
+    const count = await db.messagingUser.count({ where: { id: { in: members }, tenantId, isBanned: false } });
+    if (count !== members.length) throw deny();
+    body.memberIds = members;
+  }
+  if (path === '/api/umc/reports') {
+    if (body.targetUserId && !await db.messagingUser.findFirst({ where: { id: body.targetUserId, tenantId } })) throw deny();
+    if (body.messageId && !await db.message.findFirst({ where: { id: body.messageId, tenantId, conversation: { participants: { some: { userId: actor.id } } } } })) throw deny();
+  }
+}
+
 export async function handleApi(req: Request): Promise<Response> {
-  const url = new URL(req.url);
-  const path = url.pathname;
-  const method = req.method === 'HEAD' ? 'GET' : req.method;
-
-  let body: any = null;
-  if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
-    try {
-      body = await req.json();
-    } catch {
-      body = {};
+  try {
+    const staff = await messagingStaff(req.headers.get('cookie'));
+    if (!staff) return Response.json({ error: 'Authentication required' }, { status: 401 });
+    const url = new URL(req.url);
+    const path = url.pathname;
+    const method = req.method === 'HEAD' ? 'GET' : req.method;
+    let body = {};
+    if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
+      const value = await req.json().catch(() => null);
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return Response.json({ error: 'JSON object required' }, { status: 400 });
+      body = value;
     }
-  }
-
-  for (const r of routes) {
-    if (r.method !== method) continue;
-    const m = r.pattern.exec(path);
-    if (r.method === method && m) {
-      try {
-        const result = await r.handler({ params: (m.groups ?? {}) as Record<string, string>, body, query: url.searchParams });
-        return Response.json(result ?? { ok: true });
-      } catch (err) {
-        if (err instanceof SendMessageError) {
-          return Response.json({ error: err.message, code: err.code }, { status: err.status });
-        }
-        console.error('[api]', err);
-        return Response.json({ error: String((err as Error)?.message ?? err), code: 'internal' }, { status: 500 });
-      }
+    for (const route of routes) {
+      if (route.method !== method) continue;
+      const match = route.pattern.exec(path);
+      if (!match) continue;
+      const ctx = { params: match.groups ?? {}, body, query: url.searchParams, staff };
+      await scopeRequest(path, method, ctx);
+      return Response.json((await route.handler(ctx)) ?? { ok: true });
     }
+    return Response.json({ error: 'Not found', code: 'not_found' }, { status: 404 });
+  } catch (error) {
+    if (error instanceof SendMessageError) return Response.json({ error: error.message, code: error.code }, { status: error.status });
+    console.error('[umc] REST request failed', error instanceof Error && error.name);
+    return Response.json({ error: 'Internal messaging error', code: 'internal' }, { status: 500 });
   }
-  return Response.json({ error: 'Not found', code: 'not_found' }, { status: 404 });
 }
 
 export { detectCustomerRequest, aiSenderId };

@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/dialog';
 
 const API = '/api/umc';
-const QS = 'XTransformPort=3010';
 
 type Tenant = { id: string; name: string; slug: string; timezone: string; messagingStart: number; messagingEnd: number; languages: string; aiAutoReply: boolean };
 type User = { id: string; displayName: string; role: string; locale: string; isBanned: boolean; isVerifiedBusiness: boolean; lastSeenAt?: string | null; externalRef?: string | null };
@@ -68,15 +67,13 @@ type Compliance = {
   moderationWords?: { id: string; word: string; severity?: string }[];
   auditEvents?: { id: string; actor: string; action: string; at?: string; createdAt?: string; type?: string; detail?: string }[];
 };
-type SocketAuthError = { reason?: string };
 type SocketNotify = { title?: string; body?: string };
 type SocketHandoff = { trigger?: string };
 type Handoff = { id: string; conversationId: string; trigger: string; status: string; detail?: string | null; createdAt: string; conversation?: { title?: string | null; type: string } };
 type Notification = { id: number; title: string; body: string };
 
 async function api<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
-  const sep = path.includes('?') ? '&' : '?';
-  const res = await fetch(`${API}${path}${sep}${QS}`, {
+  const res = await fetch(`${API}${path}`, {
     method,
     headers: { 'content-type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -147,16 +144,11 @@ export default function AgentConsole() {
       if (r.tenants[0]) setTenantId(r.tenants[0].id);
     }).catch((e) => setError(String(e.message)));
 
-    // Realtime endpoint: NEXT_PUBLIC_UMC_SOCKET_URL (direct to the messaging
-    // service) when set; otherwise same-origin through the gateway
-    // (XTransformPort query → reverse proxy), matching the deployment rules.
-    const socketBase = process.env.NEXT_PUBLIC_UMC_SOCKET_URL ?? '';
-    const s = io(socketBase ? `${socketBase}/` : `/?${QS}`, { transports: ['websocket', 'polling'], reconnection: true });
+    const s = io({ path: '/socket.io/umc', autoConnect: false });
     socketRef.current = s;
-    s.on('connect', () => setConnected(true));
+    s.on('auth:ok', () => setConnected(true));
     s.on('disconnect', () => setConnected(false));
-    s.on('auth:ok', () => {});
-    s.on('auth:error', (p: SocketAuthError) => setError(`Socket auth failed: ${p?.reason}`));
+    s.on('connect_error', () => setError('Messaging realtime connection unavailable'));
     s.on('notify', (p: SocketNotify) => notify(p.title ?? 'Notification', p.body ?? ''));
     s.on('handoff:new', (p: SocketHandoff) => notify('Human handoff requested', `Trigger: ${p.trigger}`));
     return () => { s.disconnect(); };
@@ -165,18 +157,26 @@ export default function AgentConsole() {
   // ── tenant switch: users + auth socket ──
   useEffect(() => {
     if (!tenantId) return;
-    api<{ users: User[] }>('GET', `/tenants/${tenantId}/users`).then((r) => {
-      setUsers(r.users);
-      const staff = r.users.find((u) => (u.role === 'agent' || u.role === 'admin') && !u.isBanned);
-      if (staff) setAgentId(staff.id);
-    }).catch((e) => setError(String(e.message)));
-    api<Compliance>('GET', `/tenants/${tenantId}/compliance`).then(setCompliance).catch(() => {});
-    api<{ handoffs: Handoff[] }>('GET', `/tenants/${tenantId}/handoffs`).then((r) => setHandoffs(r.handoffs)).catch(() => {});
+    let current = true;
+    setAgentId('');
+    setActiveConv('');
+    setConversations([]);
+    setUsers([]);
+    setMessages([]);
+    setCompliance(null);
+    setHandoffs([]);
+    const socket = socketRef.current;
+    if (socket) {
+      socket.auth = { tenantId };
+      socket.connect();
+    }
+    api<{ users: User[]; me: string }>('GET', `/tenants/${tenantId}/users`).then((r) => {
+      if (current) { setUsers(r.users); setAgentId(r.me); }
+    }).catch((e) => { if (current) setError(String(e.message)); });
+    api<Compliance>('GET', `/tenants/${tenantId}/compliance`).then((r) => { if (current) setCompliance(r); }).catch(() => {});
+    api<{ handoffs: Handoff[] }>('GET', `/tenants/${tenantId}/handoffs`).then((r) => { if (current) setHandoffs(r.handoffs); }).catch(() => {});
+    return () => { current = false; socket?.disconnect(); };
   }, [tenantId]);
-
-  useEffect(() => {
-    if (socketRef.current && agentId) socketRef.current.emit('auth', { userId: agentId });
-  }, [agentId]);
 
   // ── conversations loader ──
   const loadConversations = useCallback(() => {
@@ -281,7 +281,7 @@ export default function AgentConsole() {
   // ── message actions ──
   const starMessage = async (m: Message) => {
     if (m.starredBy?.includes(agentId)) {
-      await fetch(`${API}/messages/${m.id}/star?${QS}&userId=${agentId}`, { method: 'DELETE' });
+      await fetch(`${API}/messages/${m.id}/star?userId=${agentId}`, { method: 'DELETE' });
     } else {
       await api('POST', `/messages/${m.id}/star`, { userId: agentId, tenantId });
     }
@@ -667,7 +667,7 @@ export default function AgentConsole() {
                     {compliance?.suppressions?.map((s) => (
                       <div key={s.id} className="text-xs flex items-center gap-2 border border-zinc-800 rounded px-2 py-1">
                         <b>{s.value}</b> <span className="text-zinc-500">{s.channel} · {s.reason}</span>
-                        <button className="ml-auto text-red-400 hover:underline" onClick={async () => { await fetch(`${API}/tenants/${tenantId}/suppressions?${QS}&value=${encodeURIComponent(s.value)}`, { method: 'DELETE' }); reloadCompliance(); }}>remove</button>
+                        <button className="ml-auto text-red-400 hover:underline" onClick={async () => { await fetch(`${API}/tenants/${tenantId}/suppressions?value=${encodeURIComponent(s.value)}`, { method: 'DELETE' }); reloadCompliance(); }}>remove</button>
                       </div>
                     ))}
                   </div>
@@ -704,7 +704,7 @@ export default function AgentConsole() {
                   <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                     {compliance?.moderationWords?.map((w) => (
                       <span key={w.id} className={`text-xs border rounded px-2 py-0.5 ${w.severity === 'block' ? 'border-red-800 text-red-300' : 'border-amber-700 text-amber-300'}`}>
-                        {w.word} <button onClick={async () => { await fetch(`${API}/tenants/${tenantId}/moderation-words?${QS}&word=${encodeURIComponent(w.word)}`, { method: 'DELETE' }); reloadCompliance(); }}>×</button>
+                        {w.word} <button onClick={async () => { await fetch(`${API}/tenants/${tenantId}/moderation-words?word=${encodeURIComponent(w.word)}`, { method: 'DELETE' }); reloadCompliance(); }}>×</button>
                       </span>
                     ))}
                   </div>

@@ -16,7 +16,7 @@ import {
   type Violation,
 } from './compliance';
 import { generateAiReply } from './ai-agent';
-import { emitToConversation, emitToTenant, getIo, onlineUserIds } from './realtime';
+import { emitToConversation, onlineUserIds } from './realtime';
 import type { OutboundMessage, SendResult } from '../adapters/types';
 
 export type EngineSendInput = OutboundMessage;
@@ -167,7 +167,7 @@ export async function dispatchMessage(messageId: string): Promise<void> {
 
   const payloadMessage = { ...serialiseMessage(message), status: verdictFor(message) };
   emitToConversation(message.conversationId, 'message:new', payloadMessage);
-  emitToTenant(message.tenantId, 'notify', {
+  emitToConversation(message.conversationId, 'notify', {
     kind: 'message',
     conversationId: message.conversationId,
     messageId: message.id,
@@ -321,8 +321,6 @@ export async function markDelivered(conversationId: string, userId: string) {
 }
 
 export function broadcastPresenceSnapshot() {
-  emitToTenant('*' as never, 'noop', null); // placeholder no-op; presence is event-driven
-  void getIo();
 }
 
 export function violationFromError(err: unknown): Violation | null {

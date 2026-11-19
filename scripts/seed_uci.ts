@@ -9,7 +9,7 @@
  *  - Idempotent: wipes only UCI tables (UMC tables untouched).
  */
 import { PrismaClient } from "@prisma/client";
-import { PrismaLibSQL } from "@prisma/adapter-libsql";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { readFileSync } from "fs";
 
@@ -17,7 +17,7 @@ import { readFileSync } from "fs";
 // the schema uses engine = "client", so every client needs an adapter
 // chosen from DATABASE_URL (mysql:// → MariaDb, file:/libsql: → LibSQL).
 const rawUrl = process.env.DATABASE_URL || "file:./db/custom.db";
-let adapter: PrismaLibSQL | PrismaMariaDb;
+let adapter: PrismaLibSql | PrismaMariaDb;
 if (/^mysql:\/\//i.test(rawUrl)) {
   const u = new URL(rawUrl);
   adapter = new PrismaMariaDb({
@@ -32,7 +32,7 @@ if (/^mysql:\/\//i.test(rawUrl)) {
   const url = rawUrl.startsWith("file:") && !require("path").isAbsolute(rawUrl.slice(5))
     ? `file:${require("path").resolve(rawUrl.slice(5))}`
     : rawUrl;
-  adapter = new PrismaLibSQL({ url });
+  adapter = new PrismaLibSql({ url });
 }
 const db = new PrismaClient({ adapter });
 

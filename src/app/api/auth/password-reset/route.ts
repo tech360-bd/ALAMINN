@@ -4,80 +4,82 @@ import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { hashResetCode, newResetCode } from "@/lib/auth/session";
 import { clientIp, rateLimit } from "@/lib/auth/ratelimit";
+import { isEmailConfigured, sendEmail } from "@/lib/email/transport";
 
 export const dynamic = "force-dynamic";
 
-const requestSchema = z.object({ action: z.literal("request"), email: z.string().email().max(200) });
-const confirmSchema = z.object({
-  action: z.literal("confirm"),
-  email: z.string().email().max(200),
-  code: z.string().regex(/^\d{6}$/, "6-digit code required"),
-  newPassword: z.string().min(10).max(200),
-});
+const emailSchema = z.string().trim().email().max(191).transform((email) => email.toLowerCase());
+const schema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("request"), email: emailSchema }),
+  z.object({ action: z.literal("confirm"), email: emailSchema, code: z.string().regex(/^\d{6}$/), newPassword: z.string().min(10).max(200) }),
+]);
+const TTL = 15 * 60_000;
+const generic = { ok: true, message: "If the account is eligible, a code will be sent to the registered inbox." };
+const headers = { "Cache-Control": "no-store" };
 
-/**
- * POST /api/auth/password-reset
- *  action=request → issues a single-use 6-digit OTP (15 min, hashed at rest).
- *  action=confirm → verifies the OTP and sets the new password.
- *
- * Delivery honesty: this deployment has no SMTP/mail provider configured, so
- * when AUTH_EXPOSE_RESET_OTP=true the response returns the OTP directly for
- * that request only (documented in .env.example). When a mail transport is
- * configured later, set it to false and deliver out-of-band. Every request and
- * confirmation is audit-logged.
- */
 export async function POST(req: NextRequest) {
+  const parsed = schema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid password reset request" }, { status: 400, headers });
+  const input = parsed.data;
   const ip = clientIp(req);
-  const body = await req.json().catch(() => null);
-
-  const parsedReq = requestSchema.safeParse(body);
-  if (parsedReq.success) {
-    const rl = rateLimit({ key: `pwreset:${ip}`, limit: 5, windowMs: 15 * 60_000 });
-    if (!rl.ok) return NextResponse.json({ error: `Too many requests. Try again in ${rl.retryAfterSec}s.` }, { status: 429 });
-
-    const email = parsedReq.data.email.trim().toLowerCase();
-    const account = await db.staffAccount.findUnique({ where: { email } });
-    // Uniform response regardless of existence (no account enumeration).
-    const generic = { ok: true, message: "If the account exists, a reset code has been issued (valid 15 minutes)." };
-    if (!account || !account.isActive) return NextResponse.json(generic);
-
-    const { code, codeHash } = newResetCode();
-    await db.passwordResetCode.deleteMany({ where: { accountId: account.id, usedAt: null } });
-    await db.passwordResetCode.create({
-      data: { accountId: account.id, codeHash, expiresAt: new Date(Date.now() + 15 * 60_000) },
-    });
-    await db.uciAuditLog.create({
-      data: { actor: email, action: "auth.password_reset_requested", entity: "StaffAccount", entityId: account.id, detail: JSON.stringify({ ip }) },
-    });
-    const expose = process.env.AUTH_EXPOSE_RESET_OTP === "true";
-    return NextResponse.json(expose ? { ...generic, code, delivery: "response (no mail transport configured)" } : generic);
+  const limit = input.action === "request" ? 5 : 10;
+  for (const key of [`pwreset:${input.action}:ip:${ip}`, `pwreset:${input.action}:email:${input.email}`]) {
+    const result = rateLimit({ key, limit, windowMs: TTL });
+    if (!result.ok) return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429, headers: { ...headers, "Retry-After": String(result.retryAfterSec) } });
   }
 
-  const parsedConfirm = confirmSchema.safeParse(body);
-  if (parsedConfirm.success) {
-    const rl = rateLimit({ key: `pwconfirm:${ip}`, limit: 10, windowMs: 15 * 60_000 });
-    if (!rl.ok) return NextResponse.json({ error: `Too many attempts. Try again in ${rl.retryAfterSec}s.` }, { status: 429 });
-
-    const email = parsedConfirm.data.email.trim().toLowerCase();
-    const account = await db.staffAccount.findUnique({ where: { email } });
-    if (!account || !account.isActive) return NextResponse.json({ error: "Invalid code or account" }, { status: 400 });
-
-    const record = await db.passwordResetCode.findFirst({
-      where: { accountId: account.id, usedAt: null, codeHash: hashResetCode(parsedConfirm.data.code), expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: "desc" },
+  if (input.action === "request" && !isEmailConfigured()) {
+    return NextResponse.json({ error: "Self-service password recovery is unavailable. Contact a staff administrator." }, { status: 503, headers });
+  }
+  const account = await db.staffAccount.findUnique({ where: { email: input.email }, select: { id: true, email: true, isActive: true } });
+  if (input.action === "request") {
+    if (!account?.isActive) return NextResponse.json(generic, { headers });
+    const code = newResetCode();
+    const reset = await db.$transaction(async (tx) => {
+      // Serialize requests for this account; concurrent requests cannot leave
+      // multiple valid codes behind. Confirmation locks the same row first.
+      await tx.staffAccount.update({ where: { id: account.id }, data: { updatedAt: new Date() } });
+      await tx.passwordResetCode.deleteMany({ where: { accountId: account.id, usedAt: null } });
+      const row = await tx.passwordResetCode.create({ data: { accountId: account.id, codeHash: hashResetCode(account.id, code), expiresAt: new Date(Date.now() + TTL) } });
+      await tx.uciAuditLog.create({ data: { actor: account.email, action: "auth.password_reset_requested", entity: "StaffAccount", entityId: account.id } });
+      return row;
     });
-    if (!record) return NextResponse.json({ error: "Invalid or expired code" }, { status: 400 });
-
-    await db.$transaction([
-      db.passwordResetCode.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
-      db.staffAccount.update({ where: { id: account.id }, data: { passwordHash: await hashPassword(parsedConfirm.data.newPassword) } }),
-      db.staffSession.deleteMany({ where: { accountId: account.id } }), // revoke all sessions
-      db.uciAuditLog.create({
-        data: { actor: email, action: "auth.password_reset_confirmed", entity: "StaffAccount", entityId: account.id, detail: JSON.stringify({ ip }) },
-      }),
-    ]);
-    return NextResponse.json({ ok: true, message: "Password updated. All sessions were revoked; please sign in again." });
+    const result = await sendEmail({
+      to: account.email,
+      subject: "Staff password reset code",
+      text: `Your staff password reset code is ${code}. It expires in 15 minutes. Ignore this email if you did not request a reset.`,
+      html: `<p>Your staff password reset code is <strong>${code}</strong>. It expires in 15 minutes.</p><p>Ignore this email if you did not request a reset.</p>`,
+    });
+    if (!result.success || result.provider === "console") {
+      await db.passwordResetCode.deleteMany({ where: { id: reset.id, usedAt: null } });
+      console.warn("[staff-reset] delivery failed");
+    }
+    return NextResponse.json(generic, { headers });
   }
 
-  return NextResponse.json({ error: "Expected {action:'request',email} or {action:'confirm',email,code,newPassword}" }, { status: 400 });
+  const invalid = () => NextResponse.json({ error: "Invalid or expired code" }, { status: 400, headers });
+  if (!account?.isActive) return invalid();
+  const passwordHash = await hashPassword(input.newPassword);
+  const claimed = await db.$transaction(async (tx) => {
+    const active = await tx.staffAccount.updateMany({ where: { id: account.id, isActive: true }, data: { updatedAt: new Date() } });
+    if (active.count !== 1) return false;
+    const now = new Date();
+    const challenge = await tx.passwordResetCode.findFirst({
+      where: { accountId: account.id, usedAt: null, expiresAt: { gt: now }, attempts: { lt: 5 } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    if (!challenge) return false;
+    const match = challenge.codeHash === hashResetCode(account.id, input.code);
+    const codes = await tx.passwordResetCode.updateMany({
+      where: { id: challenge.id, usedAt: null, attempts: challenge.attempts, expiresAt: { gt: now } },
+      data: { attempts: { increment: 1 }, ...(match ? { usedAt: now } : {}) },
+    });
+    if (!match || codes.count !== 1) return false;
+    await tx.staffAccount.update({ where: { id: account.id }, data: { passwordHash } });
+    await tx.staffSession.deleteMany({ where: { accountId: account.id } });
+    await tx.uciAuditLog.create({ data: { actor: account.email, action: "auth.password_reset_confirmed", entity: "StaffAccount", entityId: account.id } });
+    return true;
+  });
+  if (!claimed) return invalid();
+  return NextResponse.json({ ok: true, message: "Password updated. All sessions were revoked; please sign in again." }, { headers });
 }

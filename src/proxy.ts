@@ -46,6 +46,7 @@ import {
 } from "@/lib/request-context";
 import { SESSION_COOKIE, verifyToken } from "@/lib/auth/token";
 import { AUTH_COOKIE, verifyToken as verifyAuthToken } from "@/lib/auth/jwt";
+import { resolveStaffSecret } from "@/lib/auth/secret";
 import { rolesForPath } from "@/lib/auth/rbac";
 
 /**
@@ -62,7 +63,7 @@ async function staffGate(req: NextRequest): Promise<NextResponse | null> {
   if (!roles) return null;
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const secret = process.env.SESSION_SECRET ?? "";
+  const secret = resolveStaffSecret();
   const payload = secret ? await verifyToken(token, secret) : null;
   const isApi = pathname.startsWith("/api/");
 
@@ -82,9 +83,7 @@ async function staffGate(req: NextRequest): Promise<NextResponse | null> {
     return NextResponse.redirect(new URL("/dashboard?denied=" + encodeURIComponent(pathname), req.url));
   }
 
-  const res = NextResponse.next({ request: { headers: req.headers } });
-  res.headers.set("x-alo-session", payload.sid);
-  return res;
+  return null;
 }
 
 /** Admin pages/APIs that do not require a session. */
@@ -101,6 +100,7 @@ const PUBLIC_ADMIN_PAGES = new Set(["/admin/login", "/admin/forgot-password", "/
  */
 async function adminGate(req: NextRequest): Promise<NextResponse | null> {
   const { pathname } = req.nextUrl;
+  if (pathname === "/admin/uci" || pathname.startsWith("/admin/uci/")) return null;
   const isAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
   const isAdminApi = pathname === "/api/v1/admin" || pathname.startsWith("/api/v1/admin/");
   if (!isAdminPage && !isAdminApi) return null;

@@ -2,26 +2,12 @@
  * UMC configuration. Every operational value is environment-driven.
  * No tenant, company, project, domain or brand identity appears here.
  */
-import { readFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-// Load the project-root .env (mini service runs with its own cwd).
-// `import.meta.dir` is a Bun extension; access it through a typed narrowing
-// so the file also type-checks under standard TypeScript tooling.
-const metaDir = (import.meta as unknown as { dir?: string }).dir ?? process.cwd();
-const rootEnv = resolve(metaDir, '../../.env');
-if (existsSync(rootEnv)) {
-  for (const line of readFileSync(rootEnv, 'utf8').split('\n')) {
-    const m = line.match(/^\s*([\w.]+)\s*=\s*(.*)\s*$/);
-    if (m && process.env[m[1]] === undefined) {
-      process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
-    }
-  }
-}
+import { loadEnvConfig } from '../../../src/lib/load-env';
+loadEnvConfig();
 
 export const config = {
-  port: 3010,
-  databaseUrl: process.env.DATABASE_URL ?? 'file:/home/z/my-project/db/custom.db',
+  port: Number(process.env.UMC_PORT ?? 3010),
+  databaseUrl: process.env.DATABASE_URL ?? 'file:./db/custom.db',
 
   // Adapter selection (Phase 1 of the MirrorFly merge plan):
   // defaults are the open-source-first built-ins. Paid third-party adapters

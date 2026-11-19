@@ -1,89 +1,90 @@
-/**
- * Real-time layer (socket.io). Clients authenticate with a userId, join
- * conversation rooms, and exchange typing indicators, receipts, presence and
- * in-app notifications. Path/query contract follows the gateway rules:
- * clients connect with io('/?XTransformPort=3010') and never embed a port.
- */
 import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { db } from '../db';
+import { conversationMember, messagingStaff, tenantActor } from './access';
 
 let io: Server | null = null;
-const socketUser = new Map<string, string>(); // socketId -> userId
+const actorRoom = (id: string) => `actor:${id}`;
 
 export function initRealtime(httpServer: HttpServer): Server {
-  io = new Server(httpServer, {
-    cors: { origin: '*', methods: ['GET', 'POST'] },
-    path: '/socket.io',
+  const server = new Server(httpServer, {
+    path: '/socket.io/umc',
+    allowRequest: (req, done) => {
+      const origin = req.headers.origin;
+      try { done(null, !origin || new URL(origin).host === req.headers.host); }
+      catch { done(null, false); }
+    },
   });
-
-  io.on('connection', (socket) => {
-    socket.on('auth', async ({ userId }: { userId: string }) => {
-      try {
-        const user = await db.messagingUser.findUnique({ where: { id: userId } });
-        if (!user || user.isBanned) {
-          socket.emit('auth:error', { reason: user ? 'banned' : 'unknown_user' });
-          return;
-        }
-        socketUser.set(socket.id, userId);
-        socket.data.userId = userId;
-        socket.data.tenantId = user.tenantId;
-        await socket.join(`tenant:${user.tenantId}`);
-        // presence (catalogue: "Last Seen")
-        await db.messagingUser.update({ where: { id: userId }, data: { lastSeenAt: new Date() } });
-        io!.emit('presence', { userId, online: true, lastSeenAt: new Date().toISOString() });
-
-        // Auto-join the user's conversation rooms so receipts/typing work
-        const parts = await db.conversationParticipant.findMany({
-          where: { userId },
-          select: { conversationId: true },
-        });
-        for (const p of parts) await socket.join(`conv:${p.conversationId}`);
-
-        socket.emit('auth:ok', { userId, tenantId: user.tenantId, rooms: parts.map((p) => p.conversationId) });
-      } catch (err) {
-        socket.emit('auth:error', { reason: String(err).slice(0, 200) });
+  io = server;
+  server.use(async (socket, next) => {
+    try {
+      const tenantId = socket.handshake.auth?.tenantId;
+      const staff = await messagingStaff(socket.request.headers.cookie);
+      const actor = staff && typeof tenantId === 'string' && tenantId.length <= 191 ? await tenantActor(staff, tenantId) : null;
+      if (!actor) return next(new Error('Unauthorized'));
+      socket.data.userId = actor.id;
+      socket.data.tenantId = actor.tenantId;
+      next();
+    } catch { next(new Error('Unauthorized')); }
+  });
+  server.on('connection', (socket) => {
+    const { userId, tenantId } = socket.data as { userId: string; tenantId: string };
+    const refresh = async () => {
+      const staff = await messagingStaff(socket.request.headers.cookie);
+      if (!staff || (await tenantActor(staff, tenantId))?.id !== userId) {
+        socket.disconnect(true);
+        return false;
       }
-    });
-
-    socket.on('conversation:join', async ({ conversationId }: { conversationId: string }) => {
-      const userId = socket.data.userId as string | undefined;
-      if (!userId) return;
-      const member = await db.conversationParticipant.findFirst({
-        where: { conversationId, userId },
-      });
-      if (!member) return; // never join non-members
-      await socket.join(`conv:${conversationId}`);
-    });
-
-    // Typing indicators (catalogue: "Typing Indicators")
-    socket.on('typing', ({ conversationId, isTyping }: { conversationId: string; isTyping: boolean }) => {
-      const userId = socket.data.userId as string | undefined;
-      if (!userId) return;
-      socket.to(`conv:${conversationId}`).emit('typing', { conversationId, userId, isTyping });
-    });
-
-    socket.on('disconnect', async () => {
-      const userId = socketUser.get(socket.id);
-      if (userId) {
+      return true;
+    };
+    const timer = setInterval(() => { void refresh().catch(() => socket.disconnect(true)); }, 10_000);
+    socket.on('disconnect', () => {
+      clearInterval(timer);
+      if (!server.sockets.adapter.rooms.get(actorRoom(userId))?.size) {
         const lastSeenAt = new Date();
-        await db.messagingUser.update({ where: { id: userId }, data: { lastSeenAt } }).catch(() => {});
-        io?.emit('presence', { userId, online: false, lastSeenAt: lastSeenAt.toISOString() });
-        socketUser.delete(socket.id);
+        void db.messagingUser.update({ where: { id: userId }, data: { lastSeenAt } }).catch(() => {});
+        emitToTenant(tenantId, 'presence', { userId, online: false, lastSeenAt: lastSeenAt.toISOString() });
       }
     });
+    const ready = (async () => {
+      await socket.join([actorRoom(userId), `tenant:${tenantId}`]);
+      const parts = await db.conversationParticipant.findMany({ where: { userId, conversation: { tenantId } }, select: { conversationId: true } });
+      if (!socket.connected) return;
+      await socket.join(parts.map(({ conversationId }) => `conv:${conversationId}`));
+      const lastSeenAt = new Date();
+      await db.messagingUser.update({ where: { id: userId }, data: { lastSeenAt } });
+      emitToTenant(tenantId, 'presence', { userId, online: true, lastSeenAt: lastSeenAt.toISOString() });
+      socket.emit('auth:ok', { userId, tenantId });
+    })();
+    void ready.catch(() => socket.disconnect(true));
+    socket.on('conversation:join', (payload?: { conversationId?: string }) => {
+      const id = payload?.conversationId;
+      if (typeof id !== 'string') return;
+      void (async () => {
+        await ready;
+        if (await refresh() && await conversationMember(id, userId, tenantId)) await socket.join(`conv:${id}`);
+      })().catch(() => socket.disconnect(true));
+    });
+    socket.on('typing', (payload?: { conversationId?: string; isTyping?: boolean }) => {
+      const id = payload?.conversationId;
+      if (typeof id !== 'string' || typeof payload?.isTyping !== 'boolean') return;
+      void (async () => {
+        await ready;
+        if (await refresh() && await conversationMember(id, userId, tenantId)) {
+          socket.to(`conv:${id}`).emit('typing', { conversationId: id, userId, isTyping: payload.isTyping });
+        }
+      })().catch(() => socket.disconnect(true));
+    });
   });
-
-  return io;
+  return server;
 }
 
-export function getIo(): Server {
-  if (!io) throw new Error('Realtime not initialised');
-  return io;
+export function joinConversationSockets(userId: string, conversationId: string): void {
+  io?.in(actorRoom(userId)).socketsJoin(`conv:${conversationId}`);
 }
 
 export function onlineUserIds(): string[] {
-  return [...new Set(socketUser.values())];
+  return [...new Set([...io?.sockets.sockets.values() ?? []].map((socket) => socket.data.userId as string))];
 }
 
 export function emitToConversation(conversationId: string, event: string, payload: unknown): void {

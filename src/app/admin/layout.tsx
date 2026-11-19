@@ -15,11 +15,12 @@ import { AdminShell } from "@/components/admin/admin-shell";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const isLogin = pathname === "/admin/login";
+  const isLogin = pathname === "/admin/login" || pathname === "/admin/forgot-password" || pathname === "/admin/reset-password";
+  const isStaff = pathname === "/admin/uci" || pathname.startsWith("/admin/uci/");
   const [checked, setChecked] = useState(isLogin); // skip check on login page
 
   useEffect(() => {
-    if (isLogin) return;
+    if (isLogin || isStaff) return;
     let cancelled = false;
     (async () => {
       try {
@@ -34,10 +35,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
     })();
     return () => { cancelled = true; };
-  }, [isLogin, router]);
+  }, [isLogin, isStaff, router]);
 
   // Login page renders without the shell
-  if (isLogin) return <>{children}</>;
+  if (isLogin || isStaff) return <>{children}</>;
 
   // Avoid flash of unauthenticated content while checking
   if (!checked) return null;
