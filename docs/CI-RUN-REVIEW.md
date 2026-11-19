@@ -1,0 +1,21 @@
+# PR #84 CI history review
+
+Historical records refer to the commits each run tested. They are not a list of defects still present on the current PR, and a patch cannot retroactively change their result. For release decisions, use checks on the exact candidate SHA; an older successful job or a PR run does not substitute for the successful main push attempt required by the deployment guard.
+
+| Runs checked | Evidence and disposition |
+|---|---|
+| [CI #208](https://github.com/tech360-bd/ALAMINN/actions/runs/44479811126) | Successful for `30d5c28`: quality, MariaDB, and Docker all passed. |
+| [#207](https://github.com/tech360-bd/ALAMINN/actions/runs/44479338511) | MariaDB and Docker passed; the quality job was cancelled during production build. The workflow cancels in-progress runs for the same ref when a new run supersedes them. The next successful revision completed the build. |
+| [#206](https://github.com/tech360-bd/ALAMINN/actions/runs/44478715170), [#205](https://github.com/tech360-bd/ALAMINN/actions/runs/44478487584), [#204](https://github.com/tech360-bd/ALAMINN/actions/runs/44478469604) | Job steps show a test failure in all three, even though #205's overall result was cancelled. Annotations include email campaign builder UI assertions; #205 also shows an integration registry URL assertion. PR #84 restores the campaign builder as a separate workspace, tests its UI, and verifies the integration registry contract. |
+| [#203](https://github.com/tech360-bd/ALAMINN/actions/runs/44452770163), [#202](https://github.com/tech360-bd/ALAMINN/actions/runs/44451457549), [#201–#192 starting here](https://github.com/tech360-bd/ALAMINN/actions/runs/44253862409), [#190](https://github.com/tech360-bd/ALAMINN/actions/runs/44253460862) | Each failed at `Install dependencies (lockfile)`. The current branch repairs the npm lockfile and pins a compatible Node/TypeScript toolchain. A fresh `npm ci` succeeded locally and in hosted CI on the repaired branch. Raw logs for some historical jobs were unavailable; the failed-step location is confirmed, not an assertion that every dependency error was identical. |
+| [#191](https://github.com/tech360-bd/ALAMINN/actions/runs/44253468360) | Job metadata reports failure at lint, not dependency installation. The current lint gate completed without errors. |
+| [#189](https://github.com/tech360-bd/ALAMINN/actions/runs/44253327900), [#188](https://github.com/tech360-bd/ALAMINN/actions/runs/44253291816), [#187](https://github.com/tech360-bd/ALAMINN/actions/runs/44253257550), [#186](https://github.com/tech360-bd/ALAMINN/actions/runs/44253219950), [#185](https://github.com/tech360-bd/ALAMINN/actions/runs/44253196149), [#184](https://github.com/tech360-bd/ALAMINN/actions/runs/43913215642) | #189, #188, #186 and #185 were cancelled at typecheck, install, install and setup respectively. GitHub's current API reports #187 and #184 as successful. |
+| [Phase 5 follow-up](https://github.com/tech360-bd/ALAMINN/actions/runs/44595889749) | Hosted quality, Docker and enhanced MariaDB migration/recovery checks passed on `a0aea06`. A prior MariaDB scratch import failure was fixed by explicitly selecting the restricted scratch schema. |
+
+## Gaps fixed in this follow-up
+
+- Deploy CI lookup uses the supported Actions REST API via `gh api`, filters for a main push at the resolved SHA, and checks the required jobs in the selected run attempt. The output is the full verified SHA. The shell-step regression covers success, missing jobs and run metadata, cancelled or pending runs, and wrong commits/events.
+- API tests no longer treat an unreachable target as a passing inquiry test. All HTTP API test files and the security runner verify the same local fixture marker and readiness challenge. The standalone check has bounded requests, fails when readiness never succeeds, cleans up its child and uploads a standalone log on failure.
+- Production dependency auditing uses the same `.nvmrc` and `npm ci` as quality CI. An audit gate passing is not a statement that there are no advisories at lower severities.
+
+See [Phase 5 evidence](PHASE-5-EVIDENCE.md) for schema drift and environment blockers not resolved by CI. This review does not change `main`, historical run results, or any live system.

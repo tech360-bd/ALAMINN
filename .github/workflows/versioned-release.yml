@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "'rollback' restores last-known-good; 'list' shows available releases"
+        description: "'rollback' restores the previous verified release; 'list' shows available releases"
         required: false
         default: ""
 
@@ -92,10 +92,13 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   rollback:
-    name: Restore last-known-good release
+    name: Restore previous verified release
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'rollback'
     runs-on: ubuntu-latest
     environment: production
+    concurrency:
+      group: alaminn-production-release
+      cancel-in-progress: false
     timeout-minutes: 15
     steps:
       - name: Check required secrets
@@ -167,7 +170,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Restore last-known-good release
+      - name: Restore previous verified release
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -179,37 +182,39 @@ jobs:
           APP_DIR="/home/${DEPLOY_USER}/alaminn"
           LGG="$APP_DIR/.last-good-release"
           $SSH_BASE "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s <<EOF
-            set -euo pipefail
+            set -Eeuo pipefail
             APP_DIR="$APP_DIR"
             LGG="\$APP_DIR/.last-good-release"
-            if [ ! -f "\$LGG" ]; then
-              echo "::error::No last-known-good marker at \$LGG — refusing to guess."
+            PREVIOUS="\$APP_DIR/.previous-good-release"
+            if [ ! -f "\$PREVIOUS" ]; then
+              echo "::error::No previous verified release recorded — refusing to guess."
               exit 2
             fi
-            TARGET=\$(cat "\$LGG")
-            if [ ! -d "\$TARGET" ]; then
-              echo "::error::Recorded release dir \$TARGET no longer exists."
+            TARGET=\$(cat "\$PREVIOUS")
+            CURRENT_BEFORE=\$(readlink -f "\$APP_DIR/current")
+            if [ "\$TARGET" = "\$CURRENT_BEFORE" ] || [ ! -f "\$TARGET/RELEASE-INFO" ] || [ ! -f "\$TARGET/server.js" ]; then
+              echo "::error::Previous release is not a different, intact artifact."
               exit 3
             fi
-            CURRENT_BEFORE=\$(readlink -f \$APP_DIR/current 2>/dev/null || echo MISSING)
-            echo "Current release: \$CURRENT_BEFORE"
-            echo "Rolling back to:  \$TARGET"
-            ln -sfn "\$TARGET" "\$APP_DIR/current.new"
-            mv -Tf "\$APP_DIR/current.new" "\$APP_DIR/current"
-            # Reload PM2 app 'alaminn' (NOT 'alaminn-info').
-            pm2 reload alaminn --update-no-deps || pm2 restart alaminn
-            # Health check on port 3056 (NOT 3076).
-            sleep 5
-            for i in \$(seq 1 30); do
-              CODE=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/health 2>/dev/null || echo 000)
-              if [ "\$CODE" = "200" ]; then
-                echo "Post-rollback health check PASSED (HTTP 200 after \${i}s)."
-                exit 0
-              fi
-              sleep 1
-            done
-            echo "::error::Post-rollback health check FAILED (last code: \$CODE)."
-            exit 5
+            activate() {
+              ln -sfn "\$1" "\$APP_DIR/current.new"
+              mv -Tf "\$APP_DIR/current.new" "\$APP_DIR/current"
+              pm2 reload alaminn || pm2 restart alaminn
+            }
+            recover() {
+              trap - ERR
+              echo "::error::Rollback did not pass health checks; restoring the release that was active before rollback."
+              activate "\$CURRENT_BEFORE"
+              exit 5
+            }
+            trap recover ERR
+            activate "\$TARGET"
+            curl --retry 20 --retry-delay 1 --retry-all-errors --max-time 5 -fsS http://127.0.0.1:3056/api/health >/dev/null
+            printf '%s\n' "\$TARGET" > "\$LGG.new"
+            printf '%s\n' "\$CURRENT_BEFORE" > "\$PREVIOUS.new"
+            mv -Tf "\$LGG.new" "\$LGG"
+            mv -Tf "\$PREVIOUS.new" "\$PREVIOUS"
+            echo "Post-rollback health check PASSED. Restored \$TARGET."
           EOF
 
       - name: Summary

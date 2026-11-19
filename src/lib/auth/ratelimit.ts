@@ -11,6 +11,7 @@ interface Bucket {
 }
 
 const buckets = new Map<string, Bucket>();
+let nextSweep = 0;
 
 export interface RateLimitOptions {
   key: string;
@@ -20,6 +21,10 @@ export interface RateLimitOptions {
 
 export function rateLimit({ key, limit, windowMs }: RateLimitOptions): { ok: boolean; retryAfterSec: number } {
   const now = Date.now();
+  if (now >= nextSweep) {
+    for (const [id, value] of buckets) if (value.resetAt <= now) buckets.delete(id);
+    nextSweep = now + 60_000;
+  }
   const bucket = buckets.get(key);
   if (!bucket || bucket.resetAt <= now) {
     buckets.set(key, { count: 1, resetAt: now + windowMs });

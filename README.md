@@ -15,9 +15,9 @@ application combining a public executive-authority website, a Higher Study
 advisory platform, an English Learning platform, a private Command Center
 (CRM + AI Workspace + Approvals + Audit), and an AI-powered WhatsApp Agent.
 
-Built with **Next.js 16.1.3** (App Router, Turbopack), **TypeScript 5**,
-**Tailwind CSS 4**, **shadcn/ui**, **Prisma ORM 6** (SQLite for dev, MySQL for
-production), **Framer Motion 12**, and **Bun 1.3.14** runtime.
+Built with **Next.js 16** (App Router, Turbopack), **TypeScript 5**,
+**Tailwind CSS 4**, **shadcn/ui**, **Prisma ORM 7** (SQLite for dev, MySQL for
+production), **Framer Motion 12**, and **Node.js 22.22.3** (npm).
 
 > **Phase 1 foundation (JWT auth, `.env.config`, PM2, RBAC hierarchy):**
 > see [`docs/PHASE-1-FOUNDATION.md`](./docs/PHASE-1-FOUNDATION.md).
@@ -77,35 +77,25 @@ This ZIP supersedes `ALAMINN-INFO-UPDATED-2026-08-13.zip` and
 
 ---
 
-## Quick Start (Development, 5 minutes)
+## Quick start (development)
 
 ```bash
-# 1. Install dependencies (requires Bun — https://bun.sh)
-bun install
-
-# 2. Configure environment (Rule 5: .env.config — never .env)
+nvm install && nvm use             # Reads .nvmrc; npm is bundled with Node
+npm ci
 cp .env.config.example .env.config
-#   → Edit .env.config: set JWT_SECRET (openssl rand -hex 32),
-#     DATABASE_URL, ADMIN_BOOTSTRAP_PASSWORD
+# Set JWT_SECRET, SESSION_SECRET, and CRON_SECRET to distinct generated values.
+# Set DATABASE_URL=file:./db/custom.db and NEXT_PUBLIC_SITE_URL=http://localhost:3000.
+mkdir -p db
 npm run env:check
-
-# 3. Initialize database
-npm run db:push       # Push schema.prisma → SQLite (dev)
-# npm run db:seed     # Optional: populate demo content (needs ADMIN_BOOTSTRAP_PASSWORD)
-
-# 4. Start dev server
-bun run dev
-#   → Open http://localhost:3000
-
-# 5. (Optional) Start mini-services
-cd mini-services/email-worker      && bun install && bun run dev &
-cd mini-services/audit-worker      && bun install && bun run dev &
-cd mini-services/health-monitor    && bun install && bun run dev &
-cd mini-services/notification-service && bun install && bun run dev &
-cd mini-services/ai-worker         && bun install && bun run dev &
+npm run db:migrate:deploy
+npm run db:migrate:status
+npm run dev
 ```
 
-See [INSTALL.md](./INSTALL.md) for the production deployment guide.
+Open `http://localhost:3000`. The root `package-lock.json` is authoritative;
+Bun is optional for independent mini-services that document it. Do not run Bun
+install in the root instead of `npm ci`. See [INSTALL.md](./INSTALL.md) for the
+two account systems, optional seed data, and worker setup.
 
 ---
 
@@ -148,7 +138,7 @@ alaminn.info/
 ├── scripts/                    # DB seed, verify, backup scripts
 ├── deploy/                     # cPanel / Nginx / OpenLiteSpeed / PM2 / systemd
 ├── .env.example                # Template env file
-├── package.json                # Bun/Next.js scripts
+├── package.json                # npm/Next.js scripts
 ├── tsconfig.json next.config.ts tailwind.config.ts
 ├── Caddyfile Dockerfile docker-compose.yml
 ├── README.md INSTALL.md DEVELOPMENT.md

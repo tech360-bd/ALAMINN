@@ -8,7 +8,8 @@ import MarketingKit from "@/components/admin/kits/marketing";
 import SeoKit from "@/components/admin/kits/seo";
 import AnalyticsKit from "@/components/admin/kits/analytics";
 import VideoKit from "@/components/admin/kits/video";
-import EmailKit from "@/components/admin/kits/email";
+import EmailCampaignBuilder from "@/components/admin/kits/email-campaign";
+import EmailGateway from "@/components/admin/kits/email";
 import SocialKit from "@/components/admin/kits/social";
 import ChatKit from "@/components/admin/kits/chat";
 import IntegrationsKit from "@/components/admin/kits/integrations";
@@ -37,13 +38,13 @@ function fixture(url: string) {
 }
 beforeEach(() => { vi.stubGlobal("fetch", fetchMock); fetchMock.mockReset().mockImplementation(async (url: string) => ok(fixture(url))); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); Element.prototype.scrollIntoView = vi.fn(); URL.createObjectURL = vi.fn(() => "blob:test"); URL.revokeObjectURL = vi.fn(); sessionStorage.clear(); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
-describe("all ten feature workspaces render API data", () => {
-  const cases = [["AI Diagram Designer", DiagramKit], ["Content Humanizer", HumanizerKit], ["CRM Pipeline", CrmKit], ["Marketing Campaign Kit", MarketingKit], ["SEO Engine Audit", SeoKit], ["Email Campaign Builder", EmailKit], ["System Analytics", AnalyticsKit], ["Video Storyboard Studio", VideoKit], ["Social Media Scheduler", SocialKit], ["Live Support Desk", ChatKit]] as const;
+describe("feature workspaces render API data", () => {
+  const cases = [["AI Diagram Designer", DiagramKit], ["Content Humanizer", HumanizerKit], ["CRM Pipeline", CrmKit], ["Marketing Campaign Kit", MarketingKit], ["SEO Engine Audit", SeoKit], ["Email Campaign Builder", EmailCampaignBuilder], ["Email Failover Gateway", EmailGateway], ["System Analytics", AnalyticsKit], ["Video Storyboard Studio", VideoKit], ["Social Media Scheduler", SocialKit], ["Live Support Desk", ChatKit]] as const;
   it.each(cases)("renders %s without a runtime error", async (title, Component) => { render(<Component />); expect(await screen.findByRole("heading", { level: 1, name: title })).toBeInTheDocument(); expect(fetchMock).toHaveBeenCalled(); });
 });
 describe("feature interactions", () => {
   it("saves a diagram through the API", async () => { render(<DiagramKit />); await screen.findByRole("heading", { level: 1 }); fireEvent.click(screen.getByRole("button", { name: /Save diagram/ })); await waitFor(() => expect(fetchMock.mock.calls.some(([url, init]) => url === "/api/v1/admin/kits/documents" && init?.method === "POST")).toBe(true)); });
-  it("reopens email CTA from persisted structured content and disables unconfigured sending", async () => { render(<EmailKit />); fireEvent.click(await screen.findByRole("button", { name: /Review & send/ })); expect(screen.getByDisplayValue("Visit")).toBeInTheDocument(); expect(screen.getByDisplayValue("https://alaminn.info")).toBeInTheDocument(); expect(screen.getByRole("button", { name: /Queue campaign/ })).toBeDisabled(); });
+  it("reopens email CTA from persisted structured content and disables unconfigured sending", async () => { render(<EmailCampaignBuilder />); fireEvent.click(await screen.findByRole("button", { name: /Review & send/ })); expect(screen.getByDisplayValue("Visit")).toBeInTheDocument(); expect(screen.getByDisplayValue("https://alaminn.info")).toBeInTheDocument(); expect(screen.getByRole("button", { name: /Queue campaign/ })).toBeDisabled(); });
   it("renders the Integration Hub and opens the configure dialog for a connectable adapter", async () => {
     render(<IntegrationsKit />);
     expect(await screen.findByRole("heading", { level: 1, name: "Integration Hub" })).toBeInTheDocument();

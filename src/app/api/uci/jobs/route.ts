@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { createHash } from "crypto";
 import { getSessionUser } from "@/lib/auth/session";
 import { can } from "@/lib/auth/rbac";
+import { z } from "zod";
+import { approvedSourceUrl, fetchApprovedSource } from "@/lib/uci/source-fetch";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +12,7 @@ const UA = "ALOEduIntelBot/1.0 (+https://alaminn.info; university-info verificat
 
 function parseRobotsForPath(robotsTxt: string, path: string): boolean {
   // Minimal but correct robots.txt evaluation for our token:
-  // use the most specific matching group (our UA or *), last group wins per spec.
+  // Combine all groups for the matching bot; otherwise use wildcard rules.
   const groups: { agents: string[]; allow: string[]; disallow: string[] }[] = [];
   let current: { agents: string[]; allow: string[]; disallow: string[] } | null = null;
   for (const rawLine of robotsTxt.split(/\r?\n/)) {
@@ -29,16 +31,16 @@ function parseRobotsForPath(robotsTxt: string, path: string): boolean {
       if (val) current[key].push(val);
     }
   }
-  const matching = groups.filter((g) => g.agents.includes("aloeduintelbot") || g.agents.includes("*"));
-  const group = matching.find((g) => g.agents.includes("aloeduintelbot")) ?? matching[matching.length - 1];
-  if (!group) return true;
+  const specific = groups.filter((g) => g.agents.includes("aloeduintelbot"));
+  const matches = specific.length ? specific : groups.filter((g) => g.agents.includes("*"));
+  const group = { allow: matches.flatMap((g) => g.allow), disallow: matches.flatMap((g) => g.disallow) };
   const matchLen = (rule: string, p: string): number | null => {
     // supports '*' wildcard and '$' terminator minimally
     const hasEnd = rule.endsWith("$");
     let pattern = hasEnd ? rule.slice(0, -1) : rule;
     pattern = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
     const re = new RegExp("^" + pattern + (hasEnd ? "$" : ""));
-    return re.test(p) ? pattern.length : null;
+    return re.test(p) ? Buffer.byteLength(rule) : null;
   };
   const pathRules: { len: number; allow: boolean }[] = [];
   for (const a of group.allow) {
@@ -50,61 +52,47 @@ function parseRobotsForPath(robotsTxt: string, path: string): boolean {
     if (len !== null) pathRules.push({ len, allow: false });
   }
   if (!pathRules.length) return true;
-  pathRules.sort((x, y) => y.len - x.len);
+  pathRules.sort((x, y) => (y.len - x.len) || Number(y.allow) - Number(x.allow));
   return pathRules[0].allow;
 }
 
-async function runJob(jobId: string, targetUrl: string, sourceKey: string) {
+class RobotsBlockedError extends Error {}
+
+async function runJob(jobId: string, parsed: URL, sourceUrl: URL, sourceKey: string, recordedSourceUrl: string) {
+  const targetUrl = parsed.href;
   const started = new Date();
   await db.uciCollectionJob.update({ where: { id: jobId }, data: { status: "RUNNING", startedAt: started, attempts: { increment: 1 } } });
-  let parsed: URL;
+  let robotsTxt: string | undefined;
   try {
-    parsed = new URL(targetUrl);
-    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("unsupported protocol");
-  } catch (e) {
-    await db.uciCollectionJob.update({
-      where: { id: jobId },
-      data: { status: "FAILED", finishedAt: new Date(), lastError: `Invalid target URL: ${(e as Error).message}` },
+    const robotsRes = await fetchApprovedSource(new URL("/robots.txt", sourceUrl), sourceUrl, {
+      userAgent: UA, timeout: 8000, maxBytes: 512_000,
     });
-    return;
-  }
-
-  // 1) robots.txt gate — never fetch the target when disallowed
-  let robotsAllowed: boolean | null = null;
-  try {
-    const robotsRes = await fetch(`${parsed.origin}/robots.txt`, {
-      headers: { "User-Agent": UA },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (robotsRes.ok) {
-      const txt = await robotsRes.text();
-      robotsAllowed = parseRobotsForPath(txt, parsed.pathname + (parsed.search ?? ""));
-    } else {
-      robotsAllowed = true; // no robots.txt => allowed by convention
-    }
+    if (robotsRes.status >= 200 && robotsRes.status < 300) robotsTxt = robotsRes.body.toString("utf8");
+    else if (robotsRes.status === 404 || robotsRes.status === 410) robotsTxt = "";
   } catch {
-    robotsAllowed = null; // unreachable network — record as unknown, do not guess
+    // Network or destination policy failure is not permission to fetch.
   }
-
-  if (robotsAllowed === false) {
+  if (robotsTxt === undefined) {
     await db.uciCollectionJob.update({
       where: { id: jobId },
-      data: { status: "ROBOTS_BLOCKED", finishedAt: new Date(), findings: "robots.txt disallows this path for our token — target NOT fetched.", lastError: null },
+      data: { status: "FAILED", finishedAt: new Date(), lastError: "Unable to check source robots.txt safely" },
     });
-    await db.uciSource.update({ where: { key: sourceKey }, data: { robotsAllowed: false, lastCheckedAt: new Date() } }).catch(() => {});
     return;
   }
-
-  // 2) real fetch of the target page
+  const rules = robotsTxt;
   try {
-    const res = await fetch(targetUrl, {
-      headers: { "User-Agent": UA, "Accept": "text/html,application/xhtml+xml" },
-      signal: AbortSignal.timeout(12000),
-      redirect: "follow",
+    const res = await fetchApprovedSource(parsed, sourceUrl, {
+      userAgent: UA, timeout: 12_000, maxBytes: 2_000_000,
+      allowPath: (url) => {
+        if (!parseRobotsForPath(rules, url.pathname + url.search)) throw new RobotsBlockedError();
+      },
     });
-    const body = await res.text();
-    const hash = createHash("sha256").update(body).digest("hex");
-    const bytes = Buffer.byteLength(body, "utf8");
+    if (res.status < 200 || res.status >= 300) {
+      await db.uciCollectionJob.update({ where: { id: jobId }, data: { status: "FAILED", httpStatus: res.status, finishedAt: new Date(), lastError: "Source returned a non-success HTTP status" } });
+      return;
+    }
+    const hash = createHash("sha256").update(res.body).digest("hex");
+    const bytes = res.body.length;
 
     // change detection against previous successful job for the same URL
     const previous = await db.uciCollectionJob.findFirst({
@@ -117,27 +105,27 @@ async function runJob(jobId: string, targetUrl: string, sourceKey: string) {
         : "CHANGED — content differs from the previous check; review required."
       : "FIRST_CHECK — baseline hash recorded.";
 
-    await db.uciCollectionJob.update({
-      where: { id: jobId },
-      data: { status: "SUCCESS", httpStatus: res.status, contentHash: hash, bytes, findings, finishedAt: new Date(), lastError: null },
-    });
-    await db.uciSource.update({
-      where: { key: sourceKey },
-      data: { robotsAllowed, lastCheckedAt: new Date() },
-    }).catch(() => {});
-    // refresh lastCheckedAt on requirement records that reference this URL
-    const records = await db.uciRequirementRecord.findMany({ where: { sourceUrl: { contains: parsed.hostname } }, select: { id: true } });
-    for (const r of records) {
-      await db.uciRequirementRecord.update({ where: { id: r.id }, data: { lastCheckedAt: new Date() } });
-    }
+    const finishedAt = new Date();
+    await db.$transaction([
+      db.uciCollectionJob.update({ where: { id: jobId }, data: { status: "SUCCESS", httpStatus: res.status, contentHash: hash, bytes, findings, finishedAt, lastError: null } }),
+      ...(res.finalUrl === targetUrl && targetUrl === sourceUrl.href ? [db.uciSource.updateMany({ where: { key: sourceKey, url: recordedSourceUrl }, data: { robotsAllowed: true, lastCheckedAt: finishedAt } })] : []),
+      ...(res.finalUrl === targetUrl ? [db.uciRequirementRecord.updateMany({ where: { sourceUrl: targetUrl }, data: { lastCheckedAt: finishedAt } })] : []),
+    ]);
   } catch (e) {
+    if (e instanceof RobotsBlockedError) {
+      await db.$transaction([
+        db.uciCollectionJob.update({ where: { id: jobId }, data: {
+          status: "ROBOTS_BLOCKED", finishedAt: new Date(), findings: "robots.txt disallows the requested path or a redirect destination.", lastError: null,
+        } }),
+        ...(targetUrl === sourceUrl.href ? [db.uciSource.updateMany({ where: { key: sourceKey, url: recordedSourceUrl }, data: { robotsAllowed: false } })] : []),
+      ]);
+      return;
+    }
     await db.uciCollectionJob.update({
       where: { id: jobId },
       data: { status: "FAILED", finishedAt: new Date(), lastError: `Fetch failed: ${(e as Error).message}` },
     });
-    if (robotsAllowed !== null) {
-      await db.uciSource.update({ where: { key: sourceKey }, data: { robotsAllowed, lastCheckedAt: new Date() } }).catch(() => {});
-    }
+
   }
 }
 
@@ -158,28 +146,32 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   if (!can(session.role, "uci.edit")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = (await req.json().catch(() => null)) as
-    | { targetUrl?: string; sourceKey?: string; type?: string }
-    | null;
-  if (!body?.targetUrl || !body?.sourceKey) {
-    return NextResponse.json({ error: "targetUrl and sourceKey are required" }, { status: 400 });
-  }
+  const parsed = z.object({ targetUrl: z.url().max(2048), sourceKey: z.string().min(1).max(191), type: z.enum(["SOURCE_CHECK", "DISCOVERY"]).optional() }).safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Valid targetUrl and sourceKey are required" }, { status: 400 });
+  const body = parsed.data;
   const source = await db.uciSource.findUnique({ where: { key: body.sourceKey } });
   if (!source) return NextResponse.json({ error: "unknown sourceKey" }, { status: 404 });
-  if (source.identityStatus === "PENDING_IDENTITY") {
+  if (source.identityStatus !== "CONFIRMED") {
     return NextResponse.json(
-      { error: `Source "${source.name}" has PENDING_IDENTITY status — confirm its exact URL and permission before scheduling collection.` },
+      { error: `Source "${source.name}" is not confirmed — confirm its exact URL and permission before scheduling collection.` },
       { status: 422 },
     );
   }
-  if (!source.url && !body.targetUrl.startsWith("http")) {
-    return NextResponse.json({ error: "Source has no confirmed URL" }, { status: 422 });
+  let sourceUrl: URL;
+  let target: URL;
+  try {
+    if (!source.url) throw new Error("Source has no confirmed URL");
+    sourceUrl = new URL(source.url);
+    approvedSourceUrl(sourceUrl.href, sourceUrl);
+    target = approvedSourceUrl(body.targetUrl, sourceUrl);
+  } catch {
+    return NextResponse.json({ error: "Target must match a confirmed HTTPS source" }, { status: 422 });
   }
 
   const job = await db.uciCollectionJob.create({
     data: {
       sourceKey: body.sourceKey,
-      targetUrl: body.targetUrl,
+      targetUrl: target.href,
       type: body.type === "DISCOVERY" ? "DISCOVERY" : "SOURCE_CHECK",
       status: "PENDING",
     },
@@ -190,11 +182,11 @@ export async function POST(req: NextRequest) {
       action: "JOB_CREATE",
       entity: "UciCollectionJob",
       entityId: job.id,
-      detail: JSON.stringify({ targetUrl: body.targetUrl, sourceKey: body.sourceKey }),
+      detail: JSON.stringify({ targetUrl: target.href, sourceKey: body.sourceKey }),
     },
   });
   // run synchronously (bounded timeouts inside); the UI gets the real result
-  await runJob(job.id, body.targetUrl, body.sourceKey);
+  await runJob(job.id, target, sourceUrl, body.sourceKey, source.url!);
   const final = await db.uciCollectionJob.findUnique({ where: { id: job.id } });
   return NextResponse.json({ job: final });
 }

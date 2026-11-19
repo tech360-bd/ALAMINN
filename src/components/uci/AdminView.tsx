@@ -15,7 +15,7 @@ import { Loader2, AlertTriangle, History, Download, Upload, RefreshCw, CheckCirc
 import { fmtDate } from "@/components/uci/shared";
 
 interface QueueRecord {
-  id: string; context: string | null; fieldsJson: string; sourceFile: string;
+  id: string; version: number; context: string | null; fieldsJson: string; sourceFile: string;
   sheet: string; rowNumber: number; sourceUrl: string | null; verificationStatus: string;
   collectedAt: string; lastCheckedAt: string | null; lastVerifiedAt: string | null;
   institution: { canonicalName: string; country: string; priorityCohort: boolean };
@@ -88,7 +88,7 @@ export function AdminView() {
     const res = await fetch("/api/uci/admin/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recordId: actionTarget.rec.id, action: actionTarget.action, note: actionNote || undefined }),
+      body: JSON.stringify({ recordId: actionTarget.rec.id, expectedVersion: actionTarget.rec.version, action: actionTarget.action, note: actionNote || undefined }),
     });
     const d = await res.json();
     if (d.error) toast({ title: "Action refused", description: d.error, variant: "destructive" });

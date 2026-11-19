@@ -41,7 +41,7 @@ export default function LoginPage() {
       }
       const params = new URLSearchParams(window.location.search);
       const next = params.get("next");
-      router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
+      router.push(next && next.startsWith("/") && !next.startsWith("//") && !/[\\\x00-\x20]/.test(next) ? next : "/dashboard");
       router.refresh();
     } finally {
       setBusy(false);
@@ -58,11 +58,7 @@ export default function LoginPage() {
     });
     const data = await res.json();
     if (!res.ok) { setResetErr(data.error ?? "Request failed"); return; }
-    if (data.code) {
-      setResetMsg(`No mail transport is configured in this deployment, so the code is returned here for this request only: ${data.code}`);
-    } else {
-      setResetMsg(data.message ?? "Code issued.");
-    }
+    setResetMsg(data.message ?? "Check your registered inbox.");
     setResetStage("confirm");
   };
 
@@ -94,9 +90,7 @@ export default function LoginPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2"><LogIn className="h-4 w-4" style={{ color: "#0066CC" }} /> Sign in</CardTitle>
             <CardDescription className="text-xs">
-              {process.env.NEXT_PUBLIC_HAS_ACCOUNTS === "false"
-                ? "No accounts exist yet — the first registration becomes the ADMIN."
-                : "Use your staff account. Sessions are revocable and audit-logged."}
+              Use your staff account. Sessions are revocable and audit-logged.
             </CardDescription>
           </CardHeader>
           <CardContent>

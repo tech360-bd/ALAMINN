@@ -49,6 +49,14 @@ on:
         description: "Commit SHA to deploy (defaults to branch HEAD — must have green CI)"
         required: false
         default: ""
+      approve_database_backup:
+        description: "Explicitly authorize a production database backup"
+        type: boolean
+        default: false
+      approve_database_migrations:
+        description: "Explicitly authorize reviewed production migrations"
+        type: boolean
+        default: false
       preflight_only:
         description: "Run preflight checks only (no deploy). Safe read-only mode."
         type: boolean
@@ -57,9 +65,10 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: alaminn-production-release
   cancel-in-progress: false
 
 jobs:
@@ -87,35 +96,54 @@ jobs:
           fi
           echo "deploy_enabled=true" >> "$GITHUB_OUTPUT"
 
-      - name: Pick commit
+      - name: Require separate backup and migration approvals
+        if: ${{ !inputs.preflight_only }}
+        env:
+          APPROVE_BACKUP: ${{ inputs.approve_database_backup }}
+          APPROVE_MIGRATION: ${{ inputs.approve_database_migrations }}
+        run: test "$APPROVE_BACKUP" = true && test "$APPROVE_MIGRATION" = true
+
+      - name: Verify exact main CI
         id: pick
         env:
-          INPUT_COMMIT: ${{ github.event.inputs.commit }}
+          INPUT_COMMIT: ${{ inputs.commit }}
           GH_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           SHA="${INPUT_COMMIT:-$GH_SHA}"
           if ! [[ "$SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
-            echo "::error::Invalid commit SHA: $SHA"
+            echo "::error::Specify a valid commit SHA."
             exit 1
           fi
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "Deploy target SHA: $SHA"
-
-      - name: Check CI conclusion
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ steps.pick.outputs.sha }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          STATUS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
-            --jq '[.check_runs[] | select(.name == "Typecheck · Lint · Test · Security · Build") | .conclusion] | unique | join(",")')
-          echo "CI conclusions for ${SHA}: ${STATUS:-<none>}"
-          if [ "$STATUS" != "success" ]; then
-            echo "::error::Refusing to deploy: required CI check is not green on ${SHA}."
+          FULL_SHA=$(gh api "repos/${REPO}/commits/${SHA}" --jq .sha)
+          [[ "$FULL_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ "$FULL_SHA" == "$SHA"* ]] || exit 1
+          MAIN_RELATION=$(gh api "repos/${REPO}/compare/${FULL_SHA}...main" --jq .status)
+          if [ "$MAIN_RELATION" != 'ahead' ] && [ "$MAIN_RELATION" != 'identical' ]; then
+            echo "::error::Refusing deployment for a commit not in main."
             exit 1
           fi
+          RUN=$(gh api --method GET "repos/${REPO}/actions/workflows/ci.yml/runs" \
+            -f head_sha="$FULL_SHA" -f event=push -f branch=main -F per_page=1 \
+            --jq '.workflow_runs[0] | [.id,.run_attempt,.head_sha,.head_branch,.event,.status,.conclusion] | @tsv')
+          IFS=$'\t' read -r RUN_ID ATTEMPT CI_SHA CI_BRANCH CI_EVENT CI_STATUS CI_RESULT <<< "$RUN"
+          if ! [[ "$RUN_ID" =~ ^[0-9]+$ && "$ATTEMPT" =~ ^[0-9]+$ && "$CI_SHA" == "$FULL_SHA" &&
+                  "$CI_BRANCH" == main && "$CI_EVENT" == push && "$CI_STATUS" == completed && "$CI_RESULT" == success ]]; then
+            echo "::error::No successful latest main push CI run for $FULL_SHA."
+            exit 1
+          fi
+          CHECKS=$(gh api --paginate "repos/${REPO}/actions/runs/${RUN_ID}/attempts/${ATTEMPT}/jobs" \
+            --jq '.jobs[] | [.name, .conclusion] | @tsv')
+          for check in 'Typecheck · Lint · Test · Security · Build' 'MariaDB migration and persistence' 'Container build and runtime readiness'; do
+            STATUS=$(awk -F '\t' -v name="$check" '$1 == name { print $2 }' <<< "$CHECKS")
+            if [ "$STATUS" != "success" ]; then
+              echo "::error::Refusing deployment: $check was not successful on $FULL_SHA."
+              exit 1
+            fi
+          done
+          echo "sha=$FULL_SHA" >> "$GITHUB_OUTPUT"
+          echo "Deploy target SHA: $FULL_SHA (CI run $RUN_ID, attempt $ATTEMPT)"
 
       - name: Summary
         run: |
@@ -296,11 +324,22 @@ jobs:
       artifact_name: ${{ steps.pack.outputs.artifact_name }}
       artifact_sha256: ${{ steps.pack.outputs.artifact_sha256 }}
       release_id: ${{ steps.pack.outputs.release_id }}
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: build-only-mariadb-password
+          MARIADB_DATABASE: alaminn_build
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=15
     env:
       NODE_ENV: production
       DATABASE_URL: file:${{ github.workspace }}/db/build-only.db
       NEXT_PUBLIC_SITE_URL: https://alaminn.info
       NEXTAUTH_URL: https://alaminn.info
+      EMAIL_FROM: build@example.invalid
       AUTH_SECRET: ci-build-only-not-used-in-prod-0123456789abcdef
       CRON_SECRET: ci-build-only-not-used-in-prod-0123456789abcdef
     steps:
@@ -310,17 +349,30 @@ jobs:
           ref: ${{ needs.guard.outputs.sha }}
           fetch-depth: 1
 
-      - name: Setup Node 24.22.0
+      - name: Setup project Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24.22.0
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies (lockfile)
-        run: npm ci --no-audit --no-fund
+        run: npm ci --include=dev --no-audit --no-fund
 
-      - name: Generate Prisma client
-        run: npx prisma generate
+      - name: Prepare and generate the release database provider
+        env:
+          NODE_ENV: development # Database exists only inside this build runner
+          PROVIDER: ${{ vars.DEPLOY_DATABASE_PROVIDER || 'mysql' }}
+        run: |
+          case "$PROVIDER" in
+            sqlite) mkdir -p db; npm run db:migrate:deploy ;;
+            mysql)
+              export DATABASE_URL='mysql://root:build-only-mariadb-password@127.0.0.1:3306/alaminn_build'
+              npm run db:migrate:deploy -- --config prisma.config.mysql.ts
+              echo "DATABASE_URL=$DATABASE_URL" >> "$GITHUB_ENV"
+              ;;
+            *) echo 'Invalid release database provider'; exit 1 ;;
+          esac
+          npm run db:generate -- "$PROVIDER"
 
       - name: Production build
         run: npm run build
@@ -335,8 +387,9 @@ jobs:
             fi
           done
           mkdir -p .next/standalone/prisma
-          cp prisma/schema.prisma .next/standalone/prisma/
-          cp -r prisma/migrations .next/standalone/prisma/ 2>/dev/null || true
+          cp prisma/schema*.prisma .next/standalone/prisma/
+          cp -r prisma/migrations .next/standalone/prisma/
+          cp prisma.release.config.mjs scripts/release-backup.mjs scripts/database-catalog.mjs .next/standalone/
 
       - name: Pack release tarball
         id: pack
@@ -462,6 +515,7 @@ jobs:
           EXPECTED_SHA256: ${{ needs.build.outputs.artifact_sha256 }}
           TARGET_SHA: ${{ needs.guard.outputs.sha }}
           RELEASE_ID: ${{ needs.build.outputs.release_id }}
+          RELEASE_PROVIDER: ${{ vars.DEPLOY_DATABASE_PROVIDER || 'mysql' }}
         run: |
           set -euo pipefail
           PORT="${DEPLOY_PORT:-22}"
@@ -493,33 +547,33 @@ jobs:
             mkdir -p "\$RELEASE_DIR"
             tar -xzf "\$TARBALL" -C "\$RELEASE_DIR"
             rm -f "\$TARBALL"
-            for f in server.js .next/static public prisma/schema.prisma RELEASE-INFO; do
+            for f in server.js .next/static public prisma/schema.prisma RELEASE-INFO prisma.release.config.mjs release-backup.mjs database-catalog.mjs; do
               if [ ! -e "\$RELEASE_DIR/\$f" ]; then
                 echo "::error::Release missing required file: \$f"
                 exit 1
               fi
             done
+            umask 077
             BACKUP_DIR="\$APP_DIR/backups"
             mkdir -p "\$BACKUP_DIR"
-            BACKUP_FILE="\$BACKUP_DIR/pre-deploy-\$RELEASE_ID.db"
-            PROD_DB_URL="\$(set -a; . \$APP_DIR/current/.env 2>/dev/null; echo \$DATABASE_URL)"
-            if [[ "\$PROD_DB_URL" == file:* ]]; then
-              DB_PATH="\${PROD_DB_URL#file:}"
-              if [ -f "\$DB_PATH" ]; then
-                cp -a "\$DB_PATH" "\$BACKUP_FILE"
-                echo "SQLite backup: \$BACKUP_FILE"
-              fi
-            elif [[ "\$PROD_DB_URL" == mysql://* ]] || [[ "\$PROD_DB_URL" == mariadb://* ]]; then
-              if command -v mysqldump >/dev/null 2>&1; then
-                mysqldump --no-tablespaces \$(echo "\$PROD_DB_URL" | sed -E 's|^[^:]+://||; s|/.*||; s|:| -p|; s|@| -h |') > "\$BACKUP_FILE.sql" 2>/dev/null || \
-                  echo "::warning::mysqldump failed — verify backup manually."
-              fi
-            else
-              echo "::warning::Could not determine DB type — backup skipped."
-            fi
-            cd "\$RELEASE_DIR"
-            npx --no-install prisma migrate status 2>&1 | tee /tmp/migrate-status.txt || \
-              echo "::warning::prisma migrate status returned non-zero — verify migrations."
+            cd "\$APP_DIR/current"
+            test -r "\$APP_DIR/shared/.env"
+            ln -s "\$APP_DIR/shared/.env" "\$RELEASE_DIR/.env.config"
+            # Read the trusted host environment without sourcing secrets as shell code.
+            NODE_ENV=production node --env-file="\$APP_DIR/shared/.env" -e '
+              const { spawnSync } = require("node:child_process");
+              const [release, output, provider] = process.argv.slice(1);
+              const url = process.env.DATABASE_URL;
+              if ((provider === "sqlite" && !url?.startsWith("file:/")) || (provider === "mysql" && !url?.startsWith("mysql://"))) process.exit(1);
+              if (Buffer.byteLength(process.env.CRON_SECRET ?? "") < 32) throw new Error("CRON_SECRET is required for release readiness");
+              const env = { ...process.env, DATABASE_URL: url };
+              const run = (command, args) => {
+                const result = spawnSync(command, args, { cwd: release, env, stdio: "inherit" });
+                if (result.status !== 0) process.exit(result.status ?? 1);
+              };
+              run(process.execPath, ["release-backup.mjs", output, "--approved"]);
+              for (const action of ["deploy", "status"]) run("npx", ["--yes", "--package=prisma@7.10.1", "--", "prisma", "migrate", action, "--config", "prisma.release.config.mjs"]);
+            ' "\$RELEASE_DIR" "\$BACKUP_DIR/pre-deploy-\$RELEASE_ID" "$RELEASE_PROVIDER"
             echo "Pre-activation checks complete for release \$RELEASE_ID."
           EOF
 
@@ -539,23 +593,29 @@ jobs:
           RELEASES_DIR="$APP_DIR/releases"
           RELEASE_DIR="$RELEASES_DIR/$RELEASE_ID"
           $SSH_BASE "$REMOTE" bash -s <<EOF
-            set -uo pipefail
+            set -euo pipefail
             APP_DIR="$APP_DIR"
             RELEASE_DIR="$RELEASE_DIR"
             RELEASE_ID="$RELEASE_ID"
             TARGET_SHA="$TARGET_SHA"
             LGG="\$APP_DIR/.last-good-release"
+            PREVIOUS_GOOD="\$APP_DIR/.previous-good-release"
             CURRENT_LINK="\$APP_DIR/current"
             record_failure() {
               echo "::error::Activation failed: \$1"
               echo "Attempting rollback to last-known-good..."
-              if [ -f "\$LGG" ]; then
-                PREV=\$(cat "\$LGG")
+              trap - ERR
+              PREV="\${CURRENT_BEFORE:-MISSING}"
+              if [ -f "\$LGG" ]; then PREV=\$(cat "\$LGG"); fi
+              if [ "\$PREV" != MISSING ]; then
                 if [ -d "\$PREV" ]; then
                   ln -sfn "\$PREV" "\$CURRENT_LINK.new"
                   mv -Tf "\$CURRENT_LINK.new" "\$CURRENT_LINK"
-                  pm2 reload alaminn --update-no-deps || pm2 restart alaminn
-                  echo "Rolled back to \$PREV"
+                  if ! pm2 reload alaminn || ! curl --retry 10 --retry-delay 1 --retry-all-errors -fsS http://127.0.0.1:3056/api/health/ready >/dev/null; then
+                    echo "::error::Rollback reload or database readiness failed. MANUAL INTERVENTION REQUIRED."
+                    exit 1
+                  fi
+                  echo "Rolled back to \$PREV and confirmed database readiness"
                 else
                   echo "::error::Last-known-good release \$PREV no longer exists. MANUAL INTERVENTION REQUIRED."
                 fi
@@ -569,13 +629,14 @@ jobs:
             echo "Current release before activation: \$CURRENT_BEFORE"
             ln -sfn "\$RELEASE_DIR" "\$CURRENT_LINK.new"
             mv -Tf "\$CURRENT_LINK.new" "\$CURRENT_LINK"
-            pm2 reload alaminn --update-no-deps || pm2 restart alaminn
+            pm2 reload alaminn || pm2 restart alaminn
             echo "PM2 app 'alaminn' reloaded."
             sleep 5
             HEALTHY=false
             for i in \$(seq 1 30); do
-              CODE=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/health 2>/dev/null || echo 000)
-              if [ "\$CODE" = "200" ]; then
+              CODE=\$(curl --max-time 5 -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/health/ready 2>/dev/null || echo 000)
+              ACTIVE_ID=\$(curl --max-time 5 -fsS -D - -o /dev/null http://127.0.0.1:3056/api/health/ready 2>/dev/null | awk 'tolower(\$1) == "x-alaminn-release:" { gsub(/\r/, "", \$2); print \$2 }' || echo MISSING)
+              if [ "\$CODE" = "200" ] && [ "\$ACTIVE_ID" = "\$RELEASE_ID" ]; then
                 HEALTHY=true
                 break
               fi
@@ -585,19 +646,29 @@ jobs:
               echo "::error::Post-deploy health check FAILED (last code: \$CODE)."
               record_failure "health check"
             fi
-            AUTH_CODE=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/v1/admin/dashboard 2>/dev/null || echo 000)
+            node --env-file="\$APP_DIR/shared/.env" -e '
+              fetch("http://127.0.0.1:3056/api/health/ready", {
+                method: "POST", headers: { authorization: "Bearer " + process.env.CRON_SECRET }, signal: AbortSignal.timeout(15000)
+              }).then((res) => { if (!res.ok) process.exitCode = 1; }, () => { process.exitCode = 1; });
+            ' || record_failure "database write/rollback probe"
+            AUTH_CODE=\$(curl --max-time 5 -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/v1/admin/dashboard 2>/dev/null || echo 000)
             if [ "\$AUTH_CODE" != "401" ] && [ "\$AUTH_CODE" != "403" ]; then
               echo "::error::Auth-negative check FAILED: admin API returned \$AUTH_CODE."
               record_failure "auth-negative check"
             fi
             for p in / /higher-study /english-learning; do
-              CODE=\$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3056\$p" 2>/dev/null || echo 000)
+              CODE=\$(curl --max-time 5 -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3056\$p" 2>/dev/null || echo 000)
               if [ "\$CODE" != "200" ]; then
                 echo "::error::Public route \$p returned \$CODE."
                 record_failure "public route check"
               fi
             done
-            echo "\$RELEASE_DIR" > "\$LGG"
+            if [ -d "\$CURRENT_BEFORE" ] && [ "\$CURRENT_BEFORE" != "\$RELEASE_DIR" ]; then
+              printf '%s\n' "\$CURRENT_BEFORE" > "\$PREVIOUS_GOOD.new"
+              mv -Tf "\$PREVIOUS_GOOD.new" "\$PREVIOUS_GOOD"
+            fi
+            printf '%s\n' "\$RELEASE_DIR" > "\$LGG.new"
+            mv -Tf "\$LGG.new" "\$LGG"
             echo ""
             echo "✅ Deployment successful."
             echo "   Release: \$RELEASE_ID"

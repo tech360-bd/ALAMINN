@@ -2,7 +2,7 @@
  * High-level SMS sender with consent guard + audit trail.
  * ========================================================
  * Wraps src/lib/sms/router.sendSms and:
- *   1. Validates the recipient has given communications consent (Contact.commsConsent)
+ *   1. Validates the recipient has given communications consent (latest Inquiry.commsConsent)
  *   2. Writes an audit log entry (sms_send)
  *   3. Returns a normalized result the API route can render
  *
@@ -55,7 +55,7 @@ export async function sendConsentSms(
         id: true,
         fullName: true,
         phone: true,
-        commsConsent: true,
+        inquiries: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { commsConsent: true } },
         status: true,
       },
     });
@@ -86,7 +86,7 @@ export async function sendConsentSms(
         consentChecked: true,
       };
     }
-    if (!contact.commsConsent) {
+    if (!contact.inquiries[0]?.commsConsent) {
       return {
         ok: false,
         status: "FAILED",
@@ -100,15 +100,15 @@ export async function sendConsentSms(
       };
     }
     // Prefer the contact's own phone if no explicit `to` was given
-    const target = to || contact.phone || "";
-    if (!target) {
+    const target = contact.phone;
+    if (!target || (to && to.replace(/[\s()-]/g, "") !== target.replace(/[\s()-]/g, ""))) {
       return {
         ok: false,
         status: "FAILED",
         providerUsed: "dev-null",
         providerName: "Dev Mode (no provider)",
         messageId: null,
-        error: "No phone number on the contact record.",
+        error: "Recipient must match the consenting contact’s phone.",
         actuallySent: false,
         fallbackTrail: [],
         consentChecked: true,

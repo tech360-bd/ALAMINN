@@ -1,64 +1,40 @@
-# INSTALL.md — Al Aminn Info Platform
+# Install Al Aminn Info
 
-> **TL;DR**: 5-minute setup. For the complete guide, see **[DEVELOPMENT.md](./DEVELOPMENT.md)**.
+Use Node **22.22.3** from `.nvmrc` and its bundled npm. The root install uses
+`package-lock.json`. Bun is not required for Next.js, Prisma, or UMC; independent
+mini-services may have their own Bun setup.
 
-## Prerequisites
-
-| Tool | Version | Install |
-|---|---|---|
-| **Bun** | ≥ 1.3.14 | `curl -fsSL https://bun.sh/install \| bash` |
-| **Node.js** | ≥ 20 (optional, for some scripts) | https://nodejs.org |
-| **Git** | any | https://git-scm.com |
-
-Verify:
 ```bash
-bun --version    # should print 1.3.x or newer
+nvm install && nvm use
+npm ci
+cp .env.config.example .env.config
+# Generate distinct values with openssl rand -hex 32 for JWT_SECRET, SESSION_SECRET,
+# and CRON_SECRET. Set DATABASE_URL=file:./db/custom.db for development.
+mkdir -p db
+npm run env:check
+npm run db:migrate:deploy
+npm run db:migrate:status
+npm run dev
 ```
 
-## Setup (5 steps)
-
-### 1. Unzip
-```bash
-unzip alaminn-info-FULL-SOURCE.zip
-cd alaminn-info-FULL-SOURCE
-```
-
-### 2. Install dependencies
-```bash
-bun install
-```
-This also runs `prisma generate` automatically (postinstall hook).
-
-### 3. Configure environment
-```bash
-cp .env.example .env
-```
-Edit `.env` and set at minimum:
-```bash
-AUTH_SECRET=<output of: openssl rand -hex 32>
-DATABASE_URL=file:./db/custom.db    # or absolute path
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-NODE_ENV=development
-```
-
-### 4. Initialize the database
-```bash
-bun run db:push     # Creates SQLite file + tables (55 models)
-bun run db:seed     # Seeds 250+ rows: admin user, 30 countries, 12 universities, 24 courses, 8 scholarships, EL courses, etc.
-```
-
-### 5. Start the dev server
-```bash
-bun run dev
-```
-→ Open **http://localhost:3000**
+The install generates the SQLite Prisma client. For a MariaDB deployment, use
+`npm run db:generate -- mysql` before building, and `npm run db:migrate:deploy --
+--config prisma.config.mysql.ts` against the intended MariaDB database. Prisma
+migration commands need access to Prisma's schema-engine distribution. Never use
+`db push`, `migrate reset`, or seed to repair or upgrade an existing production DB.
 
 ## First login
 
-- URL: **http://localhost:3000/admin/login**
-- Email: `admin@alaminn.info`
-- Password: `ChangeMeNow!2024`
-- **Change the password immediately** at `/admin/settings` → Account.
+- **Command Center `/admin/login`**: provision the owner via `npm run db:seed` on
+  your new development DB with your own `ADMIN_BOOTSTRAP_EMAIL` and
+  `ADMIN_BOOTSTRAP_PASSWORD`. The seed creates sample content as well.
+- **Staff `/login`**: set `STAFF_BOOTSTRAP_EMAIL`, `STAFF_BOOTSTRAP_NAME`, and
+  `STAFF_BOOTSTRAP_PASSWORD` securely in a one-off operator environment, run
+  `npm run staff:bootstrap`, then remove the temporary credentials. This command
+  works only before any staff exists. The Command Center owner does not grant
+  a staff role. Password reset requires a working SMTP delivery configuration.
+
+See [the release runbook](./docs/RELEASE-SAFETY.md) before upgrading a live installation.
 
 ## Verify it works
 
@@ -68,15 +44,15 @@ curl http://localhost:3000/api/health
 # → {"success":true,"message":"Alaminn.info is operational."}
 
 # Lint
-bun run lint
+npm run lint
 # → 0 errors, 0 warnings
 
 # Tests
-bun run test
+npm run test
 # → 241 tests pass
 
 # Type check
-bun run typecheck
+npm run typecheck
 # → 0 errors
 ```
 

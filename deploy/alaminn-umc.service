@@ -14,9 +14,8 @@ WorkingDirectory=/var/www/alaminn-info
 EnvironmentFile=/var/www/alaminn-info/.env
 
 Environment=NODE_ENV=production
-Environment=BUN_JSC_maxOldSpaceSize=256
 
-ExecStart=/home/aloedu/.bun/bin/bun run /var/www/alaminn-info/mini-services/messaging-channel/index.ts
+ExecStart=/usr/local/bin/node --import tsx /var/www/alaminn-info/mini-services/messaging-channel/index.ts
 
 Restart=on-failure
 RestartSec=5

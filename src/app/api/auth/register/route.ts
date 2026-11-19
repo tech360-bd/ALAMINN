@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { getSessionUser } from "@/lib/auth/session";
 import { clientIp, rateLimit } from "@/lib/auth/ratelimit";
-import { STAFF_ROLES } from "@/lib/auth/rbac";
+import { can } from "@/lib/auth/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +17,7 @@ const bodySchema = z.object({
 
 /**
  * POST /api/auth/register
- * - When zero staff accounts exist: creates the FIRST ADMIN (bootstrap).
- * - Otherwise: requires an authenticated ADMIN with users.manage.
+ * Requires an authenticated staff administrator. First-account setup is CLI-only.
  */
 export async function POST(req: NextRequest) {
   const rl = rateLimit({ key: `register:${clientIp(req)}`, limit: 5, windowMs: 15 * 60_000 });
@@ -35,17 +34,10 @@ export async function POST(req: NextRequest) {
   }
   const { email, password, name } = parsed.data;
 
-  const existingCount = await db.staffAccount.count();
-  const session = existingCount > 0 ? await getSessionUser() : null;
-
-  let role: string = parsed.data.role ?? "VIEWER";
-  if (existingCount === 0) {
-    role = "ADMIN"; // bootstrap account is always ADMIN
-  } else {
-    if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-    if (session.role !== "ADMIN") return NextResponse.json({ error: "Only ADMIN can create accounts" }, { status: 403 });
-    if (!(STAFF_ROLES as readonly string[]).includes(role)) role = "VIEWER";
-  }
+  const session = await getSessionUser();
+  if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  if (!can(session.role, "users.manage")) return NextResponse.json({ error: "Only ADMIN can create accounts" }, { status: 403 });
+  const role = parsed.data.role ?? "VIEWER";
 
   const emailNorm = email.trim().toLowerCase();
   const duplicate = await db.staffAccount.findUnique({ where: { email: emailNorm } });
@@ -56,8 +48,8 @@ export async function POST(req: NextRequest) {
   });
   await db.uciAuditLog.create({
     data: {
-      actor: session?.email ?? "bootstrap",
-      action: existingCount === 0 ? "auth.bootstrap_admin" : "auth.account_created",
+      actor: session.email,
+      action: "auth.account_created",
       entity: "StaffAccount",
       entityId: account.id,
       detail: JSON.stringify({ role, email: emailNorm }),
@@ -66,6 +58,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(
     { ok: true, account: { id: account.id, email: account.email, name: account.name, role: account.role } },
-    { status: existingCount === 0 ? 201 : 201 },
+    { status: 201 },
   );
 }

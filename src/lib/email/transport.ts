@@ -114,7 +114,7 @@ async function getResendClient() {
 /**
  * Send an email through the configured provider. Never throws.
  */
-export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
+export async function sendEmail(message: EmailMessage, options: { requireDelivery?: boolean } = {}): Promise<EmailResult> {
   const start = Date.now();
   const e = env();
   const from = message.from ? toAddressString(message.from) : e.emailFrom;
@@ -196,7 +196,7 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
   }
 
   // 3. Dev console
-  if (e.isDev) {
+  if (e.isDev && !options.requireDelivery) {
     console.log(
       "\n┌─── 📧 DEV EMAIL (no transport configured) ───────────────────\n" +
         `│ To: ${to.join(", ")}\n` +

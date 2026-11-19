@@ -137,14 +137,22 @@ describe("deploy.yml — production CI/CD spec compliance", () => {
   });
 
   describe("spec §10 — no destructive DB commands", () => {
-    it("does NOT run prisma migrate deploy", () => {
-      expect(stripComments(DEPLOY_YML)).not.toMatch(/prisma migrate deploy/);
+    it("never resets or schema-pushes the production database", () => {
+      expect(stripComments(DEPLOY_YML)).not.toMatch(/prisma migrate reset|prisma db push|--accept-data-loss/);
     });
     it("does NOT run db:seed", () => {
       expect(stripComments(DEPLOY_YML)).not.toMatch(/db:seed/);
     });
-    it("runs only read-only prisma migrate status", () => {
-      expect(DEPLOY_YML).toContain("prisma migrate status");
+    it("requires backup, migration deployment, status and readiness in that order", () => {
+      const workflow = stripComments(DEPLOY_YML);
+      const backup = workflow.indexOf('["release-backup.mjs", output, "--approved"]');
+      const migrations = workflow.indexOf('["deploy", "status"]');
+      const activate = workflow.indexOf('Atomic activation');
+      const ready = workflow.indexOf('/api/health/ready');
+      expect(backup).toBeGreaterThanOrEqual(0);
+      expect(migrations).toBeGreaterThan(backup);
+      expect(activate).toBeGreaterThan(migrations);
+      expect(ready).toBeGreaterThan(activate);
     });
   });
 

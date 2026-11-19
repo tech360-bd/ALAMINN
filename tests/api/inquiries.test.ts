@@ -18,23 +18,11 @@
  * before the rate-limit check in some cases, or never reach the DB in others),
  * but we still stagger calls defensively.
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
+import { apiBase as BASE, requireDisposableApi } from '../fixtures/api-target';
 
-const BASE = "http://localhost:3000";
+requireDisposableApi();
 const URL = `${BASE}/api/v1/inquiries`;
-
-let serverReachable = false;
-
-beforeAll(async () => {
-  try {
-    const res = await fetch(`${BASE}/api/health`, {
-      signal: AbortSignal.timeout(3000),
-    });
-    serverReachable = res.ok;
-  } catch {
-    serverReachable = false;
-  }
-});
 
 async function postJson(body: unknown, init: RequestInit = {}): Promise<Response> {
   // The route rate-limits 5 submissions per 60s per IP hash. Each rejection
@@ -59,7 +47,6 @@ async function postJson(body: unknown, init: RequestInit = {}): Promise<Response
 
 describe("POST /api/v1/inquiries — body parsing rejections (400)", () => {
   it("returns 400 when no body is sent", async () => {
-    if (!serverReachable) return;
     const res = await fetch(URL, {
       method: "POST",
       signal: AbortSignal.timeout(8000),
@@ -71,7 +58,6 @@ describe("POST /api/v1/inquiries — body parsing rejections (400)", () => {
   });
 
   it("returns 400 when body is empty string", async () => {
-    if (!serverReachable) return;
     const res = await postJson("");
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -80,7 +66,6 @@ describe("POST /api/v1/inquiries — body parsing rejections (400)", () => {
   });
 
   it("returns 400 when body is not valid JSON", async () => {
-    if (!serverReachable) return;
     const res = await postJson("not-json");
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -89,7 +74,6 @@ describe("POST /api/v1/inquiries — body parsing rejections (400)", () => {
   });
 
   it("returns 400 with ['spam'] when the honeypot field is filled", async () => {
-    if (!serverReachable) return;
     // The honeypot field is named `website`. A real user (with CSS on) never
     // fills it; a bot scraping the form will. Any truthy value triggers spam.
     const res = await postJson({
@@ -109,7 +93,6 @@ describe("POST /api/v1/inquiries — body parsing rejections (400)", () => {
 
 describe("POST /api/v1/inquiries — field-validation rejections (422)", () => {
   it("returns 422 with required-field errors when body is {}", async () => {
-    if (!serverReachable) return;
     const res = await postJson({});
     expect(res.status).toBe(422);
     const body = await res.json();
@@ -128,7 +111,6 @@ describe("POST /api/v1/inquiries — field-validation rejections (422)", () => {
   });
 
   it("returns 422 with ['email_invalid'] when email format is bad", async () => {
-    if (!serverReachable) return;
     const res = await postJson({
       type: "general",
       fullName: "Jane Doe",
@@ -149,7 +131,6 @@ describe("POST /api/v1/inquiries — field-validation rejections (422)", () => {
   });
 
   it("returns 422 with both consent errors when consents are missing", async () => {
-    if (!serverReachable) return;
     const res = await postJson({
       type: "general",
       fullName: "Jane Doe",
@@ -164,7 +145,6 @@ describe("POST /api/v1/inquiries — field-validation rejections (422)", () => {
   });
 
   it("returns 422 with ['studentDataConsent_required'] for student-referral without data consent", async () => {
-    if (!serverReachable) return;
     const res = await postJson({
       type: "student-referral",
       fullName: "Jane Doe",
@@ -180,7 +160,6 @@ describe("POST /api/v1/inquiries — field-validation rejections (422)", () => {
   });
 
   it("treats explicitly-false consents the same as missing (422)", async () => {
-    if (!serverReachable) return;
     const res = await postJson({
       type: "general",
       fullName: "Jane Doe",
@@ -197,7 +176,6 @@ describe("POST /api/v1/inquiries — field-validation rejections (422)", () => {
 
 describe("POST /api/v1/inquiries — error envelope shape", () => {
   it("always returns a structured JSON envelope (not plain text)", async () => {
-    if (!serverReachable) return;
     const res = await postJson({});
     const body = await res.json();
     // Envelope contract: { success, message, data, meta, errors }

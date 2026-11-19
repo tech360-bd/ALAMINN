@@ -8,7 +8,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 // ─── Identity & Auth ──────────────────────────────────────────────
@@ -2140,6 +2139,7 @@ model UciInstitution {
 
 model UciRequirementRecord {
   id                 String    @id @default(cuid())
+  version            Int       @default(0)
   institutionId      String
   context            String? // e.g. "UK Bangladesh 2026", "UK MOI policy 2027"
   fieldsJson         String // verbatim captured fields (raw), JSON object
@@ -2278,7 +2278,8 @@ model StaffSession {
 model PasswordResetCode {
   id        String    @id @default(cuid())
   accountId String
-  codeHash  String // sha256 of the 6-digit OTP
+  attempts  Int       @default(0)
+  codeHash  String // keyed HMAC of the 6-digit OTP
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())

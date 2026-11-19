@@ -14,14 +14,16 @@ const patchSchema = z.object({
   password: z.string().min(10).max(200).optional(),
 });
 
-async function loadTarget(id: string) {
-  return db.staffAccount.findUnique({ where: { id } });
+class StaffChangeError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
 }
 
-/** Count active admins other than the given account id. */
-async function activeAdminsExcluding(id: string): Promise<number> {
-  const admins = await db.staffAccount.findMany({ where: { role: "ADMIN", isActive: true }, select: { id: true } });
-  return admins.filter((a) => a.id !== id).length;
+function mutationError(error: unknown) {
+  if (error instanceof StaffChangeError) return NextResponse.json({ error: error.message }, { status: error.status });
+  if (typeof error === "object" && error !== null && "code" in error && error.code === "P2034") {
+    return NextResponse.json({ error: "Concurrent account change; refresh and retry" }, { status: 409 });
+  }
+  throw error;
 }
 
 /** PATCH /api/staff/[id] — update name/role/active/password (ADMIN, users.manage). */
@@ -31,9 +33,6 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (!can(session.role, "users.manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await ctx.params;
-  const target = await loadTarget(id);
-  if (!target) return NextResponse.json({ error: "Account not found" }, { status: 404 });
-
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   const patch = parsed.data;
@@ -41,10 +40,6 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // Guard: never demote/deactivate yourself, and never the last active admin.
   if (patch.role === undefined && patch.isActive === undefined && patch.password === undefined && patch.name === undefined) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
-  }
-  const losesAdmin = target.role === "ADMIN" && target.isActive && ((patch.role && patch.role !== "ADMIN") || patch.isActive === false);
-  if (losesAdmin && (await activeAdminsExcluding(id)) < 1) {
-    return NextResponse.json({ error: "Cannot demote or deactivate the last active admin" }, { status: 422 });
   }
   if (id === session.accountId && (patch.isActive === false || (patch.role && patch.role !== "ADMIN"))) {
     return NextResponse.json({ error: "You cannot demote or deactivate your own account" }, { status: 422 });
@@ -56,18 +51,29 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (patch.isActive !== undefined) data.isActive = patch.isActive;
   if (patch.password) data.passwordHash = await hashPassword(patch.password);
 
-  const updated = await db.staffAccount.update({ where: { id }, data, select: { id: true, email: true, name: true, role: true, isActive: true } });
-  if (patch.isActive === false || patch.role) {
-    // Role change or deactivation revokes existing sessions (RBAC takes effect immediately).
-    await db.staffSession.deleteMany({ where: { accountId: id } });
-  }
-  await db.uciAuditLog.create({
-    data: {
-      actor: session.email, action: "auth.account_updated", entity: "StaffAccount", entityId: id,
-      detail: JSON.stringify({ patch: { ...patch, password: patch.password ? "[redacted]" : undefined } }),
-    },
-  });
-  return NextResponse.json({ ok: true, account: updated });
+  try {
+    const updated = await db.$transaction(async (tx) => {
+      const actor = await tx.staffAccount.findUnique({ where: { id: session.accountId }, select: { isActive: true, role: true } });
+      if (!actor?.isActive || actor.role !== "ADMIN") throw new StaffChangeError("Forbidden", 403);
+      const target = await tx.staffAccount.findUnique({ where: { id } });
+      if (!target) throw new StaffChangeError("Account not found", 404);
+      const losesAdmin = target.role === "ADMIN" && target.isActive && ((patch.role && patch.role !== "ADMIN") || patch.isActive === false);
+      if (losesAdmin && await tx.staffAccount.count({ where: { role: "ADMIN", isActive: true, id: { not: id } } }) === 0) {
+        throw new StaffChangeError("Cannot demote or deactivate the last active admin", 422);
+      }
+      const account = await tx.staffAccount.update({ where: { id }, data, select: { id: true, email: true, name: true, role: true, isActive: true } });
+      if (patch.isActive === false || patch.role || patch.password) {
+        await tx.staffSession.deleteMany({ where: { accountId: id } });
+        await tx.passwordResetCode.deleteMany({ where: { accountId: id } });
+      }
+      await tx.uciAuditLog.create({ data: {
+        actor: session.email, action: "auth.account_updated", entity: "StaffAccount", entityId: id,
+        detail: JSON.stringify({ patch: { ...patch, password: patch.password ? "[redacted]" : undefined } }),
+      } });
+      return account;
+    }, { isolationLevel: "Serializable" });
+    return NextResponse.json({ ok: true, account: updated });
+  } catch (error) { return mutationError(error); }
 }
 
 /** DELETE /api/staff/[id] — deactivate (soft delete) an account (ADMIN). */
@@ -80,19 +86,20 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   if (id === session.accountId) {
     return NextResponse.json({ error: "You cannot deactivate your own account" }, { status: 422 });
   }
-  const target = await loadTarget(id);
-  if (!target) return NextResponse.json({ error: "Account not found" }, { status: 404 });
-  if (target.role === "ADMIN" && target.isActive) {
-    const activeAdmins = await db.staffAccount.count({ where: { role: "ADMIN", isActive: true } });
-    if (activeAdmins <= 1) return NextResponse.json({ error: "Cannot deactivate the last active admin" }, { status: 422 });
-  }
-
-  await db.$transaction([
-    db.staffAccount.update({ where: { id }, data: { isActive: false } }),
-    db.staffSession.deleteMany({ where: { accountId: id } }),
-    db.uciAuditLog.create({
-      data: { actor: session.email, action: "auth.account_deactivated", entity: "StaffAccount", entityId: id },
-    }),
-  ]);
-  return NextResponse.json({ ok: true });
+  try {
+    await db.$transaction(async (tx) => {
+      const actor = await tx.staffAccount.findUnique({ where: { id: session.accountId }, select: { isActive: true, role: true } });
+      if (!actor?.isActive || actor.role !== "ADMIN") throw new StaffChangeError("Forbidden", 403);
+      const target = await tx.staffAccount.findUnique({ where: { id } });
+      if (!target) throw new StaffChangeError("Account not found", 404);
+      if (target.role === "ADMIN" && target.isActive && await tx.staffAccount.count({ where: { role: "ADMIN", isActive: true, id: { not: id } } }) === 0) {
+        throw new StaffChangeError("Cannot deactivate the last active admin", 422);
+      }
+      await tx.staffAccount.update({ where: { id }, data: { isActive: false } });
+      await tx.staffSession.deleteMany({ where: { accountId: id } });
+      await tx.passwordResetCode.deleteMany({ where: { accountId: id } });
+      await tx.uciAuditLog.create({ data: { actor: session.email, action: "auth.account_deactivated", entity: "StaffAccount", entityId: id } });
+    }, { isolationLevel: "Serializable" });
+    return NextResponse.json({ ok: true });
+  } catch (error) { return mutationError(error); }
 }

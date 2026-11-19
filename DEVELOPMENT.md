@@ -36,37 +36,12 @@
 
 ---
 
-## 1. Quick Start (5 Minutes)
+## 1. Quick start
 
-```bash
-# 1. Clone / unzip into your workspace
-cd alaminn-info
-
-# 2. Install dependencies (Bun is required — see below)
-bun install
-
-# 3. Configure environment
-cp .env .env.local            # or just edit .env directly in dev
-# Edit .env — set AUTH_SECRET (see §5)
-
-# 4. Initialize the database
-bun run db:push               # Pushes schema.prisma → SQLite file
-bun run db:seed               # Seeds 250+ rows of authoritative data
-
-# 5. Start the dev server
-bun run dev                   # http://localhost:3000
-```
-
-**First admin login**:
-- URL: `http://localhost:3000/admin/login`
-- Email: `admin@alaminn.info`
-- Password: `(set via ADMIN_BOOTSTRAP_PASSWORD env var)
-- **Change the password immediately** at `/admin/settings`.
-
-**Install Bun** (if not present):
-- macOS/Linux: `curl -fsSL https://bun.sh/install | bash`
-- Windows: `powershell -c "irm bun.sh/install.ps1 | iex"`
-- Verify: `bun --version` → `1.3.x` or newer
+Follow [INSTALL.md](./INSTALL.md) for the pinned Node/npm setup, `.env.config`,
+Prisma migrations and the distinct Command Center and staff sign-ins. Run
+`npm run test:disposable` for an isolated API and security check. Bun remains
+optional for the independent services that use it.
 
 ---
 
@@ -75,7 +50,7 @@ bun run dev                   # http://localhost:3000
 | Layer | Technology | Why this choice |
 |---|---|---|
 | Framework | **Next.js 16.1.3 (App Router, Turbopack)** | React 19 support, server components, route handlers, file-based routing. |
-| Runtime | **Bun 1.3.14** | 3× faster install than npm/yarn. Native TypeScript execution. Drop-in for Node. |
+| Runtime | **Node 22.22.3 / npm** | Same runtime and lockfile in development, CI and containers. |
 | Language | **TypeScript 5 (strict)** | Type safety end-to-end. Build fails on type errors. |
 | Styling | **Tailwind CSS 4** | Utility-first, JIT-compiled, zero unused CSS in production. |
 | UI Kit | **shadcn/ui (New York style)** | Copy-owned components, no black-box library. Built on Radix UI primitives. |
@@ -107,7 +82,7 @@ alaminn-info/
 ├── README.md                     ← Short project summary
 ├── DEVELOPMENT.md                ← THIS FILE
 ├── package.json                  ← Dependencies + scripts
-├── bun.lock                      ← Bun lockfile
+├── package-lock.json             ← Root npm lockfile
 ├── next.config.ts                ← Next.js config (standalone output, image opts)
 ├── tsconfig.json                 ← TypeScript config (strict, paths)
 ├── tailwind.config.ts            ← Tailwind theme (orange accent, no indigo/blue)
@@ -270,7 +245,7 @@ alaminn-info/
 | `Dockerfile` | Multi-stage build → slim Node runtime running `server.js`. |
 | `docker-compose.yml` | Orchestration: app + persistent volumes + restart policy. |
 | `package.json` | Dependencies, scripts (see §14). |
-| `bun.lock` | Bun lockfile — pins exact versions for reproducible installs. |
+| `package-lock.json` | The authoritative root npm lockfile. |
 | `next.config.ts` | `output: "standalone"`, `reactStrictMode: false`, image optimization (AVIF/WebP), static asset cache headers, `optimizePackageImports` for `lucide-react`/`framer-motion`/`date-fns`. |
 | `tsconfig.json` | `strict: true`, `target: ES2022`, `module: ESNext`, `jsx: preserve`, `paths: { "@/*": ["./src/*"] }`. |
 | `tailwind.config.ts` | Custom theme: orange accent (`#F26113`), no indigo/blue, dark mode via `class`. |
@@ -515,13 +490,13 @@ CRON_SECRET=<another 64-char hex>
 ### Commands
 
 ```bash
-bun run db:push        # Push schema.prisma → SQLite (creates/updates tables)
-bun run db:generate    # Regenerate Prisma Client (after schema changes)
-bun run db:validate    # Validate schema syntax
-bun run db:seed        # Seed all data (idempotent — safe to re-run)
-bun run db:backup      # Backup DB to storage/backups/<timestamp>.db
-bun run db:restore     # Restore from latest backup (interactive)
-bun run db:verify      # Verify DB integrity (row counts, foreign keys)
+npm run db:migrate:deploy # Apply committed SQLite migrations
+npm run db:generate    # Regenerate Prisma Client (after schema changes)
+npm run db:validate    # Validate schema syntax
+npm run db:seed        # Seed all data (idempotent — safe to re-run)
+npm run db:backup      # Backup DB to storage/backups/<timestamp>.db
+npm run db:restore     # Restore from latest backup (interactive)
+npm run db:verify      # Verify DB integrity (row counts, foreign keys)
 ```
 
 ### Schema overview
@@ -539,11 +514,11 @@ The schema is database-agnostic. To switch:
 1. Install PostgreSQL: `bun add pg @prisma/adapter-pg`.
 2. Change `provider = "sqlite"` → `"postgresql"` in `prisma/schema.prisma`.
 3. Change `DATABASE_URL` to `postgresql://...`.
-4. `bun run db:push`.
+4. `npm run db:push`.
 
 ### Backup strategy
 
-- **Automated**: `bun run db:backup` runs daily via cron (see `scripts/backup.sh`).
+- **Automated**: `npm run db:backup` runs daily via cron (see `scripts/backup.sh`).
 - **Manual**: `bun run scripts/backup-db.ts`.
 - **Storage**: `storage/backups/YYYY-MM-DD-HHMMSS.db`.
 - **Retention**: Last 30 backups kept; older auto-deleted.
@@ -989,7 +964,7 @@ Every route layout uses:
 
 ## 14. Scripts Reference
 
-All scripts run via `bun run <script>` (defined in `package.json`).
+Root scripts run via `npm run <script>` (defined in `package.json`).
 
 ### Development
 
@@ -1076,11 +1051,11 @@ Framework: **Vitest 4** with **jsdom** environment.
 ### Run tests
 
 ```bash
-bun run test                 # All tests
-bun run test:unit            # Unit only
-bun run test:integration     # API integration
-bun run test:watch           # Watch mode
-bun run test:coverage        # Coverage report → /coverage/
+npm run test                 # All tests
+npm run test:unit            # Unit only
+npm run test:integration     # API integration
+npm run test:watch           # Watch mode
+npm run test:coverage        # Coverage report → /coverage/
 ```
 
 ### Test results
@@ -1095,23 +1070,23 @@ bun run test:coverage        # Coverage report → /coverage/
 ### Option A: Local production build (for testing)
 
 ```bash
-bun run build              # ~90s, outputs .next/standalone/
-bun run start              # → http://localhost:3000
+npm run build              # ~90s, outputs .next/standalone/
+npm run start              # → http://localhost:3000
 ```
 
 ### Option B: Docker
 
 ```bash
 # 1. Build image
-bun run docker:build
+npm run docker:build
 
 # 2. Run container
-bun run docker:run
+npm run docker:run
 
 # OR use Docker Compose (recommended)
-bun run docker:up
-bun run docker:logs        # tail logs
-bun run docker:down        # stop
+npm run docker:up
+npm run docker:logs        # tail logs
+npm run docker:down        # stop
 ```
 
 `docker-compose.yml` defines:
@@ -1128,7 +1103,7 @@ bun run docker:down        # stop
 npm install -g pm2
 
 # 2. Build
-bun run build
+npm run build
 
 # 3. Start with PM2
 pm2 start deploy/ecosystem.pm2.cjs
@@ -1174,7 +1149,7 @@ The service file sets `Environment=PORT=3000`, `Environment=NODE_ENV=production`
 2. Set root directory to project root.
 3. Set startup file: `server.js`.
 4. Set env vars in cPanel UI (or upload `.env`).
-5. Run `bun install && bun run build` via SSH.
+5. Run `bun install && npm run build` via SSH.
 6. Use `deploy/cpanel/setup-cpanel.sh` for one-shot setup.
 
 See `docs/deliverables/CPANEL_DEPLOYMENT_GUIDE.md` for detailed steps.
@@ -1234,7 +1209,7 @@ Add to crontab (`crontab -e`):
 
 ```cron
 # DB backup — daily at 02:00
-0 2 * * * cd /path/to/alaminn-info && bun run db:backup >> storage/logs/cron.log 2>&1
+0 2 * * * cd /path/to/alaminn-info && npm run db:backup >> storage/logs/cron.log 2>&1
 
 # Sitemap regeneration — daily at 03:00
 0 3 * * * curl -fsS -H "X-Cron-Secret: $CRON_SECRET" https://alaminn.info/api/cron/sitemap-generate
@@ -1332,12 +1307,12 @@ bun run dev -- -p 3001
 cp db/custom.db db/custom.db.broken
 
 # Restore from latest backup
-bun run db:restore
+npm run db:restore
 
 # Or reset entirely (destructive!)
 rm db/custom.db
-bun run db:push
-bun run db:seed
+npm run db:push
+npm run db:seed
 ```
 
 ### `EADDRINUSE` on mini-service port
@@ -1351,11 +1326,11 @@ cd mini-services/email-worker && bun run dev
 ### Prisma Client out of sync
 
 ```bash
-bun run db:generate              # Regenerate client
+npm run db:generate              # Regenerate client
 # If still broken:
 rm -rf node_modules/.prisma
 bun install
-bun run db:generate
+npm run db:generate
 ```
 
 ### Build fails with type errors
@@ -1363,7 +1338,7 @@ bun run db:generate
 ```bash
 bun run typecheck               # See all type errors
 # Fix errors, then:
-bun run build
+npm run build
 ```
 
 **Never** set `typescript.ignoreBuildErrors: true` — the build must fail on type errors.
@@ -1395,7 +1370,7 @@ curl -H "X-Cron-Secret: $CRON_SECRET" https://alaminn.info/api/cron/backup
 
 ### Adding a new admin CRUD page
 
-1. **Schema**: Add model to `prisma/schema.prisma`, run `bun run db:push`.
+1. **Schema**: Add model to `prisma/schema.prisma`, run `npm run db:push`.
 2. **API**: Create `src/app/api/v1/admin/<resource>/route.ts` (list + create) and `src/app/api/v1/admin/<resource>/[id]/route.ts` (get + update + delete). Use `src/lib/higher-study/admin-factory.ts` as a template.
 3. **Page**: Create `src/app/admin/<resource>/page.tsx`. Use an existing page (e.g. `src/app/admin/articles/page.tsx`) as a template. Configure columns, filters, form fields.
 4. **Sidebar**: Add nav item to `src/components/admin/admin-shell.tsx`.
@@ -1425,12 +1400,12 @@ curl -H "X-Cron-Secret: $CRON_SECRET" https://alaminn.info/api/cron/backup
 ### Modifying the database schema
 
 1. Edit `prisma/schema.prisma`.
-2. Run `bun run db:push` (dev) — applies changes without data loss for additive changes.
+2. Run `npm run db:push` (dev) — applies changes without data loss for additive changes.
 3. For destructive changes (column rename, type change), use a migration:
    ```bash
-   bun run db:migrate -- --name describe_change
+   npm run db:migrate -- --name describe_change
    ```
-4. Run `bun run db:generate` to update Prisma Client.
+4. Run `npm run db:generate` to update Prisma Client.
 5. Update affected components/APIs.
 
 ### Code review checklist
@@ -1447,7 +1422,7 @@ curl -H "X-Cron-Secret: $CRON_SECRET" https://alaminn.info/api/cron/backup
 - [ ] Accessible: keyboard navigation, ARIA labels, focus-visible.
 - [ ] Lint passes: `bun run lint`.
 - [ ] Types pass: `bun run typecheck`.
-- [ ] Tests pass: `bun run test`.
+- [ ] Tests pass: `npm run test`.
 
 ---
 
@@ -1486,24 +1461,24 @@ curl -H "X-Cron-Secret: $CRON_SECRET" https://alaminn.info/api/cron/backup
 bun run dev                    # Start dev server → http://localhost:3000
 bun run lint                   # ESLint
 bun run typecheck              # TypeScript check
-bun run test                   # Vitest
+npm run test                   # Vitest
 
 # Database
-bun run db:push                # Apply schema
-bun run db:seed                # Seed data
-bun run db:backup              # Backup
-bun run db:restore             # Restore
-bun run db:verify              # Verify integrity
+npm run db:push                # Apply schema
+npm run db:seed                # Seed data
+npm run db:backup              # Backup
+npm run db:restore             # Restore
+npm run db:verify              # Verify integrity
 
 # Production
-bun run build                  # Build standalone
-bun run start                  # Start production server
+npm run build                  # Build standalone
+npm run start                  # Start production server
 bun run verify:production      # Post-deploy checks
 
 # Docker
-bun run docker:up              # Build + start container
-bun run docker:down            # Stop container
-bun run docker:logs            # Tail logs
+npm run docker:up              # Build + start container
+npm run docker:down            # Stop container
+npm run docker:logs            # Tail logs
 
 # Mini-services (run each in separate terminal)
 cd mini-services/email-worker && bun run dev          # :3002

@@ -1,5 +1,5 @@
-import path from "node:path";
-import { PrismaLibSQL } from "@prisma/adapter-libsql";
+import { resolveDatabaseUrl } from "./database-url";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 /**
@@ -12,35 +12,30 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
  *   - mysql://  → @prisma/adapter-mariadb (production: alaminn.info / MariaDB)
  *   - file:, libsql:, http(s):// → @prisma/adapter-libsql (development: SQLite)
  */
-export type DriverAdapter = PrismaLibSQL | PrismaMariaDb;
+export type DriverAdapter = PrismaLibSql | PrismaMariaDb;
 
 export function isMysqlUrl(raw: string): boolean {
   return /^mysql:\/\//i.test(raw);
 }
 
-/** Resolve relative `file:` paths against the process working directory. */
-export function resolveLibSqlUrl(raw: string): string {
-  if (raw.startsWith("file:")) {
-    const filePart = raw.slice("file:".length);
-    const abs = path.isAbsolute(filePart) ? filePart : path.resolve(process.cwd(), filePart);
-    return `file:${abs}`;
-  }
-  return raw;
-}
-
 /** Build the driver adapter matching the given (or ambient) DATABASE_URL. */
 export function createDriverAdapter(rawUrl?: string): DriverAdapter {
-  const raw = rawUrl?.trim() || process.env.DATABASE_URL?.trim() || "file:./db/custom.db";
+  const raw = resolveDatabaseUrl(rawUrl);
   if (isMysqlUrl(raw)) {
     const u = new URL(raw);
     return new PrismaMariaDb({
-      host: u.hostname || "localhost",
+      host: u.hostname.replace(/^\[|\]$/g, ""),
       port: u.port ? Number(u.port) : 3306,
-      user: decodeURIComponent(u.username || "root"),
+      user: decodeURIComponent(u.username),
       password: decodeURIComponent(u.password || ""),
       database: decodeURIComponent(u.pathname.replace(/^\//, "")),
       connectionLimit: 5,
+      minimumIdle: 0,
+      connectTimeout: 3_000,
+      acquireTimeout: 5_000,
+      socketTimeout: 20_000,
+      queryTimeout: 15_000,
     });
   }
-  return new PrismaLibSQL({ url: resolveLibSqlUrl(raw) });
+  return new PrismaLibSql({ url: raw });
 }

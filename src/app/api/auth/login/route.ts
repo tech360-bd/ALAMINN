@@ -7,6 +7,7 @@ import { clientIp, rateLimit } from "@/lib/auth/ratelimit";
 
 export const dynamic = "force-dynamic";
 
+const DUMMY_HASH = `scrypt$${"00".repeat(16)}$${"00".repeat(64)}`;
 const bodySchema = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) });
 
 /** POST /api/auth/login — real credential check, revocable DB session, httpOnly cookie. */
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   const account = await db.staffAccount.findUnique({ where: { email } });
-  const ok = account ? await verifyPassword(parsed.data.password, account.passwordHash) : false;
+  const ok = await verifyPassword(parsed.data.password, account?.passwordHash ?? DUMMY_HASH);
   if (!account || !ok) {
     // Constant-shape response: never reveal whether the account exists.
     await db.uciAuditLog.create({
@@ -39,15 +40,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This account is deactivated. Contact an administrator." }, { status: 403 });
   }
 
-  const { token, expiresAt } = await createSession(account.id, account.role, {
-    ip,
-    userAgent: req.headers.get("user-agent") ?? undefined,
+  // Lock and recheck the credential used for verification before issuing a
+  // session. Reset and administrative password changes lock the same row.
+  const issued = await db.$transaction(async (tx) => {
+    const changed = await tx.staffAccount.updateMany({
+      where: { id: account.id, passwordHash: account.passwordHash, isActive: true, role: account.role },
+      data: { lastLoginAt: new Date() },
+    });
+    if (changed.count !== 1) return null;
+    const session = await createSession(account.id, account.role, { ip, userAgent: req.headers.get("user-agent") ?? undefined }, tx);
+    await tx.uciAuditLog.create({
+      data: { actor: account.email, action: "auth.login", entity: "StaffAccount", entityId: account.id, detail: JSON.stringify({ ip }) },
+    });
+    return session;
   });
-  await setSessionCookie(token, expiresAt);
-  await db.staffAccount.update({ where: { id: account.id }, data: { lastLoginAt: new Date() } });
-  await db.uciAuditLog.create({
-    data: { actor: account.email, action: "auth.login", entity: "StaffAccount", entityId: account.id, detail: JSON.stringify({ ip }) },
-  });
+  if (!issued) return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+  await setSessionCookie(issued.token, issued.expiresAt);
 
   return NextResponse.json({ ok: true, account: { email: account.email, name: account.name, role: account.role } });
 }

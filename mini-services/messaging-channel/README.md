@@ -50,9 +50,16 @@ project or domain identity is hard-coded anywhere in this service.
 ## Run
 
 ```bash
-bun run dev          # serves REST + socket.io on :3010
-curl localhost:3010/api/umc/health
+# From the initialized repository root, with the same DATABASE_URL and staff
+# signing key as Next.js:
+npx --no-install tsx mini-services/messaging-channel/index.ts
 ```
+
+The service listens on loopback only. Forward `/socket.io/umc` (including
+upgrades) from the site's origin to the loopback service, but keep REST behind
+Next.js under `/api/umc/`. A valid persisted staff session alone is not a tenant
+membership: link an existing tenant identity explicitly with
+`npx --no-install tsx scripts/link-messaging-staff.ts TENANT_ID MESSAGING_USER_ID STAFF_EMAIL`.
 
 Provider selection (Phase 3 owner-approval gate required for vendor adapters):
 

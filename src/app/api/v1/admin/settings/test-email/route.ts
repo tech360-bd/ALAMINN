@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 import { env } from "@/lib/env";
-import { sendEmail } from "@/lib/email";
+import { sendEmail } from "@/lib/email/transport";
 
 export const dynamic = "force-dynamic";
 

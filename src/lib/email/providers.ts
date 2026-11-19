@@ -378,8 +378,10 @@ export async function resolveAllEmailProviderConfigs(): Promise<{
     process.env.EMAIL_PREFERRED_PROVIDER ||
     "sparkpost";
   const preferredProvider =
-    preferredRaw === "auto" || preferredRaw in EMAIL_PROVIDER_MAP
-      ? preferredRaw
+    preferredRaw === "auto"
+      ? "auto"
+      : Object.hasOwn(EMAIL_PROVIDER_MAP, preferredRaw)
+        ? preferredRaw as EmailProviderId
       : "sparkpost";
 
   let fallbackOrder = DEFAULT_EMAIL_FALLBACK_ORDER;

@@ -2,17 +2,25 @@
 """Reset ONLY the staff-auth test fixtures (accounts, sessions, reset codes).
 UCI/UMC business data is never touched. Used by tests/run_all.mjs setup.
 
-The database path defaults to THIS repo's db/custom.db (repo-relative, so the
-script works from any checkout) and can be overridden with STAFF_DB_PATH.
+The path must belong to an explicitly marked disposable run directory.
 """
 import os
 import sqlite3
+import tempfile
 from pathlib import Path
 
-DB_PATH = os.environ.get(
-    "STAFF_DB_PATH",
-    str(Path(__file__).resolve().parent.parent / "db" / "custom.db"),
-)
+raw = os.environ.get("STAFF_DB_PATH")
+if not raw:
+    raise SystemExit("STAFF_DB_PATH must explicitly name a disposable test database")
+DB_PATH = Path(raw).resolve(strict=True)
+parent = DB_PATH.parent
+if (parent.parent != Path(tempfile.gettempdir()).resolve() or
+        not parent.name.startswith("alaminn-test-") or
+        not (parent / ".disposable-alaminn-test").is_file() or
+        DB_PATH.name != "test.sqlite"):
+    raise SystemExit("Refusing to reset an unmarked database outside a disposable test-run directory")
+if os.environ.get("DATABASE_URL") != f"file:{DB_PATH}":
+    raise SystemExit("DATABASE_URL must explicitly match the disposable database")
 
 con = sqlite3.connect(DB_PATH)
 cur = con.cursor()

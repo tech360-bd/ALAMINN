@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-const BASE = process.env.TEST_BASE_URL || "http://localhost:3000";
+import { apiBase as BASE, requireDisposableApi } from '../fixtures/api-target';
+requireDisposableApi();
 const routes = ["/api/v1/admin/kits/documents", "/api/v1/admin/crm", "/api/v1/admin/marketing", "/api/v1/admin/seo-dashboard", "/api/v1/admin/analytics-dashboard", "/api/v1/admin/email-builder", "/api/v1/admin/social-scheduler", "/api/v1/admin/live-chat", "/api/v1/admin/integrations"];
 describe("feature kit API security", () => {
   it.each(routes)("rejects anonymous access to %s", async path => { const r = await fetch(BASE + path, { signal: AbortSignal.timeout(10000) }); expect(r.status).toBe(401); expect(r.headers.get("cache-control")).toContain("no-store"); });
