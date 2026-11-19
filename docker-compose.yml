@@ -1,6 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════
 #  Alaminn.info — Docker Compose (production stack)
 #  Usage:
+#    docker compose --profile tools run --build --rm migrate
 #    docker compose up -d --build
 #    docker compose logs -f
 #    docker compose down
@@ -19,8 +20,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
-      - AUTH_SECRET=${AUTH_SECRET}
+      - DATABASE_URL=${DATABASE_URL:-file:/app/db/custom.db}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USER=${SMTP_USER}
@@ -34,11 +34,21 @@ services:
     networks:
       - alaminn-net
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  migrate:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-file:/app/db/custom.db}
+    volumes:
+      - app-db:/app/db
 
   # ── Optional: MySQL 8 database ───────────────────────────────────
   # Uncomment if you want Docker to manage MySQL instead of cPanel.

@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════
 #
 #  This script:
-#    1. Installs Node.js 20 LTS (NodeSource)
+#    1. Verifies the pinned Node.js installation
 #    2. Creates the app directory
 #    3. Installs the systemd service
 #    4. Creates a MariaDB database + user (interactive password)
@@ -28,14 +28,12 @@ die()  { echo -e "\033[1;31m✗\033[0m $*" >&2; exit 1; }
 
 [[ $EUID -eq 0 ]] || die "Run with sudo: sudo bash scripts/install-server.sh"
 
-# ── 1. Node.js 20 LTS ───────────────────────────────────────────────
-log "Checking Node.js"
-if ! command -v node &>/dev/null || [[ "$(node -p 'process.versions.node.split(".")[0]')" -lt 20 ]]; then
-  log "Installing Node.js 20 LTS via NodeSource"
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-  apt-get install -y nodejs
-fi
-ok "Node.js $(node -v) ready"
+# ── 1. Pinned Node.js ───────────────────────────────────────────────
+NODE_VERSION=$(tr -d '[:space:]' < .nvmrc)
+[[ -x /usr/local/bin/node ]] && [[ "$(/usr/local/bin/node -p 'process.versions.node')" == "$NODE_VERSION" ]] ||
+  die "Install Node.js $NODE_VERSION with its bundled npm in /usr/local before installing the units."
+[[ ! -e "$APP_DIR/.env" ]] || die "Existing environment detected; preserve it and use the versioned release workflow."
+ok "Node.js $NODE_VERSION ready"
 
 # ── 2. App directory ────────────────────────────────────────────────
 log "Ensuring app directory: $APP_DIR"
@@ -64,14 +62,16 @@ echo ""
 [[ "$DB_PASS" == "$DB_PASS_CONFIRM" ]] || die "Passwords do not match."
 
 # Generate the init SQL with the real password (URL-encoded for safety)
-URL_PASS=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASS")
+[[ "$DB_PASS" =~ ^[A-Za-z0-9_-]{24,}$ ]] || die "Use at least 24 URL-safe characters (for example: openssl rand -hex 24)."
+URL_PASS="$DB_PASS"
 
 # Write a temp init SQL with the real password
 TMP_SQL=$(mktemp)
+trap 'rm -f "$TMP_SQL"' EXIT
 sed "s/CHANGE_ME_STRONG_PASSWORD/${URL_PASS}/g" deploy/mariadb-init.sql > "$TMP_SQL"
 
 log "Creating database & user"
-mariadb < "$TMP_SQL" || mysql < "$TMP_SQL"
+if command -v mariadb >/dev/null; then mariadb < "$TMP_SQL"; else mysql < "$TMP_SQL"; fi
 rm -f "$TMP_SQL"
 ok "MariaDB database 'aloeduca_alamin_crm' & user 'aloeduca_alamin_crm' created"
 
@@ -80,17 +80,19 @@ log "Writing .env"
 AUTH_SECRET=$(openssl rand -hex 32)
 SESSION_SECRET=$(openssl rand -hex 32)
 NEXTAUTH_SECRET=$(openssl rand -hex 32)
+CRON_SECRET=$(openssl rand -hex 32)
+umask 077
 cat > "$APP_DIR/.env" <<EOF
 NODE_ENV=production
 NEXT_PUBLIC_SITE_URL=https://alaminn.info
 PORT=3056
 DATABASE_URL="mysql://aloeduca_alamin_crm:${URL_PASS}@localhost:3306/aloeduca_alamin_crm"
-AUTH_SECRET=${AUTH_SECRET}
+JWT_SECRET=${AUTH_SECRET}
+CRON_SECRET=${CRON_SECRET}
 SESSION_SECRET=${SESSION_SECRET}
 NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
 NEXTAUTH_URL=https://alaminn.info
-AUTH_EXPOSE_RESET_OTP=false
-UMC_URL=http://127.0.0.1:3010
+UMC_SERVICE_URL=http://127.0.0.1:3010
 SMTP_HOST=127.0.0.1
 SMTP_PORT=25
 SMTP_USER=
@@ -100,7 +102,7 @@ EMAIL_REPLY_TO="Al Aminn <hello@alaminn.info>"
 ANALYTICS_ENABLED=true
 REDIS_URL=
 ADMIN_BOOTSTRAP_EMAIL=admin@alaminn.info
-ADMIN_BOOTSTRAP_PASSWORD=ChangeMeImmediately123!
+
 EOF
 chown "$APP_USER":"$APP_USER" "$APP_DIR/.env"
 chmod 600 "$APP_DIR/.env"
@@ -123,7 +125,7 @@ echo "     (CyberPanel → Websites → alaminn.info → vHost Conf)."
 echo ""
 echo "  3. Deploy the app:"
 echo "       cd $APP_DIR"
-echo "       sudo bash scripts/deploy-cyberpanel.sh"
+echo "       Read docs/RELEASE-SAFETY.md and provision the versioned release."
 echo ""
 echo "  4. Verify: https://alaminn.info  (should show the homepage)"
 echo ""

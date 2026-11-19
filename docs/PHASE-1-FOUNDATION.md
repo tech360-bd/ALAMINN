@@ -168,7 +168,7 @@ because the existing admin UI reads it. Auth failures are `401` with
 npm install
 cp .env.config.example .env.config      # then edit values
 npm run env:check                       # validates JWT_SECRET, DB URL, etc.
-node scripts/prisma-generate.mjs db push
+npm run db:push
 npm run db:seed                         # needs ADMIN_BOOTSTRAP_PASSWORD
 ```
 

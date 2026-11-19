@@ -1,5 +1,5 @@
 [Unit]
-Description=Alaminn.info — Next.js 16 production app (Bun + Nginx)
+Description=Alaminn.info — Next.js 16 production app (Node.js)
 Documentation=https://alaminn.info
 After=network.target mariadb.service mysql.service
 Wants=network.target
@@ -15,9 +15,9 @@ EnvironmentFile=/var/www/alaminn-info/.env
 
 Environment=NODE_ENV=production
 Environment=PORT=3056
-Environment=BUN_JSC_maxOldSpaceSize=512
+Environment=HOSTNAME=127.0.0.1
 
-ExecStart=/home/aloedu/.bun/bin/bun run /var/www/alaminn-info/.next/standalone/server.js
+ExecStart=/usr/local/bin/node /var/www/alaminn-info/.next/standalone/server.js
 
 Restart=on-failure
 RestartSec=5

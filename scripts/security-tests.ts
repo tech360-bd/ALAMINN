@@ -30,7 +30,8 @@
 import { db } from "../src/lib/db";
 import { hashPassword } from "../src/lib/auth";
 
-const BASE = process.env.SECURITY_TEST_BASE || "http://127.0.0.1:3001";
+const BASE = process.env.SECURITY_TEST_BASE || "http://localhost:3000";
+const REPORT = process.env.SECURITY_TEST_REPORT || "/tmp/alaminn-security-report.md";
 const TEST_EMAIL = "security-test@example.com";
 const TEST_PASSWORD = "TestPassword123!-secure";
 const TEST_USER_NAME = "Security Test User";
@@ -952,11 +953,16 @@ async function main() {
   console.log(`Target: ${BASE}`);
   console.log(`Date:   ${new Date().toISOString()}\n`);
 
-  // Health check
+  // Test writes and cleanup are allowed only on the explicitly provisioned instance.
+  const instance = process.env.ALAMINN_TEST_INSTANCE;
+  if (!instance || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(BASE).hostname) ||
+      !/^file:.*\/alaminn-test-[^/]+\/test\.sqlite$/.test(process.env.DATABASE_URL ?? '')) {
+    throw new Error("Security regression suite requires an isolated local application and disposable SQLite database");
+  }
   try {
-    const r = await fetch(`${BASE}/api/health`);
-    if (!r.ok) throw new Error(`health=${r.status}`);
-    console.log(`[health] /api/health → ${r.status} OK\n`);
+    const r = await fetch(`${BASE}/api/health/ready`, { headers: { "x-alaminn-test-instance": instance } });
+    if (!r.ok || r.headers.get("x-alaminn-test-instance") !== "verified") throw new Error(`test instance readiness not verified`);
+    console.log(`[health] disposable test instance ready\n`);
   } catch (e) {
     console.error(`[health] Dev server not reachable at ${BASE}. Aborting. (${(e as Error).message})`);
     process.exit(1);
@@ -1041,7 +1047,7 @@ async function main() {
   // ── Markdown report ──
   const md = buildMarkdownReport(tests, passed, failed);
   await writeReport(md);
-  console.log(`Report written to docs/security-report.md\n`);
+  console.log(`Report written to ${REPORT}\n`);
 
   // Exit non-zero if any test failed (useful for CI)
   if (failed > 0) {
@@ -1235,7 +1241,7 @@ function buildMarkdownReport(tests: TestResult[], passed: number, failed: number
 }
 
 async function writeReport(md: string): Promise<void> {
-  const path = "docs/security-report.md";
+  const path = REPORT;
   try {
     const { writeFile } = await import("node:fs/promises");
     await writeFile(path, md, "utf8");

@@ -6,11 +6,10 @@
  */
 export {
   sendConsentEmail,
-  sendEmail,
-  sendTransactional,
   type SendEmailOptions,
 } from "./sender";
 export {
+  sendEmail,
   sendEmail as sendEmailRouter,
   getEmailRouterTelemetry,
   clearEmailRouterMetrics,
@@ -28,3 +27,5 @@ export {
   type EmailProviderSpec,
   type ResolvedEmailProviderConfig,
 } from "./providers";
+
+export { sendTransactional } from "./queue";

@@ -248,8 +248,10 @@ export async function resolveAllSmsProviderConfigs(): Promise<{
     process.env.SMS_PREFERRED_PROVIDER ||
     "httpsms";
   const preferredProvider =
-    preferredRaw === "auto" || preferredRaw in SMS_PROVIDER_MAP
-      ? preferredRaw
+    preferredRaw === "auto"
+      ? "auto"
+      : Object.hasOwn(SMS_PROVIDER_MAP, preferredRaw)
+        ? preferredRaw as SmsProviderId
       : "httpsms";
 
   let fallbackOrder = DEFAULT_SMS_FALLBACK_ORDER;

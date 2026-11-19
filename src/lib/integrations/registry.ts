@@ -107,7 +107,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     summary: "50 emails free/hour, first 12,000 emails/month free.",
     integrationNote: "Listed under jixserver/free-for-dev → Email. Connect client ID + secret. Not vendored.",
     fields: [{ key: "clientId", label: "Client ID", required: true }, { key: "clientSecret", label: "Client secret", secret: true, required: true }, { key: "from", label: "From address", required: true, placeholder: "hello@example.com" }] },
-  { id: "pepipost", name: "Pepipost", url: "http://www.pepipost.com", category: "Messaging & SMS", mode: "adapter", license: "Proprietary (free tier)", language: "REST", connector: "pepipost",
+  { id: "pepipost", name: "Pepipost", url: "https://www.pepipost.com", category: "Messaging & SMS", mode: "adapter", license: "Proprietary (free tier)", language: "REST", connector: "pepipost",
     summary: "Unlimited free for first three months, then first 25,000 emails/month free.",
     integrationNote: "Listed under jixserver/free-for-dev → Email. Native adapter: POST /send_mail. No code is copied; we call the documented public API only.",
     fields: [{ key: "apiKey", label: "Pepipost API key", secret: true, required: true, placeholder: "..." }, { key: "from", label: "From address", required: true, placeholder: "hello@example.com" }] },

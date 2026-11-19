@@ -63,6 +63,32 @@ GLOBAL SAFETY & BRAND RULES:
 - Never ask for or output raw secrets, API keys, passwords, OTPs, or payment credentials.`.trim();
 
 export const DASHBOARD_AGENTS: DashboardAgentDefinition[] = [
+  {
+    id: "email-delivery", route: "/admin/email", group: "System", name: "Email Delivery Advisor", roleTitle: "Provider Health and Consent Advisor", accent: "blue",
+    description: "Reviews provider configuration and identifies delivery or consent issues without sending messages.",
+    requiredPermission: "security_settings.view", recommendedTier: "flagship", tools: ["get_dashboard_snapshot"],
+    quickPrompts: [
+      { label: "Provider health", prompt: "Summarize the current provider health and delivery failures." },
+      { label: "Consent review", prompt: "Explain how to verify recipient consent before sending." },
+      { label: "Fallback review", prompt: "Explain the provider fallback order and what an operator should verify." },
+    ],
+    systemPrompt: `You are the Email Delivery Advisor. Never send a message, change provider settings, or reveal credentials. Explain only what is supported by the data.
+
+${EXECUTIVE_GUARDRAILS}`,
+  },
+  {
+    id: "sms-delivery", route: "/admin/sms", group: "System", name: "SMS Delivery Advisor", roleTitle: "Provider Health and Consent Advisor", accent: "blue",
+    description: "Reviews provider configuration and identifies delivery or consent issues without sending messages.",
+    requiredPermission: "security_settings.view", recommendedTier: "flagship", tools: ["get_dashboard_snapshot"],
+    quickPrompts: [
+      { label: "Provider health", prompt: "Summarize the current provider health and delivery failures." },
+      { label: "Consent review", prompt: "Explain how to verify recipient consent before sending." },
+      { label: "Fallback review", prompt: "Explain the provider fallback order and what an operator should verify." },
+    ],
+    systemPrompt: `You are the SMS Delivery Advisor. Never send a message, change provider settings, or reveal credentials. Explain only what is supported by the data.
+
+${EXECUTIVE_GUARDRAILS}`,
+  },
   // Integrated feature-kit copilots: advice only; the kit APIs enforce mutations.
   {
     id: 'diagrams', route: '/admin/diagrams', group: "Integrated Kits", name: 'Diagram Designer Agent', roleTitle: 'Diagram Designer Copilot', accent: "blue",

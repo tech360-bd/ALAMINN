@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Mail, Send, ShieldAlert, AlertCircle, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { adminFetch, errorMessage } from "@/components/admin/lib";
+import { adminFetch } from "@/components/admin/lib";
+import { errorMessage } from "./shared";
 import {
   KitHeading,
   Panel,

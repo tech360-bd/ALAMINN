@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main", "feature/ci-cd-pipeline"]
+    branches: ["main", "feature/ci-cd-pipeline", "arena/**"]
   pull_request:
     branches: ["main"]
 
@@ -17,7 +17,6 @@ jobs:
     timeout-minutes: 30
     env:
       NODE_ENV: development
-      DATABASE_URL: file:${{ github.workspace }}/db/custom.db
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXTAUTH_URL: http://localhost:3000
       ADMIN_BOOTSTRAP_EMAIL: ci-admin@alaminn.info
@@ -25,14 +24,21 @@ jobs:
       EMAIL_FROM: noreply@localhost
       EMAIL_REPLY_TO: hello@localhost
       LOG_LEVEL: warn
+      RUN_STAFF_LIFECYCLE: '1'
+      STAFF_BOOTSTRAP_EMAIL: ci-staff@example.invalid
+      STAFF_BOOTSTRAP_NAME: CI Staff Administrator
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: '25253'
+      SMTP_USER: integration
+      SMTP_PASS: local-SMTP-fixture-only
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node 24.22.0
+      - name: Setup project Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24.22.0
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies (lockfile)
@@ -42,11 +48,21 @@ jobs:
         run: |
           echo "AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           echo "CRON_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "STAFF_BOOTSTRAP_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+          echo "ALAMINN_TEST_INSTANCE=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          DB_DIR=$(mktemp -d /tmp/alaminn-test-XXXXXX)
+          touch "$DB_DIR/.disposable-alaminn-test"
+          echo "DATABASE_URL=file:$DB_DIR/test.sqlite" >> "$GITHUB_ENV"
 
-      - name: Create ephemeral database + seed
+      - name: Validate schemas and replay SQLite migrations
         run: |
-          mkdir -p db && npx prisma db push --skip-generate
+          npm run db:validate
+          npm run db:validate -- mysql
+          npm run db:migrate:deploy
+          npm run db:migrate:status
+          python3 tests/migrations/sqlite_replay.py
           npm run db:seed
+          npm run staff:bootstrap
 
       - name: Typecheck
         run: npm run typecheck
@@ -56,9 +72,10 @@ jobs:
 
       - name: Start dev server for API tests
         run: |
-          npm run dev > /tmp/dev-server.log 2>&1 &
+          node node_modules/next/dist/bin/next dev -p 3000 --hostname 0.0.0.0 > /tmp/dev-server.log 2>&1 &
+          echo "$!" > /tmp/alaminn-next.pid
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+            if curl -sf http://localhost:3000/api/health/ready > /dev/null 2>&1; then
               echo "Dev server ready (attempt $i)"; exit 0
             fi
             sleep 1
@@ -71,13 +88,7 @@ jobs:
       - name: Security suite (22 tests)
         env:
           SECURITY_TEST_BASE: http://localhost:3000
-        run: |
-          set +e
-          npm run security:test 2>&1 | tee /tmp/security-output.txt
-          code=${PIPESTATUS[0]}
-          grep -E "^\[[0-9]+\] FAIL" /tmp/security-output.txt | head -25 | sed 's/^/::error::/' || true
-          grep -A2 "Failed" /tmp/security-output.txt | head -10 | sed 's/^/::error::detail| /' || true
-          exit $code
+        run: npm run security:test
 
       - name: Upload diagnostics on failure
         if: failure()
@@ -85,25 +96,22 @@ jobs:
         with:
           name: ci-diagnostics
           path: |
-            docs/security-report.md
+            /tmp/alaminn-security-report.md
             /tmp/dev-server.log
           if-no-files-found: ignore
 
       - name: Stop dev server
         if: always()
-        run: pkill -f "next dev" || true
+        run: |
+          if [ -s /tmp/alaminn-next.pid ]; then
+            PID=$(cat /tmp/alaminn-next.pid)
+            if kill -0 "$PID" 2>/dev/null; then kill "$PID"; fi
+          fi
 
       - name: Production build
         env:
           NODE_ENV: production
-        run: |
-          set +e
-          npm run build 2>&1 | tee /tmp/build-output.txt
-          code=${PIPESTATUS[0]}
-          if [ $code -ne 0 ]; then
-            grep -B3 -A8 "Error\|error" /tmp/build-output.txt | tail -40 | sed 's/^/::error::build| /' || true
-          fi
-          exit $code
+        run: npm run build
 
       - name: Standalone artifact smoke test
         run: |
@@ -114,7 +122,7 @@ jobs:
             sleep 1
           done
           echo "--- route checks ---"
-          for p in / /api/health /higher-study /english-learning /work-with-me; do
+          for p in / /api/health/ready /higher-study /english-learning /work-with-me; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:3100$p")
             echo "$p -> $code"
             [ "$code" = "200" ] || { echo "FAILED on $p"; kill $SRV; exit 1; }
@@ -122,8 +130,88 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3100/api/v1/admin/dashboard)
           echo "/api/v1/admin/dashboard (anonymous) -> $code"
           [ "$code" = "401" ] || { echo "Admin API must reject anonymous access with 401"; kill $SRV; exit 1; }
+          node -e '
+            fetch("http://localhost:3100/api/health/ready", { method: "POST", headers: { authorization: "Bearer " + process.env.CRON_SECRET } })
+              .then((response) => { if (!response.ok) throw new Error(`Write probe returned HTTP ${response.status}`); });'
           kill $SRV
           echo "Standalone smoke test PASSED"
 
       - name: Build summary
         run: echo "All CI gates passed — typecheck, lint, tests, security, build + standalone smoke." >> "$GITHUB_STEP_SUMMARY"
+
+  mariadb-history:
+    name: MariaDB migration and persistence
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-mariadb-disposable
+          MARIADB_DATABASE: alaminn_ci
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=15
+    env:
+      DATABASE_URL: mysql://root:ci-mariadb-disposable@127.0.0.1:3306/alaminn_ci
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Establish historical MariaDB state and persist an upgrade sentinel
+        run: |
+          set -euo pipefail
+          HISTORY=$(mktemp -d)
+          cp prisma/schema.mysql.prisma "$HISTORY/schema.prisma"
+          mkdir "$HISTORY/migrations"
+          cp prisma/migrations/mysql/migration_lock.toml "$HISTORY/migrations/"
+          cp -r prisma/migrations/mysql/00000000000000_initial prisma/migrations/mysql/2026110* prisma/migrations/mysql/20261111120000_uci_staff_messaging_uc "$HISTORY/migrations/"
+          cat > "$HISTORY/prisma.config.mjs" <<'EOF'
+          export default { schema: './schema.prisma', migrations: { path: './migrations' }, datasource: { url: process.env.DATABASE_URL } };
+          EOF
+          npm run db:migrate:deploy -- --config "$HISTORY/prisma.config.mjs"
+          docker exec "${{ job.services.mariadb.id }}" mariadb -uroot -pci-mariadb-disposable alaminn_ci -e "INSERT INTO StaffAccount (id, email, passwordHash, name, updatedAt) VALUES ('ci-upgrade-keeper', 'ci-upgrade@example.invalid', 'disabled', 'Upgrade sentinel', CURRENT_TIMESTAMP)"
+          rm -r "$HISTORY"
+      - run: npm run db:migrate:deploy -- --config prisma.config.mysql.ts
+      - run: npm run db:migrate:status -- --config prisma.config.mysql.ts
+      - run: npm run db:generate -- mysql
+      - run: npx --no-install tsx tests/migrations/mariadb-persistence.ts
+      - name: Run migration history again from an empty database
+        run: |
+          docker exec "${{ job.services.mariadb.id }}" mariadb -uroot -pci-mariadb-disposable -e 'CREATE DATABASE alaminn_fresh'
+          export DATABASE_URL='mysql://root:ci-mariadb-disposable@127.0.0.1:3306/alaminn_fresh'
+          npm run db:migrate:deploy -- --config prisma.config.mysql.ts
+          npm run db:migrate:status -- --config prisma.config.mysql.ts
+          npx --no-install tsx tests/migrations/mariadb-persistence.ts
+
+  container:
+    name: Container build and runtime readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --tag alaminn-ci .
+      - run: docker build --target migrator --tag alaminn-ci-migrator .
+      - name: Start migrated SQLite volume and assert readiness
+        run: |
+          set -euo pipefail
+          docker volume create alaminn-ci-db
+          cleanup() {
+            if [ -n "$(docker ps -aq --filter name='^/alaminn-ci$')" ]; then docker rm -f alaminn-ci; fi
+            docker volume rm alaminn-ci-db
+          }
+          trap cleanup EXIT
+          docker run --rm -v alaminn-ci-db:/app/db -e DATABASE_URL=file:/app/db/ci.sqlite alaminn-ci-migrator
+          docker run --name alaminn-ci -d -v alaminn-ci-db:/app/db -p 127.0.0.1:3300:3000 \
+            -e DATABASE_URL=file:/app/db/ci.sqlite -e JWT_SECRET="$(openssl rand -hex 32)" \
+            -e EMAIL_FROM=ci@example.invalid alaminn-ci
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:3300/api/health/ready; then exit 0; fi
+            sleep 1
+          done
+          docker logs alaminn-ci
+          exit 1

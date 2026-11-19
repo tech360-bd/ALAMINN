@@ -2,7 +2,7 @@
  * High-level email sender with consent guard + audit trail.
  * =========================================================
  * Wraps src/lib/email/router.sendEmail and:
- *   1. Validates the recipient has given marketing consent (Contact.marketingConsent)
+ *   1. Validates the recipient has given marketing consent (latest Inquiry.marketingConsent)
  *   2. Writes an audit log entry (email_send)
  *   3. Returns a normalized result the API route can render
  *
@@ -60,7 +60,7 @@ export async function sendConsentEmail(
         id: true,
         fullName: true,
         email: true,
-        marketingConsent: true,
+        inquiries: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { marketingConsent: true } },
         status: true,
       },
     });
@@ -91,7 +91,7 @@ export async function sendConsentEmail(
         consentChecked: true,
       };
     }
-    if (!contact.marketingConsent) {
+    if (!contact.inquiries[0]?.marketingConsent) {
       return {
         ok: false,
         status: "FAILED",
@@ -105,15 +105,15 @@ export async function sendConsentEmail(
       };
     }
     // Prefer the contact's own email if no explicit `to` was given
-    const target = to || contact.email || "";
-    if (!target) {
+    const target = contact.email;
+    if (!target || (to && to.trim().toLowerCase() !== target.toLowerCase())) {
       return {
         ok: false,
         status: "FAILED",
         providerUsed: "dev-null",
         providerName: "Dev Mode (no provider)",
         messageId: null,
-        error: "No email address on the contact record.",
+        error: "Recipient must match the consenting contact’s email.",
         actuallySent: false,
         fallbackTrail: [],
         consentChecked: true,
@@ -180,128 +180,3 @@ export async function sendConsentEmail(
     consentChecked: false,
   };
 }
-
-
-// ─── Transactional email (compatibility shim for existing auth routes) ─────
-/**
- * Template definitions for transactional emails. Each template maps to a
- * subject line and body renderer. Called by auth / approval / inquiry routes
- * that previously imported `sendTransactional` from `@/lib/email`.
- */
-type TemplateVars = Record<string, string | number | boolean>;
-
-interface TemplateDef {
-  subject: string;
-  text: (vars: TemplateVars) => string;
-  html: (vars: TemplateVars) => string;
-}
-
-const TRANSACTIONAL_TEMPLATES: Record<string, TemplateDef> = {
-  passwordReset: {
-    subject: "Password Reset — Alaminn.info",
-    text: (v) => `Hi ${v.name},
-
-You requested a password reset. Click the link below to set a new password:
-
-${v.resetUrl}
-
-This link expires in ${v.expiresIn}.
-
-If you didn't request this, you can safely ignore this email.
-`,
-    html: (v) => `<p>Hi ${String(v.name)},</p><p>You requested a password reset. Click the button below to set a new password:</p><p><a href="${String(v.resetUrl)}" style="background:#0f172a;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;">Reset password</a></p><p>This link expires in ${String(v.expiresIn)}.</p><p>If you didn't request this, you can safely ignore this email.</p>`,
-  },
-  aiTaskCompleted: {
-    subject: "AI Task Completed — Alaminn.info",
-    text: (v) => `Hi,
-
-Your AI task "${String(v.workflow)}" has been completed.
-
-Objective: ${String(v.objective)}
-
-Review it here: ${String(v.reviewUrl)}
-`,
-    html: (v) => `<p>Hi,</p><p>Your AI task "<strong>${String(v.workflow)}</strong>" has been completed.</p><p><strong>Objective:</strong> ${String(v.objective)}</p><p><a href="${String(v.reviewUrl)}">Review task</a></p>`,
-  },
-};
-
-/** Render a template with variables, falling back gracefully. */
-function renderTemplate(
-  name: string,
-  vars: TemplateVars
-): { subject: string; text: string; html: string } | null {
-  const tpl = TRANSACTIONAL_TEMPLATES[name];
-  if (!tpl) return null;
-  return {
-    subject: tpl.subject,
-    text: tpl.text(vars),
-    html: tpl.html(vars),
-  };
-}
-
-/**
- * Send a transactional email using a named template.
- * Compatibility shim for existing routes that import `sendTransactional`.
- * Never throws — failures are caught and returned as a rejected promise
- * that callers can `.catch(() => null)`.
- */
-export async function sendTransactional(
-  templateName: string,
-  vars: Record<string, unknown>,
-  options: { to: string; ipHash?: string; triggeredBy?: string }
-): Promise<{ ok: boolean; providerUsed: string; actuallySent: boolean }> {
-  const rendered = renderTemplate(templateName, vars as TemplateVars);
-  if (!rendered) {
-    return {
-      ok: false,
-      providerUsed: "dev-null",
-      actuallySent: false,
-    };
-  }
-
-  const { to, ipHash, triggeredBy } = options;
-
-  try {
-    const result = await sendEmail(to, {
-      subject: rendered.subject,
-      html: rendered.html,
-      text: rendered.text,
-    });
-
-    // Best-effort audit
-    try {
-      await writeAudit(
-        undefined as any,
-        "email_send_transactional",
-        "Email",
-        result.messageId || undefined,
-        {
-          toSuffix: to.split("@")[1] || to,
-          template: templateName,
-          provider: result.providerUsed,
-          actuallySent: result.actuallySent,
-          status: result.status,
-          ipHash,
-          triggeredBy,
-        }
-      );
-    } catch {
-      // Audit failure must not break the send
-    }
-
-    return {
-      ok: result.status !== "FAILED",
-      providerUsed: result.providerUsed,
-      actuallySent: result.actuallySent,
-    };
-  } catch {
-    return {
-      ok: false,
-      providerUsed: "dev-null",
-      actuallySent: false,
-    };
-  }
-}
-
-export { sendEmail };
-export type { EmailSendResult };

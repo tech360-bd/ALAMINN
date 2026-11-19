@@ -8,9 +8,24 @@
  * Usage: node tests/run_all.mjs
  * Output: tests/results.json + console summary. Exit code 1 on any failure.
  */
-import { writeFileSync } from "node:fs";
+import { existsSync, realpathSync, writeFileSync } from "node:fs";
+import { dirname, basename, join } from "node:path";
+import { tmpdir } from "node:os";
 
 const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3000";
+const testDbUrl = process.env.DATABASE_URL;
+const url = new URL(BASE);
+if (!["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) || !testDbUrl?.startsWith("file:")) {
+  throw new Error("Live tests require a local test instance and explicit disposable SQLite database");
+}
+const testDbPath = realpathSync(testDbUrl.slice(5));
+const testDir = dirname(testDbPath);
+if (dirname(testDir) !== realpathSync(tmpdir()) || !basename(testDir).startsWith("alaminn-test-") ||
+    basename(testDbPath) !== "test.sqlite" || !existsSync(join(testDir, ".disposable-alaminn-test"))) {
+  throw new Error("Refusing to run mutating tests without an explicitly provisioned disposable database");
+}
+const testInstance = await fetch(`${BASE}/api/health/ready`, { headers: { "x-alaminn-test-instance": process.env.ALAMINN_TEST_INSTANCE ?? "" } });
+if (testInstance.headers.get("x-alaminn-test-instance") !== "verified") throw new Error("Server is not the configured disposable test instance");
 const ADMIN_EMAIL = process.env.TEST_ADMIN_EMAIL ?? "admin@alaminn.info";
 const ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD ?? "Alo-Bootstrap-2026!";
 const RESULTS = [];
