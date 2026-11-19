@@ -13,7 +13,7 @@
  *   1. every model present in one schema exists in the other (no drift),
  *   2. every field of every model matches by name in both dialects,
  *   3. each schema declares the correct datasource provider,
- *   4. both datasources read DATABASE_URL from the environment (no
+ *   4. both Prisma configs read DATABASE_URL from the environment (no
  *      filesystem paths or credentials baked into the repo).
  *
  * If a model or field is added to one schema only, this test fails and the
@@ -82,11 +82,12 @@ describe("mysql schema compatibility", () => {
   });
 
   it("reads DATABASE_URL from the environment in both dialects", () => {
-    expect(sqlite).toMatch(/datasource\s+\w+\s*\{[\s\S]*?url\s*=\s*env\("DATABASE_URL"\)/);
-    expect(mysql).toMatch(/datasource\s+\w+\s*\{[\s\S]*?url\s*=\s*env\("DATABASE_URL"\)/);
-    // No filesystem database paths or inline credentials in either schema.
-    expect(mysql).not.toMatch(/file:/);
-    expect(mysql).not.toMatch(/mysql:\/\/[^_]/); // env() indirection required
+    const config = readSchema(resolve(PRISMA_DIR, "../prisma.config.ts"));
+    const mysqlConfig = readSchema(resolve(PRISMA_DIR, "../prisma.config.mysql.ts"));
+    expect(config).toMatch(/process\.env\.DATABASE_URL/);
+    expect(mysqlConfig).toMatch(/env\("DATABASE_URL"\)/);
+    expect(sqlite).not.toMatch(/^\s*url\s*=\s*env\(/m);
+    expect(mysql).not.toMatch(/^\s*url\s*=\s*env\(/m);
   });
 
   it("defines the same model set in both dialects (parity, no drift)", () => {

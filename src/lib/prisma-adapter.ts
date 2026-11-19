@@ -1,5 +1,5 @@
 import path from "node:path";
-import { PrismaLibSQL } from "@prisma/adapter-libsql";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 /**
@@ -12,7 +12,7 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
  *   - mysql://  → @prisma/adapter-mariadb (production: alaminn.info / MariaDB)
  *   - file:, libsql:, http(s):// → @prisma/adapter-libsql (development: SQLite)
  */
-export type DriverAdapter = PrismaLibSQL | PrismaMariaDb;
+export type DriverAdapter = PrismaLibSql | PrismaMariaDb;
 
 export function isMysqlUrl(raw: string): boolean {
   return /^mysql:\/\//i.test(raw);
@@ -42,5 +42,5 @@ export function createDriverAdapter(rawUrl?: string): DriverAdapter {
       connectionLimit: 5,
     });
   }
-  return new PrismaLibSQL({ url: resolveLibSqlUrl(raw) });
+  return new PrismaLibSql({ url: resolveLibSqlUrl(raw) });
 }

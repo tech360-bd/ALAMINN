@@ -1,7 +1,10 @@
-import "dotenv/config";
-import { defineConfig } from "prisma/config";
-// MySQL uses Prisma's native schema engine on the deployment host. No SQLite adapter.
+import { defineConfig, env } from "prisma/config";
+import { loadEnvConfig } from "./src/lib/load-env";
+
+loadEnvConfig();
+
 export default defineConfig({
   schema: "prisma/schema.mysql.prisma",
-  migrations: { path: "prisma/migrations/mysql", seed: "npx tsx prisma/seed.ts" },
+  datasource: { url: env("DATABASE_URL") },
+  migrations: { path: "prisma/migrations/mysql", seed: "tsx prisma/seed.ts" },
 });
