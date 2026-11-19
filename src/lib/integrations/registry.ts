@@ -119,7 +119,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     summary: "Modern email API with free tier — already integrated in src/lib/email/transport.ts.",
     integrationNote: "Already used by the platform's email transport. Listed here so it can participate in the email failover loop.",
     fields: [{ key: "apiKey", label: "Resend API key", secret: true, required: true, placeholder: "re_..." }, { key: "from", label: "From address", required: true, placeholder: "hello@example.com" }] },
-  { id: "smtp", name: "Custom SMTP", url: "", category: "Messaging & SMS", mode: "service", license: "Proprietary (free tier)", language: "SMTP", connector: "generic",
+  { id: "smtp", name: "Custom SMTP", url: "https://www.rfc-editor.org/rfc/rfc5321", category: "Messaging & SMS", mode: "service", license: "Proprietary (free tier)", language: "SMTP", connector: "generic",
     summary: "Bring your own SMTP server — already integrated in src/lib/email/transport.ts.",
     integrationNote: "Already used by the platform's email transport. Listed here so it can participate in the email failover loop.",
     fields: [{ key: "host", label: "SMTP host", required: true, placeholder: "smtp.example.com" }, { key: "port", label: "SMTP port", required: true, placeholder: "587" }, { key: "user", label: "SMTP user", required: true }, { key: "pass", label: "SMTP password", secret: true, required: true }, { key: "from", label: "From address", required: true, placeholder: "hello@example.com" }] },

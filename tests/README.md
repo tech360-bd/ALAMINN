@@ -6,22 +6,23 @@ future component tests.
 
 ## How to run
 
+Use Node from `.nvmrc` and `npm ci`. The following commands never need a
+production database:
+
 ```bash
-# One-shot run (CI / pre-deploy gate)
-bun run test
-
-# Watch mode (TDD)
-bun run test:watch
-
-# Run with v8 coverage report (text + lcov + html)
-bun run test:coverage
+npm run test:unit
+npx --no-install vitest run tests/components tests/integration
+npm run test:disposable            # API, staff workflow with local SMTP, security
+python3 tests/migrations/sqlite_replay.py
 ```
 
-The dev server (`bun run dev`) does NOT need to be running for the lib /
-unit / template tests. The two API integration test files
-(`tests/api/health.test.ts`, `tests/api/inquiries.test.ts`) do require the
-dev server on `:3000` — they self-skip with a console warning when the
-server is unreachable, so `bun run test` still passes in a cold CI box.
+`test:disposable` creates a new SQLite database, starts Next.js on port 3000,
+and removes the database after testing. Port 25253 is used for the SMTP receiver.
+Leave both ports free. The runner requires a matching instance handshake before
+allowing test writes. In CI, native Prisma SQLite and MariaDB migrations and a
+real container startup are separate required checks. `npm run test` runs the
+whole Vitest suite and requires the provisioned API fixture; it does not skip
+an unavailable application.
 
 ## What's covered
 

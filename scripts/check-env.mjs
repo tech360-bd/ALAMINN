@@ -37,24 +37,24 @@ const recommended = [
 
 let failures = 0;
 
-function report(name, secret) {
-  const value = process.env[name];
+function report(name, critical) {
+  const value = process.env[name] || (name === "JWT_SECRET" ? process.env.AUTH_SECRET : undefined);
   const ok = Boolean(value && value.trim());
-  if (!ok) failures++;
-  const shown = ok ? `set (${value.length} chars)` : "MISSING";
-  console.log(`${ok ? "  ✓" : "  ✗"} ${name.padEnd(22)} ${secret ? shown : value ?? ""}`);
+  if (!ok && critical) failures++;
+  const shown = ok ? "set" : critical ? "MISSING" : "not configured";
+  console.log(`${ok ? "  ✓" : critical ? "  ✗" : "  -"} ${name.padEnd(22)} ${shown}`);
 }
 
 console.log(`\n[env:check] NODE_ENV=${process.env.NODE_ENV ?? "(unset)"}  mode=${isProd ? "production" : "development"}\n`);
 console.log("Required:");
-for (const [name, secret] of required) report(name, secret);
+for (const [name] of required) report(name, true);
 
 console.log("\nRecommended:");
-for (const [name, secret] of recommended) report(name, secret);
+for (const [name] of recommended) report(name, false);
 
 const jwt = process.env.JWT_SECRET ?? process.env.AUTH_SECRET ?? "";
-if (jwt && jwt.length < 32) {
-  console.log("\n  ✗ JWT_SECRET must be at least 32 chars.");
+if (jwt && Buffer.byteLength(jwt) < 32) {
+  console.log("\n  ✗ JWT_SECRET must be at least 32 bytes.");
   failures++;
 }
 

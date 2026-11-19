@@ -151,9 +151,9 @@ export async function POST(req: NextRequest) {
   const body = parsed.data;
   const source = await db.uciSource.findUnique({ where: { key: body.sourceKey } });
   if (!source) return NextResponse.json({ error: "unknown sourceKey" }, { status: 404 });
-  if (source.identityStatus === "PENDING_IDENTITY") {
+  if (source.identityStatus !== "CONFIRMED") {
     return NextResponse.json(
-      { error: `Source "${source.name}" has PENDING_IDENTITY status — confirm its exact URL and permission before scheduling collection.` },
+      { error: `Source "${source.name}" is not confirmed — confirm its exact URL and permission before scheduling collection.` },
       { status: 422 },
     );
   }

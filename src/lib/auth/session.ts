@@ -5,7 +5,8 @@
  * - getSessionUser() is the single source of truth for API routes: it verifies
  *   the HMAC, then confirms the session still exists and the account is active.
  */
-import { createHmac, randomBytes, randomInt } from "node:crypto";
+import { createHmac, randomInt, randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { SESSION_COOKIE, SESSION_TTL_SECONDS, signToken } from "./token";
@@ -32,25 +33,18 @@ export function sessionSecret(): string {
 export async function createSession(
   accountId: string,
   role: string,
-  meta: { ip?: string; userAgent?: string } = {},
+  meta: { ip?: string; userAgent?: string },
+  tx: Pick<Prisma.TransactionClient, "staffSession">,
 ): Promise<{ token: string; expiresAt: Date }> {
   const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
-  const session = await db.staffSession.create({
-    data: {
-      accountId,
-      // Unique per-row placeholder replaced by staffTokenHash(token) below — prevents
-      // unique-constraint collisions when sessions are created concurrently.
-      tokenHash: randomBytes(24).toString("hex"),
-      ip: meta.ip ?? null,
-      userAgent: meta.userAgent?.slice(0, 300) ?? null,
-      expiresAt,
-    },
-  });
+  const id = randomUUID();
   const token = await signToken(
-    { sid: session.id, uid: accountId, role, exp: Math.floor(expiresAt.getTime() / 1000) },
-    sessionSecret(),
+    { sid: id, uid: accountId, role, exp: Math.floor(expiresAt.getTime() / 1000) }, sessionSecret(),
   );
-  await db.staffSession.update({ where: { id: session.id }, data: { tokenHash: staffTokenHash(token) } });
+  await tx.staffSession.create({ data: {
+    id, accountId, tokenHash: staffTokenHash(token), expiresAt,
+    ip: meta.ip ?? null, userAgent: meta.userAgent?.slice(0, 300) ?? null,
+  } });
   return { token, expiresAt };
 }
 
@@ -84,12 +78,6 @@ export async function destroySession(): Promise<void> {
     await db.staffSession.deleteMany({ where: { tokenHash: staffTokenHash(token) } });
   }
   await clearSessionCookie();
-}
-
-/** Pair with middleware for the `next=` redirect target. */
-export function sanitizeNextPath(next: string | null | undefined): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) return "/dashboard";
-  return next;
 }
 
 export function newResetCode(): string {

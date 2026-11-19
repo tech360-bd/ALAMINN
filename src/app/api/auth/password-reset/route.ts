@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -38,18 +39,20 @@ export async function POST(req: NextRequest) {
     const reset = await db.$transaction(async (tx) => {
       // Serialize requests for this account; concurrent requests cannot leave
       // multiple valid codes behind. Confirmation locks the same row first.
-      await tx.staffAccount.update({ where: { id: account.id }, data: { updatedAt: new Date() } });
+      const active = await tx.staffAccount.updateMany({ where: { id: account.id, isActive: true }, data: { updatedAt: new Date() } });
+      if (active.count !== 1) return null;
       await tx.passwordResetCode.deleteMany({ where: { accountId: account.id, usedAt: null } });
       const row = await tx.passwordResetCode.create({ data: { accountId: account.id, codeHash: hashResetCode(account.id, code), expiresAt: new Date(Date.now() + TTL) } });
       await tx.uciAuditLog.create({ data: { actor: account.email, action: "auth.password_reset_requested", entity: "StaffAccount", entityId: account.id } });
       return row;
     });
+    if (!reset) return NextResponse.json(generic, { headers });
     const result = await sendEmail({
       to: account.email,
       subject: "Staff password reset code",
       text: `Your staff password reset code is ${code}. It expires in 15 minutes. Ignore this email if you did not request a reset.`,
       html: `<p>Your staff password reset code is <strong>${code}</strong>. It expires in 15 minutes.</p><p>Ignore this email if you did not request a reset.</p>`,
-    });
+    }, { requireDelivery: true });
     if (!result.success || result.provider === "console") {
       await db.passwordResetCode.deleteMany({ where: { id: reset.id, usedAt: null } });
       console.warn("[staff-reset] delivery failed");
@@ -69,7 +72,9 @@ export async function POST(req: NextRequest) {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     if (!challenge) return false;
-    const match = challenge.codeHash === hashResetCode(account.id, input.code);
+    const expected = Buffer.from(challenge.codeHash, "hex");
+    const presented = Buffer.from(hashResetCode(account.id, input.code), "hex");
+    const match = expected.length === presented.length && timingSafeEqual(expected, presented);
     const codes = await tx.passwordResetCode.updateMany({
       where: { id: challenge.id, usedAt: null, attempts: challenge.attempts, expiresAt: { gt: now } },
       data: { attempts: { increment: 1 }, ...(match ? { usedAt: now } : {}) },

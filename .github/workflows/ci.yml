@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main", "feature/ci-cd-pipeline", "arena/**"]
+    branches: ["main", "feature/ci-cd-pipeline"]
   pull_request:
     branches: ["main"]
 

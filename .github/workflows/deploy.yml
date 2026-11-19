@@ -57,6 +57,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -109,11 +110,22 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          CHECKS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" --paginate --jq '.check_runs[] | [.name, .conclusion] | @tsv')
+          FULL_SHA=$(gh api "repos/${REPO}/commits/${SHA}" --jq .sha)
+          MAIN_RELATION=$(gh api "repos/${REPO}/compare/${FULL_SHA}...main" --jq .status)
+          if [ "$MAIN_RELATION" != 'ahead' ] && [ "$MAIN_RELATION" != 'identical' ]; then
+            echo "::error::Refusing deployment for a commit not in main."
+            exit 1
+          fi
+          RUN_ID=$(gh run list --repo "$REPO" --workflow ci.yml --branch main --event push --commit "$FULL_SHA" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::No main-branch CI run for $FULL_SHA."
+            exit 1
+          fi
+          CHECKS=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs --jq '.jobs[] | [.name, .conclusion] | @tsv')
           for check in 'Typecheck · Lint · Test · Security · Build' 'MariaDB migration and persistence' 'Container build and runtime readiness'; do
             STATUS=$(awk -F '\t' -v name="$check" '$1 == name { print $2; exit }' <<< "$CHECKS")
             if [ "$STATUS" != "success" ]; then
-              echo "::error::Refusing deployment: $check was not successful on $SHA."
+              echo "::error::Refusing deployment: $check was not successful on $FULL_SHA."
               exit 1
             fi
           done

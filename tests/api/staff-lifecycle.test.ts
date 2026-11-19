@@ -82,6 +82,23 @@ describe('staff recovery and authorization', () => {
     expect((await req('/api/auth/login', { email: staff.email, password: newPassword })).status).toBe(200);
   }, 30_000);
 
+  it('rejects expired and attempt-exhausted codes without changing the password', async () => {
+    const request = { action: 'request', email: staff.email };
+    expect((await req('/api/auth/password-reset', request)).status).toBe(200);
+    const code = mail.filter((item) => item.includes(staff.email)).at(-1)?.match(/\b(\d{6})\b/)?.[1];
+    expect(code).toBeTruthy();
+    const wrongCode = code === '000000' ? '111111' : '000000';
+    const confirm = (input: string) => req('/api/auth/password-reset', { action: 'confirm', email: staff.email, code: input, newPassword: 'Should-not-be-applied!' });
+    for (let i = 0; i < 5; i++) expect((await confirm(wrongCode)).status).toBe(400);
+    expect((await confirm(code!)).status).toBe(400);
+    const sql = new DatabaseSync(process.env.DATABASE_URL!.slice(5));
+    try {
+      sql.prepare(`UPDATE PasswordResetCode SET attempts=0, expiresAt=? WHERE accountId=(SELECT id FROM StaffAccount WHERE email=?) AND usedAt IS NULL`).run(new Date(0).toISOString(), staff.email);
+    } finally { sql.close(); }
+    expect((await confirm(code!)).status).toBe(400);
+    expect((await req('/api/auth/login', { email: staff.email, password: newPassword })).status).toBe(200);
+  }, 20_000);
+
   it('rejects changed content and stale review versions', async () => {
     const db = new DatabaseSync(process.env.DATABASE_URL!.slice(5));
     const id = randomUUID();

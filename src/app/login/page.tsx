@@ -41,7 +41,7 @@ export default function LoginPage() {
       }
       const params = new URLSearchParams(window.location.search);
       const next = params.get("next");
-      router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
+      router.push(next && next.startsWith("/") && !next.startsWith("//") && !/[\\\x00-\x20]/.test(next) ? next : "/dashboard");
       router.refresh();
     } finally {
       setBusy(false);
