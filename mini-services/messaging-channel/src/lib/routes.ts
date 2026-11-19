@@ -37,7 +37,7 @@ function route(method: string, path: string, handler: Handler) {
 
 // ─────────────────────────────── System ───────────────────────────────
 
-route('GET', '/api/umc/health', async () => ({
+route('GET', '/api/umc/health', async ({ staff }) => ({
   ok: true,
   service: 'messaging-channel',
   providers: {
@@ -48,7 +48,9 @@ route('GET', '/api/umc/health', async () => ({
     translation: config.translationProvider,
   },
   telephonyConfigured: adapters.telephony.isConfigured(),
-  onlineUsers: onlineUserIds().length,
+  onlineUsers: onlineUserIds(new Set((await db.messagingUser.findMany({
+    where: { externalRef: staffRef(staff.accountId), role: { in: ['agent', 'admin'] }, isBanned: false }, select: { tenantId: true },
+  })).map((user) => user.tenantId))).length,
   now: new Date().toISOString(),
 }));
 
@@ -495,6 +497,8 @@ async function scopeRequest(path: string, method: string, context: RequestContex
   if (typeof tenantId !== 'string' || tenantId.length > 191) throw deny();
   const actor = await tenantActor(staff, tenantId);
   if (!actor) throw deny();
+  if ((params.userId || /\/(moderation-words|suppressions)$/.test(path) ||
+      (params.tenantId && path === `/api/umc/tenants/${params.tenantId}`)) && actor.role !== 'admin') throw deny();
   if (conversationId && !(path.endsWith('/join') && conversation?.visibility === 'public') &&
       !await conversationMember(conversationId, actor.id, tenantId)) throw deny();
 

@@ -86,7 +86,8 @@ export async function sendMessage(input: EngineSendInput): Promise<SendResult> {
     throw new SendMessageError('Attachment payload exceeds the configured size limit', 'payload_too_large', 413);
   }
 
-  const customers = conversation.participants.filter((p) => p.user.role === 'customer');
+  const inTenant = conversation.participants.filter((p) => p.user.tenantId === tenantId);
+  const customers = inTenant.filter((p) => p.user.role === 'customer');
   const recipientRefs = customers
     .map((p) => p.user.externalRef ?? p.userId)
     .filter((v): v is string => Boolean(v));
@@ -117,7 +118,10 @@ export async function sendMessage(input: EngineSendInput): Promise<SendResult> {
     throw new SendMessageError(violationReason(hours), 'hours_violation', 451);
   }
 
-  const mentionIds = mentions ?? parseMentions(body, conversation.participants.map((p) => ({ id: p.userId, displayName: p.user.displayName })));
+  const participantIds = new Set(inTenant.map((p) => p.userId));
+  const mentionIds = Array.isArray(mentions)
+    ? [...new Set(mentions.filter((id) => typeof id === 'string' && participantIds.has(id)))]
+    : parseMentions(body, inTenant.map((p) => ({ id: p.userId, displayName: p.user.displayName })));
   const isScheduled = scheduledFor && new Date(scheduledFor).getTime() > Date.now();
 
   const message = await db.message.create({
@@ -150,7 +154,8 @@ export async function dispatchMessage(messageId: string): Promise<void> {
     include: { conversation: { include: { participants: { include: { user: true } } } } },
   });
   if (!message || message.sentAt === null) return;
-  const participants = message.conversation.participants;
+  if (message.conversation.tenantId !== message.tenantId) return;
+  const participants = message.conversation.participants.filter((p) => p.user.tenantId === message.tenantId);
 
   const online = new Set(onlineUserIds());
   const now = new Date();

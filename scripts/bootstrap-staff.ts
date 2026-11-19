@@ -11,11 +11,26 @@ async function main() {
   const password = z.string().min(14).max(200).parse(process.env.STAFF_BOOTSTRAP_PASSWORD);
   const name = z.string().min(2).max(100).parse(process.env.STAFF_BOOTSTRAP_NAME?.trim());
   const passwordHash = await hashPassword(password);
-  await db.$transaction(async (tx) => {
-    if (await tx.staffAccount.count()) throw new Error("Staff already provisioned");
-    await tx.staffAccount.create({ data: { id: BOOTSTRAP_ID, email, name, passwordHash, role: "ADMIN" } });
-    await tx.uciAuditLog.create({ data: { actor: "operator", action: "auth.bootstrap_admin", entity: "StaffAccount", entityId: BOOTSTRAP_ID } });
-  });
+  // First statement is a conditional write, not a read transaction upgraded
+  // to a writer. A fixed primary key arbitrates competing inserts on both DBs.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await db.$transaction(async (tx) => {
+        const inserted = await tx.$executeRaw`
+          INSERT INTO StaffAccount (id, email, passwordHash, name, role, createdAt, updatedAt)
+          SELECT ${BOOTSTRAP_ID}, ${email}, ${passwordHash}, ${name}, 'ADMIN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          WHERE NOT EXISTS (SELECT 1 FROM StaffAccount)
+        `;
+        if (inserted !== 1) throw new Error("Staff already provisioned");
+        await tx.uciAuditLog.create({ data: { actor: "operator", action: "auth.bootstrap_admin", entity: "StaffAccount", entityId: BOOTSTRAP_ID } });
+      });
+      break;
+    } catch (error) {
+      const transient = error instanceof Error && /database is locked|SQLITE_BUSY|deadlock|write conflict/i.test(error.message);
+      if (!transient || attempt === 4) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 30 * (attempt + 1)));
+    }
+  }
   console.log("Initial staff administrator provisioned.");
 }
 

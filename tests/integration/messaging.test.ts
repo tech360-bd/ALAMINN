@@ -70,7 +70,7 @@ function call(pathname: string, user?: string, data?: object) {
   }));
 }
 function socket(tenantId: string, user?: string) {
-  const s = connect(origin, { path: '/socket.io/umc', transports: ['websocket'], autoConnect: false, reconnection: false, auth: { tenantId }, extraHeaders: { Cookie: user ? auth.get(user)! : '' } });
+  const s = connect(origin, { path: '/socket.io/umc', addTrailingSlash: false, transports: ['websocket'], autoConnect: false, reconnection: false, auth: { tenantId }, extraHeaders: { Cookie: user ? auth.get(user)! : '' } });
   sockets.push(s);
   return s;
 }

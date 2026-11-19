@@ -7,11 +7,12 @@ let io: Server | null = null;
 const actorRoom = (id: string) => `actor:${id}`;
 
 export function initRealtime(httpServer: HttpServer): Server {
+  const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL ? new URL(process.env.NEXT_PUBLIC_SITE_URL).origin : null;
   const server = new Server(httpServer, {
-    path: '/socket.io/umc',
+    path: '/socket.io/umc', addTrailingSlash: false,
     allowRequest: (req, done) => {
       const origin = req.headers.origin;
-      try { done(null, !origin || new URL(origin).host === req.headers.host); }
+      try { done(null, !origin || origin === siteOrigin || new URL(origin).host === req.headers.host); }
       catch { done(null, false); }
     },
   });
@@ -37,7 +38,16 @@ export function initRealtime(httpServer: HttpServer): Server {
       }
       return true;
     };
-    const timer = setInterval(() => { void refresh().catch(() => socket.disconnect(true)); }, 10_000);
+    const syncConversationRooms = async () => {
+      const parts = await db.conversationParticipant.findMany({ where: { userId, conversation: { tenantId } }, select: { conversationId: true } });
+      if (!socket.connected) return;
+      const rooms = new Set(parts.map(({ conversationId }) => `conv:${conversationId}`));
+      for (const room of socket.rooms) if (room.startsWith('conv:') && !rooms.has(room)) await socket.leave(room);
+      await socket.join([...rooms]);
+    };
+    const timer = setInterval(() => {
+      void refresh().then((valid) => valid && syncConversationRooms()).catch(() => socket.disconnect(true));
+    }, 10_000);
     socket.on('disconnect', () => {
       clearInterval(timer);
       if (!server.sockets.adapter.rooms.get(actorRoom(userId))?.size) {
@@ -48,9 +58,8 @@ export function initRealtime(httpServer: HttpServer): Server {
     });
     const ready = (async () => {
       await socket.join([actorRoom(userId), `tenant:${tenantId}`]);
-      const parts = await db.conversationParticipant.findMany({ where: { userId, conversation: { tenantId } }, select: { conversationId: true } });
+      await syncConversationRooms();
       if (!socket.connected) return;
-      await socket.join(parts.map(({ conversationId }) => `conv:${conversationId}`));
       const lastSeenAt = new Date();
       await db.messagingUser.update({ where: { id: userId }, data: { lastSeenAt } });
       emitToTenant(tenantId, 'presence', { userId, online: true, lastSeenAt: lastSeenAt.toISOString() });
@@ -83,8 +92,8 @@ export function joinConversationSockets(userId: string, conversationId: string):
   io?.in(actorRoom(userId)).socketsJoin(`conv:${conversationId}`);
 }
 
-export function onlineUserIds(): string[] {
-  return [...new Set([...io?.sockets.sockets.values() ?? []].map((socket) => socket.data.userId as string))];
+export function onlineUserIds(tenantIds?: ReadonlySet<string>): string[] {
+  return [...new Set([...io?.sockets.sockets.values() ?? []].filter((socket) => !tenantIds || tenantIds.has(socket.data.tenantId)).map((socket) => socket.data.userId as string))];
 }
 
 export function emitToConversation(conversationId: string, event: string, payload: unknown): void {

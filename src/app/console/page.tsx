@@ -144,7 +144,7 @@ export default function AgentConsole() {
       if (r.tenants[0]) setTenantId(r.tenants[0].id);
     }).catch((e) => setError(String(e.message)));
 
-    const s = io({ path: '/socket.io/umc', autoConnect: false });
+    const s = io({ path: '/socket.io/umc', addTrailingSlash: false, autoConnect: false });
     socketRef.current = s;
     s.on('auth:ok', () => setConnected(true));
     s.on('disconnect', () => setConnected(false));

@@ -3,7 +3,7 @@
  * ============================================
  * Standalone Bun script that runs 22 security tests against the live
  * dev server (http://localhost:3001) and prints a PASS/FAIL report.
- * Also writes a markdown report to docs/security-report.md.
+ * Also writes a private markdown report under a newly allocated temp directory.
  *
  * Usage:
  *   bun run scripts/security-tests.ts
@@ -16,22 +16,22 @@
  * - Tests are ordered to minimize cross-test interference from the
  *   in-memory rate limiters (5 inquiries/min/IP, 5 failed logins/15min/IP).
  * - Inquiry tests use email `security-test@example.com` so generated rows
- *   can be cleaned up afterward.
- * - A temporary low-privilege test user is created for login tests, then
- *   deleted at the end.
- * - The script is read-only with respect to production data — it never
- *   modifies real contacts, inquiries, or users. It only inserts test
- *   rows that it then deletes.
+ *   can be identified in the fixture.
+ * - Test users and inquiries are written only to the disposable database,
+ *   which is removed by the fixture runner.
  * - HONESTY: If a test FAILS, it is reported as FAIL with the real
  *   observed behavior. The goal is to know the security posture, not
  *   to fake passing tests.
  */
 
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { existsSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, join } from "node:path";
 import { db } from "../src/lib/db";
 import { hashPassword } from "../src/lib/auth";
 
 const BASE = process.env.SECURITY_TEST_BASE || "http://localhost:3000";
-const REPORT = process.env.SECURITY_TEST_REPORT || "/tmp/alaminn-security-report.md";
 const TEST_EMAIL = "security-test@example.com";
 const TEST_PASSWORD = "TestPassword123!-secure";
 const TEST_USER_NAME = "Security Test User";
@@ -84,7 +84,7 @@ function cookieHeader(res: Response): string {
   return res.headers.get("set-cookie") || "";
 }
 
-// ─── Test user setup / cleanup ──────────────────────────────────────
+// ─── Test user setup ──────────────────────────────────────
 async function setupTestUser(): Promise<void> {
   const existing = await db.user.findUnique({ where: { email: TEST_EMAIL } });
   const passwordHash = hashPassword(TEST_PASSWORD);
@@ -107,61 +107,6 @@ async function setupTestUser(): Promise<void> {
   console.log(`[setup] Test user ready: ${TEST_EMAIL} (VIEWER)`);
 }
 
-async function cleanupTestUser(): Promise<void> {
-  try {
-    await db.user.deleteMany({ where: { email: TEST_EMAIL } });
-    console.log(`[cleanup] Deleted test user: ${TEST_EMAIL}`);
-  } catch (e) {
-    console.warn(`[cleanup] Could not delete test user:`, e);
-  }
-}
-
-async function cleanupTestInquiries(): Promise<void> {
-  try {
-    // Find contacts created from test runs
-    const contacts = await db.contact.findMany({
-      where: { email: { contains: "security-test" } },
-      select: { id: true },
-    });
-    if (contacts.length === 0) return;
-    const ids = contacts.map((c) => c.id);
-    // Delete dependent rows first
-    await db.inquiry.deleteMany({ where: { contactId: { in: ids } } });
-    await db.opportunity.deleteMany({ where: { contactId: { in: ids } } });
-    await db.studentReferral.deleteMany({ where: { contactId: { in: ids } } });
-    await db.task.deleteMany({ where: { contactId: { in: ids } } });
-    await db.contact.deleteMany({ where: { id: { in: ids } } });
-    console.log(`[cleanup] Deleted ${ids.length} test contacts and related rows.`);
-  } catch (e) {
-    console.warn(`[cleanup] Inquiry cleanup error:`, e);
-  }
-}
-
-/**
- * Delete AuditLog rows created during this test run.
- *
- * The dev server writes AuditLog rows when admin/login/inquiry endpoints
- * are exercised (e.g., failed login attempts, brute-force lockouts, admin
- * access attempts). Without this cleanup, the rows pollute the DB and
- * `db:verify` shows an unexpected AuditLog row count.
- *
- * Strategy: capture `auditLogCutoff` (a Date) BEFORE the tests start. After
- * the tests, delete all AuditLog rows with `createdAt > auditLogCutoff`.
- * This preserves any pre-existing AuditLog rows and removes only the ones
- * created during this test run. The dev server runs on the same machine
- * (same clock), so there is no clock-skew gap between the cutoff and the
- * server-written timestamps.
- */
-async function cleanupAuditLogs(auditLogCutoff: Date): Promise<void> {
-  try {
-    const result = await db.auditLog.deleteMany({
-      where: { createdAt: { gt: auditLogCutoff } },
-    });
-    console.log(`[cleanup] Deleted ${result.count} test-pollution AuditLog rows.`);
-  } catch (e) {
-    console.warn(`[cleanup] AuditLog cleanup error:`, e);
-  }
-}
 
 // ─── 22 Tests ───────────────────────────────────────────────────────
 
@@ -953,11 +898,17 @@ async function main() {
   console.log(`Target: ${BASE}`);
   console.log(`Date:   ${new Date().toISOString()}\n`);
 
-  // Test writes and cleanup are allowed only on the explicitly provisioned instance.
+  // Test writes are allowed only on the explicitly provisioned instance.
   const instance = process.env.ALAMINN_TEST_INSTANCE;
   if (!instance || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(BASE).hostname) ||
       !/^file:.*\/alaminn-test-[^/]+\/test\.sqlite$/.test(process.env.DATABASE_URL ?? '')) {
     throw new Error("Security regression suite requires an isolated local application and disposable SQLite database");
+  }
+  const testFile = realpathSync(process.env.DATABASE_URL!.slice(5));
+  const testDir = dirname(testFile);
+  if (dirname(testDir) !== realpathSync(tmpdir()) || !basename(testDir).startsWith("alaminn-test-") ||
+      basename(testFile) !== "test.sqlite" || !existsSync(join(testDir, ".disposable-alaminn-test"))) {
+    throw new Error("Missing disposable database marker");
   }
   try {
     const r = await fetch(`${BASE}/api/health/ready`, { headers: { "x-alaminn-test-instance": instance } });
@@ -967,11 +918,6 @@ async function main() {
     console.error(`[health] Dev server not reachable at ${BASE}. Aborting. (${(e as Error).message})`);
     process.exit(1);
   }
-
-  // Capture a cutoff timestamp BEFORE any test runs. AuditLog rows written
-  // by the dev server during the test run will have createdAt > this cutoff,
-  // so we can delete them in cleanup without touching pre-existing rows.
-  const auditLogCutoff = new Date();
 
   // Setup test user
   await setupTestUser();
@@ -989,8 +935,8 @@ async function main() {
       tests.push(r);
       const mark = r.pass ? "PASS" : "FAIL";
       console.log(`[${String(r.id).padStart(2, "0")}] ${mark} — ${r.name} (${r.observed ?? ""})`);
-    } catch (e) {
-      console.error(`Test threw:`, e);
+    } catch (error) {
+      throw new Error(`Security regression test ${fn.name} did not complete`, { cause: error });
     }
   };
 
@@ -1027,15 +973,8 @@ async function main() {
   // ── Group D: brute-force test (LAST — locks IP for 15 min) ──
   await run(test22_bruteForce);
 
-  // ── Cleanup ──
-  await cleanupTestInquiries();
-  await cleanupTestUser();
-  await cleanupAuditLogs(auditLogCutoff);
-  try {
-    await db.$disconnect();
-  } catch {
-    // no-op
-  }
+  // The fixture owns and removes the whole database. Never bulk-delete audit rows.
+  await db.$disconnect();
 
   // ── Summary ──
   const passed = tests.filter((t) => t.pass).length;
@@ -1046,14 +985,14 @@ async function main() {
 
   // ── Markdown report ──
   const md = buildMarkdownReport(tests, passed, failed);
-  await writeReport(md);
-  console.log(`Report written to ${REPORT}\n`);
+  const path = await writeReport(md);
+  console.log(`Report written to ${path}\n`);
 
   // Exit non-zero if any test failed (useful for CI)
   if (failed > 0) {
     console.log(`${failed} test(s) FAILED — see report for details.`);
   }
-  process.exit(0); // always exit 0 — we want the report even on failures
+  process.exitCode = failed === 0 ? 0 : 1;
 }
 
 function printSummaryTable(tests: TestResult[], passed: number, failed: number): void {
@@ -1103,7 +1042,7 @@ function buildMarkdownReport(tests: TestResult[], passed: number, failed: number
   md += `# Alaminn.info — Automated Security Test Report\n\n`;
   md += `**Date:** ${date}  \n`;
   md += `**Target:** ${BASE} (live dev server)  \n`;
-  md += `**Script:** \`scripts/security-tests.ts\` (\`bun run security:test\`)  \n`;
+  md += `**Script:** \`scripts/security-tests.ts\` (\`npm run security:test\`)  \n`;
   md += `**Stack:** Next.js 16 App Router, TypeScript, Prisma + SQLite, custom HMAC session cookies.\n\n`;
   md += `## Summary\n\n`;
   md += `| Metric | Value |\n|---|---|\n`;
@@ -1236,18 +1175,15 @@ function buildMarkdownReport(tests: TestResult[], passed: number, failed: number
   md += `createdAt > a cutoff timestamp captured before the tests start). No\n`;
   md += `production data is touched.\n\n`;
 
-  md += `---\n\n_Generated by \`bun run security:test\`_\n`;
+  md += `---\n\n_Generated by \`npm run security:test\`_\n`;
   return md;
 }
 
-async function writeReport(md: string): Promise<void> {
-  const path = REPORT;
-  try {
-    const { writeFile } = await import("node:fs/promises");
-    await writeFile(path, md, "utf8");
-  } catch (e) {
-    console.error(`[report] Could not write ${path}:`, e);
-  }
+async function writeReport(md: string): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), "alaminn-security-"));
+  const path = join(directory, "report.md");
+  await writeFile(path, md, { encoding: "utf8", mode: 0o600, flag: "wx" });
+  return path;
 }
 
 main().catch((e) => {

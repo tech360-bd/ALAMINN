@@ -1,0 +1,505 @@
+"use client";
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  Mails,
+  Plus,
+  Send,
+  Save,
+  Eye,
+  FlaskConical,
+  ArrowLeft,
+  Users,
+} from "lucide-react";
+import { toast } from "sonner";
+import { adminFetch, fmtDate } from "@/components/admin/lib";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { emailContentSchema, type EmailContent } from "@/lib/kits/contracts";
+import {
+  KitHeading,
+  Panel,
+  Field,
+  Notice,
+  KitLoading,
+  KitError,
+  SelectField,
+  StatusBadge,
+  EmptyKit,
+  useKitResource,
+  errorMessage,
+  fromLocalInput,
+  toLocalInput,
+} from "./shared";
+type Campaign = {
+  id: string;
+  name: string;
+  subject: string;
+  preheader: string | null;
+  bodyHtml: string;
+  bodyText: string;
+  content: string;
+  audience: string;
+  status: string;
+  scheduledAt: string | null;
+  campaignId: string | null;
+  _count: { deliveries: number };
+};
+type Data = {
+  campaigns: Campaign[];
+  audiences: { interest: string | null; _count: { id: number } }[];
+  parentCampaigns: { id: string; name: string }[];
+  stats: { campaignId: string; status: string; _count: { id: number } }[];
+  emailConfigured: boolean;
+  siteUrl: string;
+};
+const empty: EmailContent & {
+  name: string;
+  audience: string;
+  campaignId: string;
+  scheduledAt: string;
+} = {
+  name: "",
+  subject: "",
+  preheader: "",
+  bodyText: "",
+  ctaLabel: "",
+  ctaUrl: "",
+  accent: "blue",
+  audience: "all",
+  campaignId: "",
+  scheduledAt: "",
+};
+function previewHtml(f: typeof empty) {
+  const esc = (s: string) =>
+    s.replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[c]!,
+    );
+  const color = f.accent === "blue" ? "#0b63ce" : "#f26113";
+  return `<!doctype html><html><body style="margin:0;background:#f2f4f7;font-family:Arial,sans-serif"><div style="max-width:560px;margin:24px auto;background:white;border-radius:12px;border-top:4px solid ${color};padding:32px"><h2 style="color:#101828">Al Aminn<span style="color:${color}">.</span></h2><p>Hi there,</p>${f.bodyText
+    .split(/\n\s*\n/)
+    .map(
+      (p) =>
+        `<p style="font-size:15px;line-height:1.7;color:#344054">${esc(p).replace(/\n/g, "<br>")}</p>`,
+    )
+    .join(
+      "",
+    )}${f.ctaLabel && f.ctaUrl.startsWith("https://") ? `<p style="margin:28px 0"><span style="background:${color};color:white;padding:12px 22px;border-radius:8px;display:inline-block">${esc(f.ctaLabel)}</span></p>` : ""}<p style="color:#344054">Best regards,<br>Al Aminn</p><hr style="border:0;border-top:1px solid #eee;margin:24px 0"><p style="font-size:11px;color:#667085">You received this because you confirmed a subscription to Al Aminn. <u>Unsubscribe</u>.</p><p style="font-size:11px;color:#98a2b3">Alaminn.info · Dhaka, Bangladesh</p></div></body></html>`;
+}
+export default function EmailCampaignBuilder() {
+  const params = useSearchParams();
+  const { data, loading, error, refresh } = useKitResource<Data>(
+    "/api/v1/admin/email-builder",
+  );
+  const [editor, setEditor] = useState(false);
+  const [form, setForm] = useState({
+    ...empty,
+    campaignId: params.get("campaign") || "",
+  });
+  const [busy, setBusy] = useState("");
+  const [saved, setSaved] = useState<Campaign>();
+  const [mobilePreview, setMobilePreview] = useState(false);
+  async function save() {
+    const parsed = emailContentSchema.safeParse(form);
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0].message);
+      return;
+    }
+    if (!form.name.trim()) {
+      toast.error("Add an internal campaign name.");
+      return;
+    }
+    setBusy("save");
+    try {
+      const r = await adminFetch<Campaign>("/api/v1/admin/email-builder", {
+        method: "POST",
+        body: JSON.stringify({
+          ...form,
+          campaignId: form.campaignId || null,
+          scheduledAt: fromLocalInput(form.scheduledAt),
+        }),
+      });
+      setSaved(r.data);
+      toast.success("Draft saved. Nothing has been sent.");
+      await refresh(true);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy("");
+    }
+  }
+  async function action(kind: "test" | "queue") {
+    if (!saved) return;
+    if (
+      kind === "queue" &&
+      !confirm(
+        `Queue this email for confirmed subscribers in “${saved.audience}”? Unsubscribed contacts are excluded. The cron must be running for delivery.`,
+      )
+    )
+      return;
+    setBusy(kind);
+    try {
+      const r = await adminFetch<{ recipients?: number }>(
+        `/api/v1/admin/email-builder/${saved.id}`,
+        { method: "PATCH", body: JSON.stringify({ action: kind }) },
+      );
+      toast.success(
+        kind === "test"
+          ? "Test sent to your signed-in account email."
+          : `${r.data.recipients} recipients queued.`,
+      );
+      await refresh(true);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy("");
+    }
+  }
+  function open(c: Campaign) {
+    setSaved(c);
+    let content = empty;
+    try {
+      content = { ...empty, ...JSON.parse(c.content) };
+    } catch {
+      /* server-rendered preview remains available */
+    }
+    setForm({
+      ...content,
+      name: c.name,
+      audience: c.audience,
+      campaignId: c.campaignId || "",
+      scheduledAt: toLocalInput(c.scheduledAt),
+    });
+    setEditor(true);
+  }
+  if (loading) return <KitLoading />;
+  const audienceCount =
+    form.audience === "all"
+      ? (data?.audiences || []).reduce((a, x) => a + x._count.id, 0)
+      : data?.audiences.find((x) => x.interest === form.audience)?._count.id ||
+        0;
+  return (
+    <div>
+      <KitHeading
+        title="Email Campaign Builder"
+        description="Write a message worth opening. Preview every detail, send yourself a test, then reach confirmed subscribers."
+        badge="Permission-based email"
+      >
+        <Button
+          onClick={() => {
+            setEditor(!editor);
+            if (!editor) {
+              setSaved(undefined);
+              setForm({ ...empty, campaignId: params.get("campaign") || "" });
+            }
+          }}
+        >
+          {editor ? (
+            <ArrowLeft className="size-4" />
+          ) : (
+            <Plus className="size-4" />
+          )}
+          {editor ? "All campaigns" : "New email"}
+        </Button>
+      </KitHeading>
+      {error && <KitError message={error} retry={() => refresh()} />}
+      {!data?.emailConfigured && (
+        <div className="mb-5">
+          <Notice tone="warning">
+            Email transport is not configured. You can write and preview drafts,
+            but tests and campaign sending stay disabled until SMTP or Resend is
+            configured on the server.
+          </Notice>
+        </div>
+      )}
+      {editor ? (
+        <>
+          <div className="grid xl:grid-cols-2 gap-5">
+            <Panel title="Message composer">
+              <div className="p-5 space-y-4">
+                <Field label="Internal campaign name">
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="November executive insights"
+                    disabled={!!saved}
+                  />
+                </Field>
+                <Field
+                  label="Subject line"
+                  hint={`${form.subject.length}/180 characters`}
+                >
+                  <Input
+                    value={form.subject}
+                    maxLength={180}
+                    onChange={(e) =>
+                      setForm({ ...form, subject: e.target.value })
+                    }
+                    placeholder="A clearer way to run your operations"
+                    disabled={!!saved}
+                  />
+                </Field>
+                <Field label="Preview text">
+                  <Input
+                    value={form.preheader}
+                    maxLength={200}
+                    onChange={(e) =>
+                      setForm({ ...form, preheader: e.target.value })
+                    }
+                    placeholder="The short preview shown in the inbox"
+                    disabled={!!saved}
+                  />
+                </Field>
+                <Field
+                  label="Message body"
+                  hint="Plain text with paragraph breaks. Your brand layout and unsubscribe footer are added automatically."
+                >
+                  <Textarea
+                    rows={9}
+                    value={form.bodyText}
+                    maxLength={20000}
+                    onChange={(e) =>
+                      setForm({ ...form, bodyText: e.target.value })
+                    }
+                    placeholder="Share something useful with your audience…"
+                    disabled={!!saved}
+                  />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Button label (optional)">
+                    <Input
+                      value={form.ctaLabel}
+                      onChange={(e) =>
+                        setForm({ ...form, ctaLabel: e.target.value })
+                      }
+                      placeholder="Explore the guide"
+                      disabled={!!saved}
+                    />
+                  </Field>
+                  <Field label="Button URL (HTTPS)">
+                    <Input
+                      type="url"
+                      value={form.ctaUrl}
+                      onChange={(e) =>
+                        setForm({ ...form, ctaUrl: e.target.value })
+                      }
+                      placeholder="https://alaminn.info/insights"
+                      disabled={!!saved}
+                    />
+                  </Field>
+                </div>
+                <Field label="Accent color">
+                  <SelectField
+                    value={form.accent}
+                    onChange={(value) =>
+                      setForm({ ...form, accent: value as "blue" | "orange" })
+                    }
+                    options={[
+                      { value: "blue", label: "Executive blue" },
+                      { value: "orange", label: "Momentum orange" },
+                    ]}
+                    disabled={!!saved}
+                  />
+                </Field>
+              </div>
+            </Panel>
+            <div className="space-y-5">
+              <Panel
+                title="Inbox preview"
+                actions={
+                  <SelectField
+                    className="w-32"
+                    value={mobilePreview ? "mobile" : "desktop"}
+                    onChange={(v) => setMobilePreview(v === "mobile")}
+                    options={[
+                      { value: "desktop", label: "Desktop" },
+                      { value: "mobile", label: "Mobile" },
+                    ]}
+                  />
+                }
+              >
+                <div className="bg-muted p-4 min-h-[500px] flex justify-center">
+                  <iframe
+                    title="Email preview"
+                    sandbox=""
+                    srcDoc={saved?.bodyHtml || previewHtml(form)}
+                    className={`bg-white border rounded-lg h-[560px] w-full transition-all ${mobilePreview ? "max-w-[375px]" : ""}`}
+                  />
+                </div>
+              </Panel>
+              <Panel title="Audience & delivery">
+                <div className="p-5 space-y-4">
+                  <Field label="Confirmed subscriber audience">
+                    <SelectField
+                      value={form.audience}
+                      onChange={(value) =>
+                        setForm({ ...form, audience: value })
+                      }
+                      disabled={!!saved}
+                      options={[
+                        { value: "all", label: "All confirmed subscribers" },
+                        ...(data?.audiences || [])
+                          .filter((a) => a.interest)
+                          .map((a) => ({
+                            value: a.interest!,
+                            label: `${a.interest} (${a._count.id})`,
+                          })),
+                      ]}
+                    />
+                  </Field>
+                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                    <Users className="size-4" />
+                    {audienceCount} currently eligible subscribers
+                  </p>
+                  <Field label="Link to marketing campaign">
+                    <SelectField
+                      value={form.campaignId}
+                      onChange={(value) =>
+                        setForm({ ...form, campaignId: value })
+                      }
+                      disabled={!!saved}
+                      options={[
+                        { value: "", label: "Standalone email" },
+                        ...(data?.parentCampaigns || []).map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                        })),
+                      ]}
+                    />
+                  </Field>
+                  <Field label="Schedule (optional, your local time)">
+                    <Input
+                      type="datetime-local"
+                      value={form.scheduledAt}
+                      disabled={!!saved}
+                      onChange={(e) =>
+                        setForm({ ...form, scheduledAt: e.target.value })
+                      }
+                    />
+                  </Field>
+                  {!saved ? (
+                    <Button
+                      className="w-full"
+                      onClick={save}
+                      disabled={
+                        !!busy || !form.name || !form.subject || !form.bodyText
+                      }
+                    >
+                      <Save className="size-4" />
+                      {busy === "save" ? "Saving…" : "Save draft"}
+                    </Button>
+                  ) : (
+                    <>
+                      <Notice tone="success">
+                        Draft saved. The message is locked for delivery. Create
+                        a new email to change its content.
+                      </Notice>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => action("test")}
+                          disabled={!data?.emailConfigured || !!busy}
+                        >
+                          <FlaskConical className="size-4" />
+                          Test to my email
+                        </Button>
+                        <Button
+                          className="flex-1"
+                          onClick={() => action("queue")}
+                          disabled={
+                            !data?.emailConfigured ||
+                            !!busy ||
+                            ["queued", "sending", "sent"].includes(saved.status)
+                          }
+                        >
+                          <Send className="size-4" />
+                          {busy === "queue" ? "Queueing…" : "Queue campaign"}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </Panel>
+            </div>
+          </div>
+          <div className="mt-5">
+            <Notice>
+              Campaigns are delivered by the protected email cron, in bounded
+              batches. Consent is checked again at send time. Every campaign
+              includes an unsubscribe link. Test messages go only to your
+              signed-in account’s email.
+            </Notice>
+          </div>
+        </>
+      ) : (
+        <Panel
+          title="Email campaigns"
+          description="Saved drafts and delivery status"
+        >
+          <div className="divide-y">
+            {data?.campaigns.length ? (
+              data.campaigns.map((c) => {
+                const stats = data.stats.filter((s) => s.campaignId === c.id);
+                return (
+                  <div
+                    key={c.id}
+                    className="p-5 flex flex-wrap gap-4 justify-between items-center"
+                  >
+                    <div>
+                      <div className="flex gap-2 items-center">
+                        <h3 className="text-sm font-semibold">{c.name}</h3>
+                        <StatusBadge status={c.status} />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {c.subject}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-2">
+                        {c.audience} ·{" "}
+                        {stats
+                          .filter((s) => s.status === "sent")
+                          .reduce((a, s) => a + s._count.id, 0)}{" "}
+                        sent ·{" "}
+                        {stats
+                          .filter((s) => s.status === "failed")
+                          .reduce((a, s) => a + s._count.id, 0)}{" "}
+                        failed ·{" "}
+                        {c.scheduledAt
+                          ? fmtDate(c.scheduledAt)
+                          : "Send when queued"}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => open(c)}>
+                      <Eye className="size-3.5" />
+                      {c.status === "draft" ? "Review & send" : "View campaign"}
+                    </Button>
+                  </div>
+                );
+              })
+            ) : (
+              <EmptyKit
+                icon={Mails}
+                title="Your first email starts with an idea"
+                description="Create a draft, preview the message and test it before sending to confirmed subscribers."
+              >
+                <Button onClick={() => setEditor(true)}>
+                  <Plus className="size-4" />
+                  Compose email
+                </Button>
+              </EmptyKit>
+            )}
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
+}

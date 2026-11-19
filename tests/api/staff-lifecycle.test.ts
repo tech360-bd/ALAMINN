@@ -1,3 +1,6 @@
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { io } from 'socket.io-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createServer } from 'node:net';
 import { createInterface } from 'node:readline';
@@ -97,6 +100,51 @@ describe('staff recovery and authorization', () => {
     } finally { sql.close(); }
     expect((await confirm(code!)).status).toBe(400);
     expect((await req('/api/auth/login', { email: staff.email, password: newPassword })).status).toBe(200);
+  }, 20_000);
+
+  it('carries the staff session through the HTTP and Socket.IO app gateway', async () => {
+    const sql = new DatabaseSync(process.env.DATABASE_URL!.slice(5));
+    const tenant = `gateway-${randomUUID()}`;
+    const actor = `actor-${randomUUID()}`;
+    try {
+      const staff = sql.prepare(`SELECT id FROM StaffAccount WHERE email=?`).get(process.env.STAFF_BOOTSTRAP_EMAIL!)!;
+      sql.prepare(`INSERT INTO Tenant(id, slug, name) VALUES(?,?,?)`).run(tenant, tenant, 'Gateway test tenant');
+      sql.prepare(`INSERT INTO MessagingUser(id, tenantId, externalRef, displayName, role) VALUES(?,?,?,?,?)`).run(actor, tenant, `staff:${staff.id}`, 'Gateway test actor', 'admin');
+    } finally { sql.close(); }
+    const umc = spawn(process.execPath, ['--import', 'tsx', 'mini-services/messaging-channel/index.ts'], {
+      env: { ...process.env, NODE_ENV: 'development', NEXT_PUBLIC_SITE_URL: base, UMC_PORT: '3010' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let logs = '';
+    umc.stdout.on('data', (chunk) => { logs += String(chunk); });
+    umc.stderr.on('data', (chunk) => { logs += String(chunk); });
+    const client = io(base, { path: '/socket.io/umc', addTrailingSlash: false, transports: ['websocket'], reconnection: false, autoConnect: false, auth: { tenantId: tenant } });
+    try {
+      const login = await req('/api/auth/login', { email: process.env.STAFF_BOOTSTRAP_EMAIL, password: process.env.STAFF_BOOTSTRAP_PASSWORD });
+      const credential = session(login);
+      const until = Date.now() + 9_000;
+      while (!logs.includes('messaging-channel service listening')) {
+        if (umc.exitCode !== null || Date.now() > until) throw new Error(`UMC not listening: ${logs}`);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      expect((await req('/api/umc/tenants')).status).toBe(401);
+      const tenants = await req('/api/umc/tenants', undefined, credential);
+      expect(tenants.status).toBe(200);
+      expect((await tenants.json()).tenants).toEqual([expect.objectContaining({ id: tenant })]);
+      const users = await req(`/api/umc/tenants/${tenant}/users`, undefined, credential);
+      expect((await users.json()).me).toBe(actor);
+      client.io.opts.extraHeaders = { Cookie: credential, Origin: new URL(base).origin };
+      const authed = new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('UMC socket handshake timed out')), 8_000);
+        client.once('auth:ok', (data) => { clearTimeout(timer); resolve(data); });
+        client.once('connect_error', (error) => { clearTimeout(timer); reject(error); });
+      });
+      client.connect();
+      await expect(authed).resolves.toEqual({ userId: actor, tenantId: tenant });
+    } finally {
+      client.disconnect();
+      if (umc.exitCode === null && umc.pid) { const exited = once(umc, 'exit'); umc.kill('SIGTERM'); await exited; }
+    }
   }, 20_000);
 
   it('rejects changed content and stale review versions', async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Mail, Send, ShieldAlert, AlertCircle, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
+import { Mail, Send, ShieldAlert, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch } from "@/components/admin/lib";
 import { errorMessage } from "./shared";
@@ -14,23 +14,18 @@ import {
   KitError,
   SelectField,
   StatusBadge,
-  Modal,
 } from "./shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
 type IntegrationConnection = {
   id: string;
   name: string;
   category: string;
   mode: string;
-  configured: boolean;
-  enabled: boolean;
-  lastTestOk: boolean | null;
-  lastTestMessage: string | null;
-  values: Record<string, string>;
+  connection: Pick<EmailProviderRow, "configured" | "enabled" | "lastTestOk" | "lastTestMessage"> | null;
 };
 
 type EmailProviderRow = {
@@ -47,7 +42,6 @@ export default function EmailKit() {
   const [error, setError] = useState<string | null>(null);
   const [providers, setProviders] = useState<EmailProviderRow[]>([]);
   const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ to: "", subject: "", text: "", html: "", contactId: "", preferredProvider: "auto" });
   const [lastResult, setLastResult] = useState<{
     ok: boolean;
@@ -64,15 +58,16 @@ export default function EmailKit() {
     setLoading(true);
     try {
       const json = await adminFetch<{ integrations: IntegrationConnection[] }>("/api/v1/admin/integrations");
-      const email = (json.data.integrations || []).filter((i) => i.category === "Messaging & SMS" || i.id.startsWith("email") || i.id === "sparkpost" || i.id === "mailgun" || i.id === "sendgrid" || i.id === "mailjet" || i.id === "sendinblue" || i.id === "sendpulse" || i.id === "pepipost" || i.id === "elasticemail" || i.id === "resend" || i.id === "smtp");
+      const providers = new Set(["sparkpost", "mailgun", "sendgrid", "mailjet", "sendinblue", "sendpulse", "pepipost", "elasticemail", "resend", "smtp"]);
+      const email = json.data.integrations.filter((item) => providers.has(item.id));
       setProviders(
         email.map((i) => ({
           id: i.id,
           name: i.name,
-          configured: i.configured,
-          enabled: i.enabled,
-          lastTestOk: i.lastTestOk,
-          lastTestMessage: i.lastTestMessage,
+          configured: i.connection?.configured ?? false,
+          enabled: i.connection?.enabled ?? false,
+          lastTestOk: i.connection?.lastTestOk ?? null,
+          lastTestMessage: i.connection?.lastTestMessage ?? null,
         }))
       );
       setError(null);
@@ -111,7 +106,6 @@ export default function EmailKit() {
         }),
       });
       setLastResult(json.data);
-      setOpen(false);
       toast.success(json.data.actuallySent ? "Email sent." : "Email queued (dev mode).");
       setForm({ to: "", subject: "", text: "", html: "", contactId: "", preferredProvider: "auto" });
     } catch (e) {
@@ -144,8 +138,8 @@ export default function EmailKit() {
         badge="Email"
       >
         {!anyConfigured && (
-          <Button size="sm" onClick={() => setOpen(true)}>
-            <Mail className="mr-2 size-3.5" />Configure a provider
+          <Button size="sm" asChild>
+            <Link href="/admin/integrations"><Mail className="mr-2 size-3.5" />Configure a provider</Link>
           </Button>
         )}
       </KitHeading>
@@ -179,7 +173,7 @@ export default function EmailKit() {
                       {p.lastTestMessage ? ` — ${p.lastTestMessage}` : ""}
                     </td>
                     <td className="py-3 text-right">
-                      {!p.configured && (
+                      {p.configured && (
                         <Button size="sm" variant="outline" onClick={() => testConnection(p.id)}>
                           Test
                         </Button>

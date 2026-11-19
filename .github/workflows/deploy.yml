@@ -590,8 +590,10 @@ jobs:
             record_failure() {
               echo "::error::Activation failed: \$1"
               echo "Attempting rollback to last-known-good..."
-              if [ -f "\$LGG" ]; then
-                PREV=\$(cat "\$LGG")
+              trap - ERR
+              PREV="\${CURRENT_BEFORE:-MISSING}"
+              if [ -f "\$LGG" ]; then PREV=\$(cat "\$LGG"); fi
+              if [ "\$PREV" != MISSING ]; then
                 if [ -d "\$PREV" ]; then
                   ln -sfn "\$PREV" "\$CURRENT_LINK.new"
                   mv -Tf "\$CURRENT_LINK.new" "\$CURRENT_LINK"
@@ -646,7 +648,8 @@ jobs:
                 record_failure "public route check"
               fi
             done
-            echo "\$RELEASE_DIR" > "\$LGG"
+            printf '%s\n' "\$RELEASE_DIR" > "\$LGG.new"
+            mv -Tf "\$LGG.new" "\$LGG"
             echo ""
             echo "✅ Deployment successful."
             echo "   Release: \$RELEASE_ID"

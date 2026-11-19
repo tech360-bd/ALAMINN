@@ -96,7 +96,7 @@ jobs:
         with:
           name: ci-diagnostics
           path: |
-            /tmp/alaminn-security-report.md
+            /tmp/alaminn-security-*/report.md
             /tmp/dev-server.log
           if-no-files-found: ignore
 
@@ -115,7 +115,7 @@ jobs:
 
       - name: Standalone artifact smoke test
         run: |
-          PORT=3100 NODE_ENV=production node .next/standalone/server.js > /tmp/standalone.log 2>&1 &
+          PORT=3100 HOSTNAME=0.0.0.0 NODE_ENV=production node .next/standalone/server.js > /tmp/standalone.log 2>&1 &
           SRV=$!
           for i in $(seq 1 30); do
             curl -sf http://localhost:3100/api/health > /dev/null 2>&1 && break
@@ -187,6 +187,33 @@ jobs:
           npm run db:migrate:deploy -- --config prisma.config.mysql.ts
           npm run db:migrate:status -- --config prisma.config.mysql.ts
           npx --no-install tsx tests/migrations/mariadb-persistence.ts
+
+      - name: Restore a production-format MariaDB backup into restricted scratch space
+        env:
+          MARIADB_CONTAINER: ${{ job.services.mariadb.id }}
+        run: |
+          set -euo pipefail
+          TMP=$(mktemp -d)
+          trap 'rm -r "$TMP"' EXIT
+          SCRATCH_PASS=$(openssl rand -hex 24)
+          docker exec -i "$MARIADB_CONTAINER" mariadb -uroot -pci-mariadb-disposable <<SQL
+          CREATE DATABASE alaminn_backup_verify_ci;
+          CREATE USER 'alaminn_verify'@'%' IDENTIFIED BY '$SCRATCH_PASS';
+          GRANT ALL PRIVILEGES ON alaminn_backup_verify_ci.* TO 'alaminn_verify'@'%';
+          SQL
+          for command in mariadb mariadb-dump; do
+            cat > "$TMP/$command" <<'SH'
+          #!/bin/sh
+          exec docker exec -i -e MYSQL_PWD "$MARIADB_CONTAINER" "${0##*/}" "$@"
+          SH
+            chmod 700 "$TMP/$command"
+          done
+          export PATH="$TMP:$PATH"
+          export BACKUP_VERIFY_DATABASE_URL="mysql://alaminn_verify:$SCRATCH_PASS@127.0.0.1:3306/alaminn_backup_verify_ci"
+          node scripts/release-backup.mjs "$TMP/verified"
+          test -s "$TMP/verified.sql.gz"
+          docker exec "$MARIADB_CONTAINER" mariadb -uroot -pci-mariadb-disposable -Nse \
+            "SELECT COUNT(*) FROM alaminn_backup_verify_ci.StaffAccount WHERE id='ci-upgrade-keeper'" | grep -Fx 1
 
   container:
     name: Container build and runtime readiness
