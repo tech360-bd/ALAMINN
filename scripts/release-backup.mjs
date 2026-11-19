@@ -35,6 +35,7 @@ async function publish(suffix) {
   await link(pending, `${output}.${suffix}`);
 }
 
+let stage = 'source validation';
 try {
   if (source.startsWith('file:/')) {
     const path = source.slice(5);
@@ -50,28 +51,36 @@ try {
     // A dedicated, empty database and a distinct restricted account are required for restore testing.
     // The database is never cleared by this script. Operators provision a fresh scratch target for each run.
     if (!scratch.database.startsWith('alaminn_backup_verify_') || scratch.database === live.database || !scratch.username || scratch.username === live.username) throw new Error('A separate scratch restore database is required');
+    stage = 'scratch grants';
     const grants = mariadbQuery(scratch, 'SHOW GRANTS;', { raw: true }).flat();
     // In schema-level MariaDB grants, an unescaped underscore is a wildcard.
     const literalSchema = scratch.database.replaceAll('_', '\\_');
     const scope = ` ON \`${literalSchema}\`.* TO `;
     if (!grants.some((grant) => grant.includes(scope)) || grants.some((grant) =>
-      !grant.startsWith('GRANT USAGE ON *.* TO ') && (!grant.includes(scope) || grant.includes('WITH GRANT OPTION')))) {
+      grant.includes('WITH GRANT OPTION') || (!grant.startsWith('GRANT USAGE ON *.* TO ') &&
+        (!/^GRANT [A-Z ,]+ ON /.test(grant) || !grant.slice(0, grant.indexOf(' TO ') + 4).endsWith(scope))))) {
       throw new Error('Scratch account must not have privileges outside its verification database');
     }
+    stage = 'scratch emptiness';
     if (mariadbQuery(scratch, 'SHOW FULL TABLES;').length) throw new Error('Scratch restore database must be empty');
+    stage = 'source metadata';
     const expected = auditMaria(live, {deep: false});
+    stage = 'MariaDB dump';
     await transfer('mariadb-dump', live, ['--single-transaction', '--quick', '--skip-lock-tables', '--no-tablespaces', '--hex-blob', live.database], createWriteStream(pending, { mode: 0o600 }), true);
+    stage = 'scratch restore';
     await transfer('mariadb', scratch, [], createReadStream(pending), false);
+    stage = 'restored catalog';
     const restored = auditMaria(scratch);
     if (!restored.integrityOk || restored.invalidFKs || !restored.tables.includes('User') || restored.schemaDigest !== expected.schemaDigest) {
       throw new Error('MariaDB scratch integrity or catalog mismatch');
     }
     console.log(`Verified restored MariaDB catalog, integrity and references for ${restored.tables.length} tables.`);
+    stage = 'MariaDB artifact publication';
     await publish('sql.gz');
   }
   console.log('Database backup created and independently reopened or restored.');
 } catch {
-  console.error('Database backup or restore verification failed; release must not continue.');
+  console.error(`${process.env.GITHUB_ACTIONS === 'true' ? '::error::' : ''}Database backup failed during ${stage}; release must not continue.`);
   process.exitCode = 1;
 } finally {
   await rm(temp, { recursive: true, force: true });

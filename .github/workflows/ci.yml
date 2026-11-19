@@ -207,6 +207,7 @@ jobs:
           set -euo pipefail
           TMP=$(mktemp -d)
           trap 'rm -r "$TMP"' EXIT
+          trap 'echo "::error::MariaDB recovery fixture failed at shell line $LINENO"' ERR
           SCRATCH_PASS=$(openssl rand -hex 24)
           docker exec -i "$MARIADB_CONTAINER" mariadb -uroot -pci-mariadb-disposable <<SQL
           CREATE DATABASE alaminn_backup_verify_ci;

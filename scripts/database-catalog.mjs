@@ -22,11 +22,16 @@ export function mariadbOptions(value) {
     env: { ...process.env, MYSQL_PWD: decodeURIComponent(u.password) } };
 }
 
-export function mariadbQuery(config, sql, {raw = false} = {}) {
+class CatalogError extends Error {}
+
+export function mariadbQuery(config, sql, { raw = false, stage = 'inspection' } = {}) {
   const result = spawnSync('mariadb', [...config.args, '--batch', '--skip-column-names', ...(raw ? ['--raw'] : []), config.database], {
     input: sql, env: config.env, encoding: 'utf8', timeout: 90_000, maxBuffer: 16 * 1024 * 1024,
   });
-  if (result.status !== 0) throw new Error('MariaDB catalog query failed');
+  if (result.status !== 0) {
+    const code = /^ERROR (\d+)\b/m.exec(result.stderr ?? '')?.[1];
+    throw new CatalogError(`MariaDB ${stage} query failed${code ? ` (code ${code})` : ''}`);
+  }
   return result.stdout.trimEnd().split('\n').filter(Boolean).map((row) => row.split('\t'));
 }
 
@@ -49,11 +54,11 @@ export function auditSqlite(path) {
 }
 
 export function auditMaria(config, {deep = true} = {}) {
-  const tables = mariadbQuery(config, `SELECT TABLE_NAME,TABLE_TYPE,COALESCE(ENGINE,'') FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME;`);
-  const columns = mariadbQuery(config, `SELECT TABLE_NAME,COLUMN_NAME,ORDINAL_POSITION,COLUMN_TYPE,IS_NULLABLE,COLUMN_DEFAULT,EXTRA,COALESCE(COLLATION_NAME,'') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME,ORDINAL_POSITION;`);
-  const indexes = mariadbQuery(config, `SELECT TABLE_NAME,INDEX_NAME,NON_UNIQUE,SEQ_IN_INDEX,COLUMN_NAME,COALESCE(SUB_PART,0),INDEX_TYPE FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME,INDEX_NAME,SEQ_IN_INDEX;`);
-  const fks = mariadbQuery(config, `SELECT k.TABLE_NAME,k.CONSTRAINT_NAME,k.COLUMN_NAME,k.REFERENCED_TABLE_NAME,k.REFERENCED_COLUMN_NAME,k.ORDINAL_POSITION,r.UPDATE_RULE,r.DELETE_RULE,(k.REFERENCED_TABLE_SCHEMA=DATABASE()) FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA AND r.TABLE_NAME=k.TABLE_NAME AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA=DATABASE() AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME,k.CONSTRAINT_NAME,k.ORDINAL_POSITION;`);
-  const checks = mariadbQuery(config, `SELECT TABLE_NAME,CONSTRAINT_NAME,CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=DATABASE() ORDER BY TABLE_NAME,CONSTRAINT_NAME;`);
+  const tables = mariadbQuery(config, `SELECT TABLE_NAME,TABLE_TYPE,COALESCE(ENGINE,'') FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME;`, { stage: 'tables' });
+  const columns = mariadbQuery(config, `SELECT TABLE_NAME,COLUMN_NAME,ORDINAL_POSITION,COLUMN_TYPE,IS_NULLABLE,COLUMN_DEFAULT,EXTRA,COALESCE(COLLATION_NAME,'') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME,ORDINAL_POSITION;`, { stage: 'columns' });
+  const indexes = mariadbQuery(config, `SELECT TABLE_NAME,INDEX_NAME,NON_UNIQUE,SEQ_IN_INDEX,COLUMN_NAME,COALESCE(SUB_PART,0),INDEX_TYPE FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME,INDEX_NAME,SEQ_IN_INDEX;`, { stage: 'indexes' });
+  const fks = mariadbQuery(config, `SELECT k.TABLE_NAME,k.CONSTRAINT_NAME,k.COLUMN_NAME,k.REFERENCED_TABLE_NAME,k.REFERENCED_COLUMN_NAME,k.ORDINAL_POSITION,r.UPDATE_RULE,r.DELETE_RULE,(k.REFERENCED_TABLE_SCHEMA=DATABASE()) FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA AND r.TABLE_NAME=k.TABLE_NAME AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME WHERE k.TABLE_SCHEMA=DATABASE() AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.TABLE_NAME,k.CONSTRAINT_NAME,k.ORDINAL_POSITION;`, { stage: 'foreign keys' });
+  const checks = mariadbQuery(config, `SELECT TABLE_NAME,CONSTRAINT_NAME,CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=DATABASE() ORDER BY TABLE_NAME,CONSTRAINT_NAME;`, { stage: 'check constraints' });
   const names = tables.filter(([,kind]) => kind === 'BASE TABLE').map(([table]) => table);
   const schemaDigest = hash(JSON.stringify([tables, columns, indexes, fks, checks]));
   if (!deep) return {schemaDigest};
@@ -69,11 +74,11 @@ export function auditMaria(config, {deep = true} = {}) {
   for (const [i, {table, parent, pairs}] of Array.from(groups.values()).entries()) {
     queries.push(`SELECT 'fk',${i},COUNT(*) FROM ${my(table)} c WHERE ${pairs.map(([col]) => `c.${my(col)} IS NOT NULL`).join(' AND ')} AND NOT EXISTS (SELECT 1 FROM ${my(parent)} p WHERE ${pairs.map(([col, ref]) => `c.${my(col)}=p.${my(ref)}`).join(' AND ')});`);
   }
-  const values = mariadbQuery(config, `START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY;\n${queries.join('\n')}\nCOMMIT;`);
+  const values = mariadbQuery(config, `START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY;\n${queries.join('\n')}\nCOMMIT;`, { stage: 'row counts and foreign keys' });
   const counts = Object.fromEntries(values.filter(([kind]) => kind === 'count').map(([, table, count]) => [names[Number(table)], Number(count)]));
   const invalidFKs = values.filter(([kind]) => kind === 'fk').reduce((sum, [,,value]) => sum + Number(value), 0);
-  const integrity = names.length ? mariadbQuery(config, `CHECK TABLE ${names.map(my).join(',')};`) : [];
-  const migrations = names.includes('_prisma_migrations') ? mariadbQuery(config, 'SELECT migration_name,checksum,finished_at IS NOT NULL,rolled_back_at IS NOT NULL FROM `_prisma_migrations` ORDER BY started_at;').map(([migration_name, checksum, finished, rolled_back]) => ({migration_name, checksum, finished:Number(finished), rolled_back:Number(rolled_back)})) : null;
+  const integrity = names.length ? mariadbQuery(config, `CHECK TABLE ${names.map(my).join(',')};`, { stage: 'integrity' }) : [];
+  const migrations = names.includes('_prisma_migrations') ? mariadbQuery(config, 'SELECT migration_name,checksum,finished_at IS NOT NULL,rolled_back_at IS NOT NULL FROM `_prisma_migrations` ORDER BY started_at;', { stage: 'migration ledger' }).map(([migration_name, checksum, finished, rolled_back]) => ({migration_name, checksum, finished:Number(finished), rolled_back:Number(rolled_back)})) : null;
   return {provider: 'mysql', tables: names, counts, columns, indexes, fks, checks, migrations, schemaDigest, invalidFKs,
     integrityOk: names.length > 0 && integrity.length === names.length && integrity.every(([, , type, msg]) => type === 'status' && msg === 'OK') };
 }
@@ -100,5 +105,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     console.log(JSON.stringify({provider: report.provider, schemaDigest: report.schemaDigest, tables: report.tables.length,
       rows: Object.values(report.counts).reduce((sum, count) => sum + count, 0), invalidFKs: report.invalidFKs, integrityOk: report.integrityOk, history}, null, 2));
     if (!report.integrityOk || report.invalidFKs || !history.present || history.pending.length || history.failed.length || history.unexpected.length || history.checksumMismatches.length || history.duplicateActive) process.exitCode = 1;
-  } catch { console.error('Database audit failed; confirm explicit connection, access and integrity'); process.exitCode = 1; }
+  } catch (error) {
+    const message = error instanceof CatalogError ? error.message : 'Database audit failed; confirm explicit connection, access and integrity';
+    console.error(`${process.env.GITHUB_ACTIONS === 'true' ? '::error::' : ''}${message}`);
+    process.exitCode = 1;
+  }
 }
