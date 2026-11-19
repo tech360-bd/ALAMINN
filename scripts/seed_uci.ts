@@ -6,37 +6,16 @@
  *  - Every record keeps verbatim source fields + file/sheet/row provenance.
  *  - No value is invented; unknown stays unknown.
  *  - All internal-sheet records start at SOURCE_CHECK_REQUIRED.
- *  - Idempotent: wipes only UCI tables (UMC tables untouched).
+ *  - Additive: existing reviewed records, provenance, jobs and audit events are preserved.
  */
-import { PrismaClient } from "@prisma/client";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
-import { readFileSync } from "fs";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { db } from "../src/lib/db";
 
-// Same dual-mode driver-adapter pattern as the app (src/lib/db.ts):
-// the schema uses engine = "client", so every client needs an adapter
-// chosen from DATABASE_URL (mysql:// → MariaDb, file:/libsql: → LibSQL).
-const rawUrl = process.env.DATABASE_URL || "file:./db/custom.db";
-let adapter: PrismaLibSql | PrismaMariaDb;
-if (/^mysql:\/\//i.test(rawUrl)) {
-  const u = new URL(rawUrl);
-  adapter = new PrismaMariaDb({
-    host: u.hostname || "localhost",
-    port: u.port ? Number(u.port) : 3306,
-    user: decodeURIComponent(u.username || "root"),
-    password: decodeURIComponent(u.password || ""),
-    database: decodeURIComponent(u.pathname.replace(/^\//, "")),
-    connectionLimit: 5,
-  });
-} else {
-  const url = rawUrl.startsWith("file:") && !require("path").isAbsolute(rawUrl.slice(5))
-    ? `file:${require("path").resolve(rawUrl.slice(5))}`
-    : rawUrl;
-  adapter = new PrismaLibSql({ url });
-}
-const db = new PrismaClient({ adapter });
-
-const DATASET = process.env.ALO_DATASET || "/home/z/my-project/scripts/audit/alo_dataset.json";
+const datasetPath = process.env.ALO_DATASET || resolve("scripts/audit/alo_dataset.json");
+const stableId = (type: string, ...parts: (string | number)[]) =>
+  `${type}-${createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 32)}`;
 
 const PRIORITY_27 = new Set([
   "University of Leicester", "University of East London", "Aston University",
@@ -88,22 +67,18 @@ interface Dataset {
 }
 
 async function main() {
-  const data: Dataset = JSON.parse(readFileSync(DATASET, "utf-8"));
-
-  // idempotent: clear UCI only
-  await db.uciAuditLog.deleteMany();
-  await db.uciCollectionJob.deleteMany();
-  await db.uciVerificationEvent.deleteMany();
-  await db.uciProgramme.deleteMany();
-  await db.uciRequirementRecord.deleteMany();
-  await db.uciInstitution.deleteMany();
-  await db.uciSource.deleteMany();
+  if (!process.env.DATABASE_URL) throw new Error("Select the target DATABASE_URL before importing the UCI dataset");
+  const data: Dataset = JSON.parse(readFileSync(datasetPath, "utf-8"));
+  if (!data.institutions || !Array.isArray(data.programmes) || !Array.isArray(data.source_files)) {
+    throw new Error("Invalid UCI dataset");
+  }
 
   // ── 1. Source registry ──────────────────────────────────────────────
   for (const sf of data.source_files) {
-    await db.uciSource.create({
-      data: {
-        key: `internal_${sf.key}`,
+    const key = `internal_${sf.key}`;
+    await db.uciSource.upsert({
+      where: { key }, update: {}, create: {
+        key,
         name: `ALO internal evidence — ${sf.file}`,
         url: null,
         level: "INTERNAL",
@@ -126,8 +101,8 @@ async function main() {
     { key: "public_research_dirs", name: "Recognised research databases / academic directories (to be configured)", url: null, notes: "Level 3 — use only where permitted and attributable." },
   ];
   for (const s of officialRegistry) {
-    await db.uciSource.create({
-      data: {
+    await db.uciSource.upsert({
+      where: { key: s.key }, update: {}, create: {
         key: s.key,
         name: s.name,
         url: s.url ?? null,
@@ -139,24 +114,22 @@ async function main() {
   }
 
   // official URLs discovered inside the sheets → dedicated Level-1 source rows
-  const officialUrlSources = new Map<string, string>(); // url -> source key
-  let n = 0;
+  const recordedUrls = new Set((await db.uciSource.findMany({ select: { url: true } })).map(({ url }) => url));
   for (const u of Object.values(data.institutions)) {
     for (const url of u.official_urls) {
-      if (officialUrlSources.has(url)) continue;
-      n += 1;
-      const key = `official_discovered_${n}`;
-      officialUrlSources.set(url, key);
-      await db.uciSource.create({
-        data: {
+      if (recordedUrls.has(url)) continue;
+      const key = stableId("official_discovered", url);
+      await db.uciSource.upsert({
+        where: { key }, update: {}, create: {
           key,
           name: `Official page captured with ALO records — ${url}`,
           url,
           level: "OFFICIAL",
-          identityStatus: "CONFIRMED",
-          permissionNotes: "Captured as the source reference recorded by ALO counsellors in the internal sheets. Verify page permission before scheduled monitoring.",
+          identityStatus: "PENDING_IDENTITY",
+          permissionNotes: "Captured from internal evidence. An operator must confirm the exact URL and collection permission before monitoring.",
         },
       });
+      recordedUrls.add(url);
     }
   }
 
@@ -164,8 +137,8 @@ async function main() {
   const instIdByName = new Map<string, string>();
   for (const u of Object.values(data.institutions)) {
     const official = u.official_urls[0] ?? null;
-    const row = await db.uciInstitution.create({
-      data: {
+    const row = await db.uciInstitution.upsert({
+      where: { canonicalName: u.canonical_name }, update: {}, create: {
         canonicalName: u.canonical_name,
         asWritten: JSON.stringify(u.as_written),
         country: u.country,
@@ -178,8 +151,12 @@ async function main() {
     });
     instIdByName.set(u.canonical_name, row.id);
     for (const rec of u.requirement_records) {
-      await db.uciRequirementRecord.create({
-        data: {
+      const provenance = { institutionId: row.id, sourceFile: rec.file, sheet: rec.sheet, rowNumber: rec.row };
+      if (await db.uciRequirementRecord.findFirst({ where: provenance, select: { id: true } })) continue;
+      const id = stableId("requirement", row.id, rec.file, rec.sheet, rec.row);
+      await db.uciRequirementRecord.upsert({
+        where: { id }, update: {}, create: {
+          id,
           institutionId: row.id,
           context: rec.context ?? null,
           fieldsJson: JSON.stringify(rec.fields),
@@ -198,8 +175,12 @@ async function main() {
   // ── 3. Programmes ──────────────────────────────────────────────────
   for (const p of data.programmes) {
     const instId = instIdByName.get(p.institution) ?? null;
-    await db.uciProgramme.create({
-      data: {
+    const provenance = { institutionName: p.institution, programName: p.program_name, sourceFile: p.file, sheet: p.sheet, rowNumber: p.row };
+    if (await db.uciProgramme.findFirst({ where: provenance, select: { id: true } })) continue;
+    const id = stableId("programme", p.institution, p.program_name, p.file, p.sheet, p.row);
+    await db.uciProgramme.upsert({
+      where: { id }, update: {}, create: {
+        id,
         institutionId: instId,
         institutionName: p.institution,
         country: p.country,
@@ -242,10 +223,9 @@ async function main() {
     priority: await db.uciInstitution.count({ where: { priorityCohort: true } }),
   };
   console.log("SEEDED:", JSON.stringify(counts));
-  await db.$disconnect();
 }
 
 main().catch((e) => {
   console.error(e);
-  process.exit(1);
-});
+  process.exitCode = 1;
+}).finally(() => db.$disconnect());

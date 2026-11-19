@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
 import { randomUUID, timingSafeEqual } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const headers: Record<string, string> = { "Cache-Control": "no-store" };
+  try {
+    const release = await readFile(join(process.cwd(), "RELEASE-INFO"), "utf8");
+    const id = /^release_id=([a-zA-Z0-9-]{1,100})$/m.exec(release)?.[1];
+    if (id) headers["x-alaminn-release"] = id;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      return NextResponse.json({ ready: false }, { status: 503, headers });
+    }
+  }
+
   const testKey = process.env.ALAMINN_TEST_INSTANCE;
   const presented = Buffer.from(req.headers.get("x-alaminn-test-instance") ?? "");
   const expected = Buffer.from(testKey ?? "");

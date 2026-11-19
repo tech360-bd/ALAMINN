@@ -60,7 +60,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: alaminn-production-release
   cancel-in-progress: false
 
 jobs:
@@ -543,14 +543,11 @@ jobs:
             cd "\$APP_DIR/current"
             test -r "\$APP_DIR/shared/.env"
             ln -s "\$APP_DIR/shared/.env" "\$RELEASE_DIR/.env.config"
-            # Load the trusted host environment using the same release directory
-            # for relative SQLite URLs. Do not source secrets as shell code.
+            # Read the trusted host environment without sourcing secrets as shell code.
             NODE_ENV=production node --env-file="\$APP_DIR/shared/.env" -e '
               const { spawnSync } = require("node:child_process");
-              const { resolve } = require("node:path");
               const [release, output, provider] = process.argv.slice(1);
-              let url = process.env.DATABASE_URL;
-              if (url?.startsWith("file:")) url = "file:" + resolve(url.slice(5));
+              const url = process.env.DATABASE_URL;
               if ((provider === "sqlite" && !url?.startsWith("file:/")) || (provider === "mysql" && !url?.startsWith("mysql://"))) process.exit(1);
               if (Buffer.byteLength(process.env.CRON_SECRET ?? "") < 32) throw new Error("CRON_SECRET is required for release readiness");
               const env = { ...process.env, DATABASE_URL: url };
@@ -586,6 +583,7 @@ jobs:
             RELEASE_ID="$RELEASE_ID"
             TARGET_SHA="$TARGET_SHA"
             LGG="\$APP_DIR/.last-good-release"
+            PREVIOUS_GOOD="\$APP_DIR/.previous-good-release"
             CURRENT_LINK="\$APP_DIR/current"
             record_failure() {
               echo "::error::Activation failed: \$1"
@@ -620,8 +618,9 @@ jobs:
             sleep 5
             HEALTHY=false
             for i in \$(seq 1 30); do
-              CODE=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/health/ready 2>/dev/null || echo 000)
-              if [ "\$CODE" = "200" ]; then
+              CODE=\$(curl --max-time 5 -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/health/ready 2>/dev/null || echo 000)
+              ACTIVE_ID=\$(curl --max-time 5 -fsS -D - -o /dev/null http://127.0.0.1:3056/api/health/ready 2>/dev/null | awk 'tolower(\$1) == "x-alaminn-release:" { gsub(/\r/, "", \$2); print \$2 }' || echo MISSING)
+              if [ "\$CODE" = "200" ] && [ "\$ACTIVE_ID" = "\$RELEASE_ID" ]; then
                 HEALTHY=true
                 break
               fi
@@ -636,18 +635,22 @@ jobs:
                 method: "POST", headers: { authorization: "Bearer " + process.env.CRON_SECRET }, signal: AbortSignal.timeout(15000)
               }).then((res) => { if (!res.ok) process.exitCode = 1; }, () => { process.exitCode = 1; });
             ' || record_failure "database write/rollback probe"
-            AUTH_CODE=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/v1/admin/dashboard 2>/dev/null || echo 000)
+            AUTH_CODE=\$(curl --max-time 5 -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3056/api/v1/admin/dashboard 2>/dev/null || echo 000)
             if [ "\$AUTH_CODE" != "401" ] && [ "\$AUTH_CODE" != "403" ]; then
               echo "::error::Auth-negative check FAILED: admin API returned \$AUTH_CODE."
               record_failure "auth-negative check"
             fi
             for p in / /higher-study /english-learning; do
-              CODE=\$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3056\$p" 2>/dev/null || echo 000)
+              CODE=\$(curl --max-time 5 -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3056\$p" 2>/dev/null || echo 000)
               if [ "\$CODE" != "200" ]; then
                 echo "::error::Public route \$p returned \$CODE."
                 record_failure "public route check"
               fi
             done
+            if [ -d "\$CURRENT_BEFORE" ] && [ "\$CURRENT_BEFORE" != "\$RELEASE_DIR" ]; then
+              printf '%s\n' "\$CURRENT_BEFORE" > "\$PREVIOUS_GOOD.new"
+              mv -Tf "\$PREVIOUS_GOOD.new" "\$PREVIOUS_GOOD"
+            fi
             printf '%s\n' "\$RELEASE_DIR" > "\$LGG.new"
             mv -Tf "\$LGG.new" "\$LGG"
             echo ""

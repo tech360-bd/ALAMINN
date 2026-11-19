@@ -12,7 +12,8 @@ inside a release directory. Set `DEPLOY_DATABASE_PROVIDER` to match the host
   an integrity check; keep backups outside the release directory.
 - **MariaDB:** the release requires `mariadb` and `mariadb-dump`. Configure
   `BACKUP_VERIFY_DATABASE_URL` for an explicitly provisioned, empty scratch database
-  (distinct from production), using a restricted verifier account. The workflow
+  (distinct from production), using a different restricted verifier account.
+  Give the scratch database a name beginning with `alaminn_backup_verify_`. The workflow
   restores into scratch, and checks the result before proceeding. Use a fresh scratch
   database for each release; do not point the verifier at another live database.
 - The release applies the provider's committed history and requires migration status
@@ -21,7 +22,9 @@ inside a release directory. Set `DEPLOY_DATABASE_PROVIDER` to match the host
   records, or edit historical migration files.
 - Readiness checks database-backed models; an authenticated POST also writes and
   reads test rows in a transaction, rolls back, and confirms the rows are absent.
-  Failed activation restores the prior application symlink. It does not revert
+  The gate also verifies the running process reports the expected release ID.
+  Failed activation restores the prior application symlink. The separate rollback
+  workflow uses the previous verified artifact, not the currently active one. It does not revert
   schema changes or automatically restore old data over newer writes.
 - Before approving a live activation, rehearse against a restored production-like
   copy. After activation confirm public routes, staff and CRM login, access scopes,
@@ -32,3 +35,11 @@ inside a release directory. Set `DEPLOY_DATABASE_PROVIDER` to match the host
 Run isolated API and security tests locally (`npm run test:disposable`) with port
 3000 free. Tests that modify accounts require the disposable database marker and
 matching application handshake. Do not aim the regression tools at production.
+
+## UCI imports and source approval
+
+`node --import tsx scripts/seed_uci.ts` imports missing data into the explicit
+`DATABASE_URL` using the repository dataset (or the `ALO_DATASET` file). It does
+not reset existing records or replace human reviews. Discovered URLs require
+operator approval: after confirming the source and permission, run
+`node --import tsx scripts/approve-uci-source.ts SOURCE_KEY HTTPS_URL 'Permission evidence'`.
