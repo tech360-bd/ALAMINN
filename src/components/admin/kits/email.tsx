@@ -1,24 +1,317 @@
 "use client";
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Mails, Plus, Send, Save, Eye, FlaskConical, ArrowLeft, Users } from "lucide-react";
+
+import { useState, useEffect, useCallback } from "react";
+import { Mail, Send, ShieldAlert, AlertCircle, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { adminFetch, fmtDate } from "@/components/admin/lib";
+import { adminFetch, errorMessage } from "@/components/admin/lib";
+import {
+  KitHeading,
+  Panel,
+  Field,
+  Notice,
+  KitLoading,
+  KitError,
+  SelectField,
+  StatusBadge,
+  Modal,
+} from "./shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { emailContentSchema, type EmailContent } from "@/lib/kits/contracts";
-import { KitHeading, Panel, Field, Notice, KitLoading, KitError, SelectField, StatusBadge, EmptyKit, useKitResource, errorMessage, fromLocalInput, toLocalInput } from "./shared";
-type Campaign = { id: string; name: string; subject: string; preheader: string | null; bodyHtml: string; bodyText: string; content: string; audience: string; status: string; scheduledAt: string | null; campaignId: string | null; _count: { deliveries: number } };
-type Data = { campaigns: Campaign[]; audiences: { interest: string | null; _count: { id: number } }[]; parentCampaigns: { id: string; name: string }[]; stats: { campaignId: string; status: string; _count: { id: number } }[]; emailConfigured: boolean; siteUrl: string };
-const empty: EmailContent & { name: string; audience: string; campaignId: string; scheduledAt: string } = { name: "", subject: "", preheader: "", bodyText: "", ctaLabel: "", ctaUrl: "", accent: "blue", audience: "all", campaignId: "", scheduledAt: "" };
-function previewHtml(f: typeof empty) { const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!)); const color = f.accent === "blue" ? "#0b63ce" : "#f26113"; return `<!doctype html><html><body style="margin:0;background:#f2f4f7;font-family:Arial,sans-serif"><div style="max-width:560px;margin:24px auto;background:white;border-radius:12px;border-top:4px solid ${color};padding:32px"><h2 style="color:#101828">Al Aminn<span style="color:${color}">.</span></h2><p>Hi there,</p>${f.bodyText.split(/\n\s*\n/).map(p => `<p style="font-size:15px;line-height:1.7;color:#344054">${esc(p).replace(/\n/g, "<br>")}</p>`).join("")}${f.ctaLabel && f.ctaUrl.startsWith("https://") ? `<p style="margin:28px 0"><span style="background:${color};color:white;padding:12px 22px;border-radius:8px;display:inline-block">${esc(f.ctaLabel)}</span></p>` : ""}<p style="color:#344054">Best regards,<br>Al Aminn</p><hr style="border:0;border-top:1px solid #eee;margin:24px 0"><p style="font-size:11px;color:#667085">You received this because you confirmed a subscription to Al Aminn. <u>Unsubscribe</u>.</p><p style="font-size:11px;color:#98a2b3">Alaminn.info · Dhaka, Bangladesh</p></div></body></html>`; }
+import { Label } from "@/components/ui/label";
+
+type IntegrationConnection = {
+  id: string;
+  name: string;
+  category: string;
+  mode: string;
+  configured: boolean;
+  enabled: boolean;
+  lastTestOk: boolean | null;
+  lastTestMessage: string | null;
+  values: Record<string, string>;
+};
+
+type EmailProviderRow = {
+  id: string;
+  name: string;
+  configured: boolean;
+  enabled: boolean;
+  lastTestOk: boolean | null;
+  lastTestMessage: string | null;
+};
+
 export default function EmailKit() {
-  const params = useSearchParams(); const { data, loading, error, refresh } = useKitResource<Data>("/api/v1/admin/email-builder"); const [editor, setEditor] = useState(false); const [form, setForm] = useState({ ...empty, campaignId: params.get("campaign") || "" }); const [busy, setBusy] = useState(""); const [saved, setSaved] = useState<Campaign>(); const [mobilePreview, setMobilePreview] = useState(false);
-  async function save() { const parsed = emailContentSchema.safeParse(form); if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; } if (!form.name.trim()) { toast.error("Add an internal campaign name."); return; } setBusy("save"); try { const r = await adminFetch<Campaign>("/api/v1/admin/email-builder", { method: "POST", body: JSON.stringify({ ...form, campaignId: form.campaignId || null, scheduledAt: fromLocalInput(form.scheduledAt) }) }); setSaved(r.data); toast.success("Draft saved. Nothing has been sent."); await refresh(true); } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(""); } }
-  async function action(kind: "test" | "queue") { if (!saved) return; if (kind === "queue" && !confirm(`Queue this email for confirmed subscribers in “${saved.audience}”? Unsubscribed contacts are excluded. The cron must be running for delivery.`)) return; setBusy(kind); try { const r = await adminFetch<{ recipients?: number }>(`/api/v1/admin/email-builder/${saved.id}`, { method: "PATCH", body: JSON.stringify({ action: kind }) }); toast.success(kind === "test" ? "Test sent to your signed-in account email." : `${r.data.recipients} recipients queued.`); await refresh(true); } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(""); } }
-  function open(c: Campaign) { setSaved(c); let content = empty; try { content = { ...empty, ...JSON.parse(c.content) }; } catch { /* server-rendered preview remains available */ } setForm({ ...content, name: c.name, audience: c.audience, campaignId: c.campaignId || "", scheduledAt: toLocalInput(c.scheduledAt) }); setEditor(true); }
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [providers, setProviders] = useState<EmailProviderRow[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ to: "", subject: "", text: "", html: "", contactId: "", preferredProvider: "auto" });
+  const [lastResult, setLastResult] = useState<{
+    ok: boolean;
+    status: string;
+    providerUsed: string;
+    providerName: string;
+    actuallySent: boolean;
+    messageId: string | null;
+    error: string | null;
+    fallbackTrail: Array<{ provider: string; status: string; detail?: string }>;
+  } | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const json = await adminFetch<{ integrations: IntegrationConnection[] }>("/api/v1/admin/integrations");
+      const email = (json.data.integrations || []).filter((i) => i.category === "Messaging & SMS" || i.id.startsWith("email") || i.id === "sparkpost" || i.id === "mailgun" || i.id === "sendgrid" || i.id === "mailjet" || i.id === "sendinblue" || i.id === "sendpulse" || i.id === "pepipost" || i.id === "elasticemail" || i.id === "resend" || i.id === "smtp");
+      setProviders(
+        email.map((i) => ({
+          id: i.id,
+          name: i.name,
+          configured: i.configured,
+          enabled: i.enabled,
+          lastTestOk: i.lastTestOk,
+          lastTestMessage: i.lastTestMessage,
+        }))
+      );
+      setError(null);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const json = await adminFetch<{
+        ok: boolean;
+        status: string;
+        providerUsed: string;
+        providerName: string;
+        actuallySent: boolean;
+        messageId: string | null;
+        error: string | null;
+        consentChecked: boolean;
+        fallbackTrail: Array<{ provider: string; status: string; detail?: string }>;
+      }>("/api/v1/email/send", {
+        method: "POST",
+        body: JSON.stringify({
+          to: form.to || undefined,
+          subject: form.subject,
+          text: form.text,
+          html: form.html || form.text,
+          contactId: form.contactId || undefined,
+          preferredProvider: form.preferredProvider,
+        }),
+      });
+      setLastResult(json.data);
+      setOpen(false);
+      toast.success(json.data.actuallySent ? "Email sent." : "Email queued (dev mode).");
+      setForm({ to: "", subject: "", text: "", html: "", contactId: "", preferredProvider: "auto" });
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const testConnection = async (id: string) => {
+    try {
+      await adminFetch(`/api/v1/admin/integrations/${id}/test`, { method: "POST" });
+      toast.success("Connection test started — check the Integrations page for the result.");
+      load();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  };
+
+  const anyConfigured = providers.some((p) => p.configured);
+
   if (loading) return <KitLoading />;
-  const audienceCount = form.audience === "all" ? (data?.audiences || []).reduce((a, x) => a + x._count.id, 0) : data?.audiences.find(x => x.interest === form.audience)?._count.id || 0;
-  return <div><KitHeading title="Email Campaign Builder" description="Write a message worth opening. Preview every detail, send yourself a test, then reach confirmed subscribers." badge="Permission-based email"><Button onClick={() => { setEditor(!editor); if (!editor) { setSaved(undefined); setForm(empty); } }}>{editor ? <ArrowLeft className="size-4" /> : <Plus className="size-4" />}{editor ? "All campaigns" : "New email"}</Button></KitHeading>{error && <KitError message={error} retry={() => refresh()} />}{!data?.emailConfigured && <div className="mb-5"><Notice tone="warning">Email transport is not configured. You can write and preview drafts, but tests and campaign sending stay disabled until SMTP or Resend is configured on the server.</Notice></div>}{editor ? <><div className="grid xl:grid-cols-2 gap-5"><Panel title="Message composer"><div className="p-5 space-y-4"><Field label="Internal campaign name"><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="November executive insights" disabled={!!saved} /></Field><Field label="Subject line" hint={`${form.subject.length}/180 characters`}><Input value={form.subject} maxLength={180} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="A clearer way to run your operations" disabled={!!saved} /></Field><Field label="Preview text"><Input value={form.preheader} maxLength={200} onChange={e => setForm({ ...form, preheader: e.target.value })} placeholder="The short preview shown in the inbox" disabled={!!saved} /></Field><Field label="Message body" hint="Plain text with paragraph breaks. Your brand layout and unsubscribe footer are added automatically."><Textarea rows={9} value={form.bodyText} maxLength={20000} onChange={e => setForm({ ...form, bodyText: e.target.value })} placeholder="Share something useful with your audience…" disabled={!!saved} /></Field><div className="grid grid-cols-2 gap-3"><Field label="Button label (optional)"><Input value={form.ctaLabel} onChange={e => setForm({ ...form, ctaLabel: e.target.value })} placeholder="Explore the guide" disabled={!!saved} /></Field><Field label="Button URL (HTTPS)"><Input type="url" value={form.ctaUrl} onChange={e => setForm({ ...form, ctaUrl: e.target.value })} placeholder="https://alaminn.info/insights" disabled={!!saved} /></Field></div><Field label="Accent color"><SelectField value={form.accent} onChange={value => setForm({ ...form, accent: value as "blue" | "orange" })} options={[{ value: "blue", label: "Executive blue" }, { value: "orange", label: "Momentum orange" }]} disabled={!!saved} /></Field></div></Panel><div className="space-y-5"><Panel title="Inbox preview" actions={<SelectField className="w-32" value={mobilePreview ? "mobile" : "desktop"} onChange={v => setMobilePreview(v === "mobile")} options={[{ value: "desktop", label: "Desktop" }, { value: "mobile", label: "Mobile" }]} />}><div className="bg-muted p-4 min-h-[500px] flex justify-center"><iframe title="Email preview" sandbox="" srcDoc={saved?.bodyHtml || previewHtml(form)} className={`bg-white border rounded-lg h-[560px] w-full transition-all ${mobilePreview ? "max-w-[375px]" : ""}`} /></div></Panel><Panel title="Audience & delivery"><div className="p-5 space-y-4"><Field label="Confirmed subscriber audience"><SelectField value={form.audience} onChange={value => setForm({ ...form, audience: value })} disabled={!!saved} options={[{ value: "all", label: "All confirmed subscribers" }, ...(data?.audiences || []).filter(a => a.interest).map(a => ({ value: a.interest!, label: `${a.interest} (${a._count.id})` }))]} /></Field><p className="text-xs text-muted-foreground flex items-center gap-2"><Users className="size-4" />{audienceCount} currently eligible subscribers</p><Field label="Link to marketing campaign"><SelectField value={form.campaignId} onChange={value => setForm({ ...form, campaignId: value })} disabled={!!saved} options={[{ value: "", label: "Standalone email" }, ...(data?.parentCampaigns || []).map(c => ({ value: c.id, label: c.name }))]} /></Field><Field label="Schedule (optional, your local time)"><Input type="datetime-local" value={form.scheduledAt} disabled={!!saved} onChange={e => setForm({ ...form, scheduledAt: e.target.value })} /></Field>{!saved ? <Button className="w-full" onClick={save} disabled={!!busy || !form.name || !form.subject || !form.bodyText}><Save className="size-4" />{busy === "save" ? "Saving…" : "Save draft"}</Button> : <><Notice tone="success">Draft saved. The message is locked for delivery. Create a new email to change its content.</Notice><div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => action("test")} disabled={!data?.emailConfigured || !!busy}><FlaskConical className="size-4" />Test to my email</Button><Button className="flex-1" onClick={() => action("queue")} disabled={!data?.emailConfigured || !!busy || ["queued", "sending", "sent"].includes(saved.status)}><Send className="size-4" />{busy === "queue" ? "Queueing…" : "Queue campaign"}</Button></div></>}</div></Panel></div></div><div className="mt-5"><Notice>Campaigns are delivered by the protected email cron, in bounded batches. Consent is checked again at send time. Every campaign includes an unsubscribe link. Test messages go only to your signed-in account’s email.</Notice></div></> : <Panel title="Email campaigns" description="Saved drafts and delivery status"><div className="divide-y">{data?.campaigns.length ? data.campaigns.map(c => { const stats = data.stats.filter(s => s.campaignId === c.id); return <div key={c.id} className="p-5 flex flex-wrap gap-4 justify-between items-center"><div><div className="flex gap-2 items-center"><h3 className="text-sm font-semibold">{c.name}</h3><StatusBadge status={c.status} /></div><p className="text-xs text-muted-foreground mt-1">{c.subject}</p><p className="text-[11px] text-muted-foreground mt-2">{c.audience} · {stats.filter(s => s.status === "sent").reduce((a, s) => a + s._count.id, 0)} sent · {stats.filter(s => s.status === "failed").reduce((a, s) => a + s._count.id, 0)} failed · {c.scheduledAt ? fmtDate(c.scheduledAt) : "Send when queued"}</p></div><Button variant="outline" size="sm" onClick={() => open(c)}><Eye className="size-3.5" />{c.status === "draft" ? "Review & send" : "View campaign"}</Button></div>; }) : <EmptyKit icon={Mails} title="Your first email starts with an idea" description="Create a draft, preview the message and test it before sending to confirmed subscribers."><Button onClick={() => setEditor(true)}><Plus className="size-4" />Compose email</Button></EmptyKit>}</div></Panel>}</div>;
+  if (error) return <KitError message={error} retry={load} />;
+
+  return (
+    <div className="space-y-6">
+      <KitHeading
+        title="Email Failover Gateway"
+        description="Send consent-based email through a free provider loop: SparkPost → Mailgun → SendGrid → Mailjet → SendinBlue → SendPulse → Pepipost → ElasticEmail → Resend → SMTP → dev mode. If one provider hits its free limit, the next one takes over automatically."
+        badge="Email"
+      >
+        {!anyConfigured && (
+          <Button size="sm" onClick={() => setOpen(true)}>
+            <Mail className="mr-2 size-3.5" />Configure a provider
+          </Button>
+        )}
+      </KitHeading>
+
+      <Panel title="Email providers" description="Connection state is managed on the Integrations page. Providers are tried in failover order; a rate-limited or failed provider automatically falls over to the next.">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left pb-2 text-muted-foreground">Provider</th>
+                <th className="text-left pb-2 text-muted-foreground">Configured</th>
+                <th className="text-left pb-2 text-muted-foreground">Last test</th>
+                <th className="text-right pb-2 text-muted-foreground">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {providers.length ? (
+                providers.map((p) => (
+                  <tr key={p.id} className="group hover:bg-muted/50">
+                    <td className="py-3">
+                      <div className="flex items-center gap-2">
+                        <Mail className="size-3.5 text-muted-foreground" />
+                        <span className="font-medium">{p.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3">
+                      <StatusBadge status={p.configured ? "configured" : "not-configured"} />
+                    </td>
+                    <td className="py-3 text-muted-foreground text-xs">
+                      {p.lastTestOk === null ? "Not tested" : p.lastTestOk ? "Passed" : "Failed"}
+                      {p.lastTestMessage ? ` — ${p.lastTestMessage}` : ""}
+                    </td>
+                    <td className="py-3 text-right">
+                      {!p.configured && (
+                        <Button size="sm" variant="outline" onClick={() => testConnection(p.id)}>
+                          Test
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan={4} className="py-6 text-center text-muted-foreground text-xs">No email providers registered.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {!anyConfigured && (
+          <Notice tone="warning">
+            <ShieldAlert className="mr-2 size-3.5 shrink-0" />
+            No email provider is configured yet. Add a free provider key (SparkPost, Mailgun, SendGrid, Mailjet,
+            SendinBlue, SendPulse, Pepipost, ElasticEmail, Resend, or SMTP) on the
+            <a href="/admin/integrations" className="underline">Integrations</a> page, or enable dev mode to test without sending.
+          </Notice>
+        )}
+      </Panel>
+
+      <Panel title="Send Email" description="Only send to recipients who have given explicit marketing consent. Dev mode logs instead of delivering when no real provider is configured.">
+        <form onSubmit={send} className="space-y-4">
+          <Field label="To (email address)">
+            <Input
+              required
+              placeholder="user@example.com"
+              value={form.to}
+              onChange={(e) => setForm({ ...form, to: e.target.value })}
+            />
+          </Field>
+          <Field label="Subject">
+            <Input
+              required
+              placeholder="Your subject line"
+              value={form.subject}
+              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+            />
+          </Field>
+          <Field label="Message (plain text)">
+            <Textarea
+              required
+              rows={3}
+              value={form.text}
+              onChange={(e) => setForm({ ...form, text: e.target.value })}
+              placeholder="Your message here…"
+            />
+          </Field>
+          <Field label="HTML body (optional)">
+            <Textarea
+              rows={3}
+              value={form.html}
+              onChange={(e) => setForm({ ...form, html: e.target.value })}
+              placeholder="Falls back to plain text if blank"
+            />
+          </Field>
+          <Field label="Contact ID (optional)">
+            <Input
+              placeholder="Enforce marketing consent + active status"
+              value={form.contactId}
+              onChange={(e) => setForm({ ...form, contactId: e.target.value })}
+            />
+          </Field>
+          <Field label="Provider">
+            <SelectField
+              value={form.preferredProvider}
+              onChange={(v) => setForm({ ...form, preferredProvider: v })}
+              options={[
+                { value: "auto", label: "Auto failover (SparkPost → Mailgun → SendGrid → Mailjet → SendinBlue → SendPulse → Pepipost → ElasticEmail → Resend → SMTP → dev)" },
+                { value: "sparkpost", label: "SparkPost only" },
+                { value: "mailgun", label: "Mailgun only" },
+                { value: "sendgrid", label: "SendGrid only" },
+                { value: "mailjet", label: "Mailjet only" },
+                { value: "sendinblue", label: "SendinBlue only" },
+                { value: "sendpulse", label: "SendPulse only" },
+                { value: "pepipost", label: "Pepipost only" },
+                { value: "elasticemail", label: "Elastic Email only" },
+                { value: "resend", label: "Resend only" },
+                { value: "smtp", label: "SMTP only" },
+              ]}
+            />
+          </Field>
+          <Button className="w-full" disabled={busy}>
+            <Send className={`mr-2 size-3.5 ${busy ? "animate-spin" : ""}`} />
+            {busy ? "Sending…" : "Send Email"}
+          </Button>
+        </form>
+      </Panel>
+
+      {lastResult && (
+        <Panel title="Last send result" className="border-l-2 border-emerald-500">
+          <div className="grid sm:grid-cols-4 gap-3 text-xs mb-3">
+            <div>
+              <div className="text-muted-foreground">Status</div>
+              <StatusBadge status={lastResult.status} />
+            </div>
+            <div>
+              <div className="text-muted-foreground">Provider</div>
+              <div className="font-medium">{lastResult.providerName}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Actually sent</div>
+              <div className="font-medium">{lastResult.actuallySent ? "Yes" : "No (dev mode)"}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Message ID</div>
+              <div className="font-medium font-mono text-[10px]">{lastResult.messageId || "—"}</div>
+            </div>
+          </div>
+          {lastResult.error && (
+            <Notice tone="error"><AlertCircle className="mr-2 size-3.5 shrink-0" />{lastResult.error}</Notice>
+          )}
+          {lastResult.fallbackTrail && lastResult.fallbackTrail.length > 1 && (
+            <div className="mt-3 border-t pt-3">
+              <div className="text-xs text-muted-foreground mb-1">Failover trail</div>
+              <div className="flex items-center gap-1 text-xs">
+                {lastResult.fallbackTrail.map((step, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    {i > 0 && <span className="text-muted-foreground">→</span>}
+                    <span className={`font-medium ${step.status === "ok" ? "text-emerald-700 dark:text-emerald-300" : step.status === "cooldown" || step.status === "skipped" ? "text-amber-700 dark:text-amber-300" : "text-red-700 dark:text-red-300"}`}>
+                      {step.provider}
+                    </span>
+                    <span className="text-muted-foreground text-[10px]">({step.status})</span>
+                    {step.detail && <span className="text-muted-foreground text-[10px] ml-1">{step.detail}</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </Panel>
+      )}
+    </div>
+  );
 }

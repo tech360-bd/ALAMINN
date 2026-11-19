@@ -105,6 +105,8 @@ export type Permission =
   | "newsletter.view"
   | "newsletter.export"
   | "newsletter.send"
+  // Email (free provider failover loop)
+  | "email.send"
   // Partnerships / referrals
   | "partnerships.view"
   | "partnerships.update"
@@ -225,6 +227,8 @@ export type Permission =
   | "whatsapp.view"
   | "whatsapp.send"
   | "whatsapp.manage"
+  // ─── SMS (free provider failover loop)
+  | "sms.send"
   // ─── Social Command Center ────────────────────────────────────────
   | "social.view"
   | "social.accounts.manage"
@@ -257,6 +261,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "articles.view",
     "endorsements.view",
     "newsletter.view",
+    "sms.send",
   ],
   CRM_MANAGER: [
     "dashboard.view",
@@ -278,6 +283,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "newsletter.export",
     "whatsapp.view",
     "whatsapp.send",
+    "sms.send",
     "social.view", "social.inbox.reply",
   ],
   PARTNERSHIP_MANAGER: [
@@ -314,6 +320,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "endorsements.update",
     "newsletter.view",
     "newsletter.send",
+    "email.send",
     "ai_tasks.view", "ai_tasks.create", "ai_tasks.update",
   ],
   MARKETING_MANAGER: [
@@ -333,6 +340,8 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "newsletter.view",
     "newsletter.export",
     "newsletter.send",
+    "sms.send",
+    "email.send",
     "ai_tasks.view", "ai_tasks.create", "ai_tasks.update",
     "social.automation.manage",
     "ai_tasks.view", "ai_tasks.create", "ai_tasks.update",
@@ -364,6 +373,7 @@ const MATRIX: Partial<Record<UserRole, Permission[]>> = {
     "whatsapp.view",
     "whatsapp.send",
     "whatsapp.manage",
+    "sms.send",
     "social.view", "social.inbox.reply", "social.approvals.decide",
   ],
   SECURITY_AUDITOR: [
