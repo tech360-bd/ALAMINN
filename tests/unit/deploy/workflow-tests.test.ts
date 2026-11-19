@@ -145,7 +145,7 @@ describe("deploy.yml — production CI/CD spec compliance", () => {
     });
     it("requires backup, migration deployment, status and readiness in that order", () => {
       const workflow = stripComments(DEPLOY_YML);
-      const backup = workflow.indexOf('["release-backup.mjs", output]');
+      const backup = workflow.indexOf('["release-backup.mjs", output, "--approved"]');
       const migrations = workflow.indexOf('["deploy", "status"]');
       const activate = workflow.indexOf('Atomic activation');
       const ready = workflow.indexOf('/api/health/ready');

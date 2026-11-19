@@ -7,7 +7,7 @@ loadEnvConfig();
 
 export const config = {
   port: Number(process.env.UMC_PORT ?? 3010),
-  databaseUrl: process.env.DATABASE_URL ?? 'file:./db/custom.db',
+  databaseUrl: process.env.DATABASE_URL,
 
   // Adapter selection (Phase 1 of the MirrorFly merge plan):
   // defaults are the open-source-first built-ins. Paid third-party adapters

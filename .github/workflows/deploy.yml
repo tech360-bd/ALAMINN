@@ -49,6 +49,14 @@ on:
         description: "Commit SHA to deploy (defaults to branch HEAD — must have green CI)"
         required: false
         default: ""
+      approve_database_backup:
+        description: "Explicitly authorize a production database backup"
+        type: boolean
+        default: false
+      approve_database_migrations:
+        description: "Explicitly authorize reviewed production migrations"
+        type: boolean
+        default: false
       preflight_only:
         description: "Run preflight checks only (no deploy). Safe read-only mode."
         type: boolean
@@ -87,6 +95,13 @@ jobs:
             exit 1
           fi
           echo "deploy_enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Require separate backup and migration approvals
+        if: ${{ !inputs.preflight_only }}
+        env:
+          APPROVE_BACKUP: ${{ inputs.approve_database_backup }}
+          APPROVE_MIGRATION: ${{ inputs.approve_database_migrations }}
+        run: test "$APPROVE_BACKUP" = true && test "$APPROVE_MIGRATION" = true
 
       - name: Pick commit
         id: pick
@@ -345,6 +360,7 @@ jobs:
 
       - name: Prepare and generate the release database provider
         env:
+          NODE_ENV: development # Database exists only inside this build runner
           PROVIDER: ${{ vars.DEPLOY_DATABASE_PROVIDER || 'mysql' }}
         run: |
           case "$PROVIDER" in
@@ -373,7 +389,7 @@ jobs:
           mkdir -p .next/standalone/prisma
           cp prisma/schema*.prisma .next/standalone/prisma/
           cp -r prisma/migrations .next/standalone/prisma/
-          cp prisma.release.config.mjs scripts/release-backup.mjs .next/standalone/
+          cp prisma.release.config.mjs scripts/release-backup.mjs scripts/database-catalog.mjs .next/standalone/
 
       - name: Pack release tarball
         id: pack
@@ -531,7 +547,7 @@ jobs:
             mkdir -p "\$RELEASE_DIR"
             tar -xzf "\$TARBALL" -C "\$RELEASE_DIR"
             rm -f "\$TARBALL"
-            for f in server.js .next/static public prisma/schema.prisma RELEASE-INFO; do
+            for f in server.js .next/static public prisma/schema.prisma RELEASE-INFO prisma.release.config.mjs release-backup.mjs database-catalog.mjs; do
               if [ ! -e "\$RELEASE_DIR/\$f" ]; then
                 echo "::error::Release missing required file: \$f"
                 exit 1
@@ -555,7 +571,7 @@ jobs:
                 const result = spawnSync(command, args, { cwd: release, env, stdio: "inherit" });
                 if (result.status !== 0) process.exit(result.status ?? 1);
               };
-              run(process.execPath, ["release-backup.mjs", output]);
+              run(process.execPath, ["release-backup.mjs", output, "--approved"]);
               for (const action of ["deploy", "status"]) run("npx", ["--yes", "--package=prisma@7.10.1", "--", "prisma", "migrate", action, "--config", "prisma.release.config.mjs"]);
             ' "\$RELEASE_DIR" "\$BACKUP_DIR/pre-deploy-\$RELEASE_ID" "$RELEASE_PROVIDER"
             echo "Pre-activation checks complete for release \$RELEASE_ID."
@@ -595,11 +611,11 @@ jobs:
                 if [ -d "\$PREV" ]; then
                   ln -sfn "\$PREV" "\$CURRENT_LINK.new"
                   mv -Tf "\$CURRENT_LINK.new" "\$CURRENT_LINK"
-                  if ! pm2 reload alaminn || ! curl --retry 10 --retry-delay 1 --retry-all-errors -fsS http://127.0.0.1:3056/api/health >/dev/null; then
-                    echo "::error::Rollback reload or liveness failed. MANUAL INTERVENTION REQUIRED."
+                  if ! pm2 reload alaminn || ! curl --retry 10 --retry-delay 1 --retry-all-errors -fsS http://127.0.0.1:3056/api/health/ready >/dev/null; then
+                    echo "::error::Rollback reload or database readiness failed. MANUAL INTERVENTION REQUIRED."
                     exit 1
                   fi
-                  echo "Rolled back to \$PREV and confirmed liveness"
+                  echo "Rolled back to \$PREV and confirmed database readiness"
                 else
                   echo "::error::Last-known-good release \$PREV no longer exists. MANUAL INTERVENTION REQUIRED."
                 fi

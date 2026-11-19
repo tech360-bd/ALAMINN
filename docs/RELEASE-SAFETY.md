@@ -43,3 +43,5 @@ matching application handshake. Do not aim the regression tools at production.
 not reset existing records or replace human reviews. Discovered URLs require
 operator approval: after confirming the source and permission, run
 `node --import tsx scripts/approve-uci-source.ts SOURCE_KEY HTTPS_URL 'Permission evidence'`.
+
+For environment inventory, approved database backup/recovery, migration drift and the Phase 5 evidence matrix, see [Phase 5 database runbook](PHASE-5-DATABASE.md). Historical host scripts in `docs/deliverables/` are not approved operational paths.

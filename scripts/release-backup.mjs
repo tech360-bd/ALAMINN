@@ -1,33 +1,21 @@
 import { backup, DatabaseSync } from 'node:sqlite';
 import { createWriteStream, createReadStream } from 'node:fs';
 import { chmod, link, mkdtemp, rm, stat } from 'node:fs/promises';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { createGzip, createGunzip } from 'node:zlib';
 import { once } from 'node:events';
+import { auditMaria, auditSqlite, mariadbOptions, mariadbQuery } from './database-catalog.mjs';
 
-const [output] = process.argv.slice(2);
+const [output, approval, ...extra] = process.argv.slice(2);
 const source = process.env.DATABASE_URL ?? '';
-if (!output || !source) throw new Error('An explicit database and output path are required');
+if (extra.length || !output || !source || ((process.env.NODE_ENV === 'production' || source.startsWith('mysql:')) && approval !== '--approved')) {
+  throw new Error('Specify the database and output path; production or network backups require explicit authorization');
+}
 const temp = await mkdtemp(join(dirname(output), '.predeploy-backup-'));
 const pending = join(temp, 'pending');
 
-function sqlOptions(value) {
-  const u = new URL(value);
-  const database = decodeURIComponent(u.pathname.slice(1));
-  if (u.protocol !== 'mysql:' || !/^[a-zA-Z0-9_]+$/.test(database) || u.search || u.hash) throw new Error('Unexpected MariaDB URL configuration');
-  const host = u.hostname.replace(/^\[|\]$/g, '');
-  return { database, username: decodeURIComponent(u.username),
-    args: ['--protocol=tcp', `--host=${host}`, `--port=${u.port || '3306'}`, `--user=${decodeURIComponent(u.username)}`],
-    env: { ...process.env, MYSQL_PWD: decodeURIComponent(u.password) },
-  };
-}
-function run(program, config, args) {
-  const result = spawnSync(program, [...config.args, ...args], { env: config.env, encoding: 'utf8', timeout: 60_000 });
-  if (result.status !== 0) throw new Error(`${program} verification failed`);
-  return result.stdout.trim();
-}
 async function transfer(program, config, args, stream, dump) {
   const child = spawn(program, [...config.args, ...args], { env: config.env, stdio: [dump ? 'ignore' : 'pipe', dump ? 'pipe' : 'ignore', 'ignore'] });
   const timeout = setTimeout(() => child.kill('SIGKILL'), 10 * 60_000);
@@ -53,25 +41,30 @@ try {
     if (!(await stat(path)).isFile()) throw new Error('SQLite source must be an existing file');
     const live = new DatabaseSync(path, { readOnly: true });
     try { await backup(live, pending); } finally { live.close(); }
-    const check = new DatabaseSync(pending, { readOnly: true });
-    try {
-      if (check.prepare('PRAGMA integrity_check').get().integrity_check !== 'ok' ||
-          check.prepare('PRAGMA foreign_key_check').get() ||
-          !check.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='User'").get()) {
-        throw new Error('SQLite backup integrity or application schema check failed');
-      }
-    } finally { check.close(); }
+    const check = auditSqlite(pending);
+    if (!check.integrityOk || check.invalidFKs || !check.tables.includes('User')) throw new Error('SQLite backup integrity or schema check failed');
     await publish('sqlite');
   } else {
-    const live = sqlOptions(source);
-    const scratch = sqlOptions(process.env.BACKUP_VERIFY_DATABASE_URL ?? '');
+    const live = mariadbOptions(source);
+    const scratch = mariadbOptions(process.env.BACKUP_VERIFY_DATABASE_URL ?? '');
     // A dedicated, empty database and a distinct restricted account are required for restore testing.
     // The database is never cleared by this script. Operators provision a fresh scratch target for each run.
     if (!scratch.database.startsWith('alaminn_backup_verify_') || scratch.database === live.database || !scratch.username || scratch.username === live.username) throw new Error('A separate scratch restore database is required');
-    if (run('mariadb', scratch, ['--batch', '--skip-column-names', scratch.database, '-e', 'SHOW TABLES'])) throw new Error('Scratch restore database must be empty');
+    const grants = mariadbQuery(scratch, 'SHOW GRANTS;').flat();
+    const scope = ` ON \`${scratch.database}\`.* TO `;
+    if (!grants.some((grant) => grant.includes(scope)) || grants.some((grant) =>
+      !grant.startsWith('GRANT USAGE ON *.* TO ') && (!grant.includes(scope) || grant.includes('WITH GRANT OPTION')))) {
+      throw new Error('Scratch account must not have privileges outside its verification database');
+    }
+    if (mariadbQuery(scratch, 'SHOW FULL TABLES;').length) throw new Error('Scratch restore database must be empty');
+    const expected = auditMaria(live, {deep: false});
     await transfer('mariadb-dump', live, ['--single-transaction', '--quick', '--skip-lock-tables', '--no-tablespaces', '--hex-blob', live.database], createWriteStream(pending, { mode: 0o600 }), true);
-    await transfer('mariadb', scratch, [scratch.database], createReadStream(pending), false);
-    run('mariadb', scratch, [scratch.database, '-e', 'SELECT id FROM `User` LIMIT 1']);
+    await transfer('mariadb', scratch, [], createReadStream(pending), false);
+    const restored = auditMaria(scratch);
+    if (!restored.integrityOk || restored.invalidFKs || !restored.tables.includes('User') || restored.schemaDigest !== expected.schemaDigest) {
+      throw new Error('MariaDB scratch integrity or catalog mismatch');
+    }
+    console.log(`Verified restored MariaDB catalog, integrity and references for ${restored.tables.length} tables.`);
     await publish('sql.gz');
   }
   console.log('Database backup created and independently reopened or restored.');

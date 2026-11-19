@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 COPY package.json prisma.config.ts ./
 COPY prisma ./prisma
-COPY src/lib/load-env.ts ./src/lib/
+COPY src/lib/load-env.ts src/lib/database-url.ts ./src/lib/
 RUN mkdir -p db && chown node:node db
 USER node
 CMD ["npm", "run", "db:migrate:deploy"]

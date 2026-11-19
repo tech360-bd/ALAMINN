@@ -60,7 +60,13 @@ jobs:
           npm run db:validate -- mysql
           npm run db:migrate:deploy
           npm run db:migrate:status
+          drift=0
+          npx --no-install prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code || drift=$?
+          case "$drift" in 0) ;; 2) echo '::warning::SQLite Prisma catalog drift detected; see Phase 5 evidence.' ;; *) exit "$drift" ;; esac
           python3 tests/migrations/sqlite_replay.py
+          npm run db:verify
+          node tests/migrations/client-parity.mjs sqlite
+          node tests/migrations/sqlite-recovery.mjs
           npm run db:seed
           npm run staff:bootstrap
 
@@ -178,7 +184,13 @@ jobs:
           rm -r "$HISTORY"
       - run: npm run db:migrate:deploy -- --config prisma.config.mysql.ts
       - run: npm run db:migrate:status -- --config prisma.config.mysql.ts
+      - name: Record MariaDB schema drift
+        run: |
+          drift=0
+          npx --no-install prisma migrate diff --config prisma.config.mysql.ts --from-config-datasource --to-schema prisma/schema.mysql.prisma --exit-code || drift=$?
+          case "$drift" in 0) ;; 2) echo '::warning::MariaDB Prisma catalog drift detected; review before any production migration.' ;; *) exit "$drift" ;; esac
       - run: npm run db:generate -- mysql
+      - run: node tests/migrations/client-parity.mjs mysql
       - run: npx --no-install tsx tests/migrations/mariadb-persistence.ts
       - name: Run migration history again from an empty database
         run: |
@@ -210,8 +222,19 @@ jobs:
           done
           export PATH="$TMP:$PATH"
           export BACKUP_VERIFY_DATABASE_URL="mysql://alaminn_verify:$SCRATCH_PASS@127.0.0.1:3306/alaminn_backup_verify_ci"
-          node scripts/release-backup.mjs "$TMP/verified"
+          npm run db:verify -- --approved-read-only
+          node scripts/release-backup.mjs "$TMP/verified" --approved
+          DATABASE_URL="$BACKUP_VERIFY_DATABASE_URL" npm run db:verify -- --approved-read-only
           test -s "$TMP/verified.sql.gz"
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {auditMaria,mariadbOptions} from './scripts/database-catalog.mjs';
+          const source = auditMaria(mariadbOptions(process.env.DATABASE_URL));
+          const restore = auditMaria(mariadbOptions(process.env.BACKUP_VERIFY_DATABASE_URL));
+          assert.deepEqual(restore.counts,source.counts);
+          assert.equal(restore.schemaDigest,source.schemaDigest);
+          console.log(`MariaDB restored row counts match all ${source.tables.length} fixture tables.`);
+          JS
           docker exec "$MARIADB_CONTAINER" mariadb -uroot -pci-mariadb-disposable -Nse \
             "SELECT COUNT(*) FROM alaminn_backup_verify_ci.StaffAccount WHERE id='ci-upgrade-keeper'" | grep -Fx 1
 

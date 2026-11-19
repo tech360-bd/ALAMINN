@@ -84,8 +84,8 @@ describe("mysql schema compatibility", () => {
   it("reads DATABASE_URL from the environment in both dialects", () => {
     const config = readSchema(resolve(PRISMA_DIR, "../prisma.config.ts"));
     const mysqlConfig = readSchema(resolve(PRISMA_DIR, "../prisma.config.mysql.ts"));
-    expect(config).toMatch(/process\.env\.DATABASE_URL/);
-    expect(mysqlConfig).toMatch(/env\("DATABASE_URL"\)/);
+    expect(config).toContain('migrationDatabaseUrl("sqlite")');
+    expect(mysqlConfig).toContain('migrationDatabaseUrl("mysql")');
     expect(sqlite).not.toMatch(/^\s*url\s*=\s*env\(/m);
     expect(mysql).not.toMatch(/^\s*url\s*=\s*env\(/m);
   });

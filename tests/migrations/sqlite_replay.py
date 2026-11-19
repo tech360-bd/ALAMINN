@@ -41,9 +41,12 @@ with tempfile.TemporaryDirectory(prefix='alaminn-migration-test-') as folder:
         db.execute('PRAGMA foreign_keys=ON')
         migrate(db, MIGRATIONS[:cutoff])
         db.execute('INSERT INTO User (id,email,name,updatedAt) VALUES (?,?,?,CURRENT_TIMESTAMP)', ('upgrade-check', 'upgrade@example.invalid', 'Upgrade check'))
-    with sqlite3.connect(file) as db:
+    restored = Path(folder) / 'restored.sqlite'
+    with sqlite3.connect(f'file:{file}?mode=ro', uri=True) as before, sqlite3.connect(restored) as copy:
+        before.backup(copy)
+    with sqlite3.connect(restored) as db:
         db.execute('PRAGMA foreign_keys=ON')
         migrate(db, MIGRATIONS[cutoff:])
         check(db)
         assert db.execute('SELECT email FROM User WHERE id=?', ('upgrade-check',)).fetchone() == ('upgrade@example.invalid',)
-print('SQLite fresh and upgrade migration checks passed')
+print('SQLite fresh and restored-copy upgrade migration checks passed')
