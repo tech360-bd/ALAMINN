@@ -18,8 +18,10 @@ python3 tests/migrations/sqlite_replay.py
 
 `test:disposable` creates a new SQLite database, starts Next.js on port 3000,
 and removes the database after testing. Port 25253 is used for the SMTP receiver.
-The real messaging worker uses port 3010 for its gateway test. Leave all three ports free. The runner requires a matching instance handshake before
-allowing test writes. In CI, native Prisma SQLite and MariaDB migrations and a
+The real messaging worker uses port 3010 for its gateway test. Leave all three ports free. The runner, every API test file, and the security suite require the local
+marker and a matching per-run instance challenge before making test requests.
+Pointing tests at an unmarked or unreachable server fails the suite; it does not
+silently pass. `TEST_BASE_URL` is used consistently by all API test files. In CI, native Prisma SQLite and MariaDB migrations and a
 real container startup are separate required checks. `npm run test` runs the
 whole Vitest suite and requires the provisioned API fixture; it does not skip
 an unavailable application.

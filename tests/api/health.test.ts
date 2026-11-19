@@ -12,27 +12,11 @@
  *   - GET /api/health is fast (< 2s — fails otherwise to catch a hung server)
  *   - GET /api/health/deep does not leak private counts to anonymous callers
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
+import { apiBase as BASE, requireDisposableApi } from '../fixtures/api-target';
 
-const BASE = "http://localhost:3000";
+requireDisposableApi();
 
-beforeAll(async () => {
-  // Fail loudly if the dev server isn't running. Throwing in `beforeAll`
-  // marks every test in this file as failed (instead of silently skipping)
-  // so CI catches a missing dev server.
-  try {
-    const res = await fetch(`${BASE}/api/health`, {
-      signal: AbortSignal.timeout(3000),
-    });
-    if (!res.ok) {
-      throw new Error(`health endpoint returned HTTP ${res.status}`);
-    }
-  } catch (e) {
-    throw new Error(
-      `Dev server not reachable on :3000 — start it with 'bun run dev' before running integration tests (${(e as Error).message})`,
-    );
-  }
-});
 
 describe("GET /api/health — liveness", () => {
   it("returns 200 with success:true and data.status === 'ok'", async () => {

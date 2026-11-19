@@ -17,6 +17,7 @@ jobs:
     timeout-minutes: 30
     env:
       NODE_ENV: development
+      TEST_BASE_URL: http://localhost:3000
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXTAUTH_URL: http://localhost:3000
       ADMIN_BOOTSTRAP_EMAIL: ci-admin@alaminn.info
@@ -24,7 +25,6 @@ jobs:
       EMAIL_FROM: noreply@localhost
       EMAIL_REPLY_TO: hello@localhost
       LOG_LEVEL: warn
-      RUN_STAFF_LIFECYCLE: '1'
       STAFF_BOOTSTRAP_EMAIL: ci-staff@example.invalid
       STAFF_BOOTSTRAP_NAME: CI Staff Administrator
       SMTP_HOST: 127.0.0.1
@@ -81,7 +81,8 @@ jobs:
           node node_modules/next/dist/bin/next dev -p 3000 --hostname 0.0.0.0 > /tmp/dev-server.log 2>&1 &
           echo "$!" > /tmp/alaminn-next.pid
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:3000/api/health/ready > /dev/null 2>&1; then
+            if ! kill -0 "$(cat /tmp/alaminn-next.pid)" 2>/dev/null; then break; fi
+            if node --input-type=module -e 'import {verifyDisposableTarget} from "./tests/fixtures/disposable-target.mjs"; await verifyDisposableTarget(process.env.TEST_BASE_URL)' > /dev/null 2>&1; then
               echo "Dev server ready (attempt $i)"; exit 0
             fi
             sleep 1
@@ -95,16 +96,6 @@ jobs:
         env:
           SECURITY_TEST_BASE: http://localhost:3000
         run: npm run security:test
-
-      - name: Upload diagnostics on failure
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ci-diagnostics
-          path: |
-            /tmp/alaminn-security-*/report.md
-            /tmp/dev-server.log
-          if-no-files-found: ignore
 
       - name: Stop dev server
         if: always()
@@ -123,24 +114,45 @@ jobs:
         run: |
           PORT=3100 HOSTNAME=0.0.0.0 NODE_ENV=production node .next/standalone/server.js > /tmp/standalone.log 2>&1 &
           SRV=$!
+          trap 'kill "$SRV" 2>/dev/null || true' EXIT
+          READY=0
           for i in $(seq 1 30); do
-            curl -sf http://localhost:3100/api/health > /dev/null 2>&1 && break
+            if ! kill -0 "$SRV" 2>/dev/null; then break; fi
+            if curl -fsS --max-time 2 http://127.0.0.1:3100/api/health/ready >/dev/null 2>&1; then
+              READY=1
+              break
+            fi
             sleep 1
           done
-          echo "--- route checks ---"
+          if [ "$READY" != 1 ]; then
+            echo '::error::Standalone application never became ready.'
+            exit 1
+          fi
           for p in / /api/health/ready /higher-study /english-learning /work-with-me; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:3100$p")
+            code=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$p")
             echo "$p -> $code"
-            [ "$code" = "200" ] || { echo "FAILED on $p"; kill $SRV; exit 1; }
+            [ "$code" = "200" ] || { echo "::error::Unexpected status for $p"; exit 1; }
           done
-          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3100/api/v1/admin/dashboard)
-          echo "/api/v1/admin/dashboard (anonymous) -> $code"
-          [ "$code" = "401" ] || { echo "Admin API must reject anonymous access with 401"; kill $SRV; exit 1; }
-          node -e '
-            fetch("http://localhost:3100/api/health/ready", { method: "POST", headers: { authorization: "Bearer " + process.env.CRON_SECRET } })
-              .then((response) => { if (!response.ok) throw new Error(`Write probe returned HTTP ${response.status}`); });'
-          kill $SRV
+          code=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/api/v1/admin/dashboard)
+          [ "$code" = "401" ] || { echo "::error::Anonymous admin route returned $code instead of 401."; exit 1; }
+          node --input-type=module -e '
+            const res = await fetch("http://127.0.0.1:3100/api/health/ready", {
+              method: "POST", headers: { authorization: "Bearer " + process.env.CRON_SECRET },
+              redirect: "error", signal: AbortSignal.timeout(15000),
+            });
+            if (res.status !== 200) throw new Error(`Write probe returned HTTP ${res.status}`);'
           echo "Standalone smoke test PASSED"
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-diagnostics
+          path: |
+            /tmp/alaminn-security-*/report.md
+            /tmp/dev-server.log
+            /tmp/standalone.log
+          if-no-files-found: ignore
 
       - name: Build summary
         run: echo "All CI gates passed — typecheck, lint, tests, security, build + standalone smoke." >> "$GITHUB_STEP_SUMMARY"
@@ -261,7 +273,7 @@ jobs:
             -e DATABASE_URL=file:/app/db/ci.sqlite -e JWT_SECRET="$(openssl rand -hex 32)" \
             -e EMAIL_FROM=ci@example.invalid alaminn-ci
           for attempt in $(seq 1 45); do
-            if curl -fsS http://127.0.0.1:3300/api/health/ready; then exit 0; fi
+            if curl -fsS --max-time 3 http://127.0.0.1:3300/api/health/ready; then exit 0; fi
             sleep 1
           done
           docker logs alaminn-ci

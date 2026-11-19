@@ -6,28 +6,11 @@
  * throws — which fails every test in this file with a clear message,
  * instead of silently skipping (so CI catches a missing dev server).
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
+import { apiBase as BASE, requireDisposableApi } from '../fixtures/api-target';
 
-// Dev server runs on port 3000 (per the updated package.json dev script).
-const BASE = "http://localhost:3000";
+requireDisposableApi();
 
-beforeAll(async () => {
-  // Fail loudly if the dev server isn't running. Throwing in `beforeAll`
-  // marks every test in this file as failed (instead of silently skipping)
-  // so CI catches a missing dev server.
-  try {
-    const res = await fetch(`${BASE}/api/health`, {
-      signal: AbortSignal.timeout(3000),
-    });
-    if (!res.ok) {
-      throw new Error(`health endpoint returned HTTP ${res.status}`);
-    }
-  } catch (e) {
-    throw new Error(
-      `Dev server not reachable on :3000 — start it with 'bun run dev' before running integration tests (${(e as Error).message})`,
-    );
-  }
-});
 
 describe("Admin API — unauthenticated access is rejected", () => {
   it("GET /api/v1/admin/dashboard returns 401 without a session cookie", async () => {

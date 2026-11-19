@@ -7,7 +7,9 @@ import { createInterface } from 'node:readline';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
-const base = process.env.TEST_BASE_URL ?? 'http://localhost:3000';
+import { apiBase as base, requireDisposableApi } from '../fixtures/api-target';
+
+requireDisposableApi();
 const smtpPort = Number(process.env.TEST_SMTP_PORT ?? 25253);
 const staff = { email: `staff-${randomUUID()}@example.invalid`, name: 'Staff lifecycle fixture', password: `Initial-${randomUUID()}` };
 const newPassword = `Replacement-${randomUUID()}`;
@@ -41,13 +43,6 @@ function session(res: Response) {
 }
 
 beforeAll(async () => {
-  if (process.env.RUN_STAFF_LIFECYCLE !== '1' || !/^file:.*\/alaminn-test-[^/]+\/test\.sqlite$/.test(process.env.DATABASE_URL ?? '') ||
-      !['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) {
-    throw new Error('Staff lifecycle requires a provisioned local disposable test instance (see tests/README.md).');
-  }
-  const instance = process.env.ALAMINN_TEST_INSTANCE ?? '';
-  const readiness = await fetch(`${base}/api/health/ready`, { headers: { 'x-alaminn-test-instance': instance } });
-  if (!readiness.ok || readiness.headers.get('x-alaminn-test-instance') !== 'verified') throw new Error('Unverified test server');
   await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(smtpPort, '127.0.0.1', resolve); });
 });
 afterAll(async () => {

@@ -25,9 +25,9 @@
  */
 
 import { mkdtemp, writeFile } from "node:fs/promises";
-import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { join } from "node:path";
+import { verifyDisposableTarget } from "../tests/fixtures/disposable-target.mjs";
 import { db } from "../src/lib/db";
 import { hashPassword } from "../src/lib/auth";
 
@@ -893,31 +893,13 @@ async function test22_bruteForce(): Promise<TestResult> {
 
 // ─── Main runner ────────────────────────────────────────────────────
 async function main() {
+  await verifyDisposableTarget(BASE);
   console.log("Alaminn.info — Automated Security Test Suite");
   console.log("=============================================");
   console.log(`Target: ${BASE}`);
   console.log(`Date:   ${new Date().toISOString()}\n`);
 
-  // Test writes are allowed only on the explicitly provisioned instance.
-  const instance = process.env.ALAMINN_TEST_INSTANCE;
-  if (!instance || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(BASE).hostname) ||
-      !/^file:.*\/alaminn-test-[^/]+\/test\.sqlite$/.test(process.env.DATABASE_URL ?? '')) {
-    throw new Error("Security regression suite requires an isolated local application and disposable SQLite database");
-  }
-  const testFile = realpathSync(process.env.DATABASE_URL!.slice(5));
-  const testDir = dirname(testFile);
-  if (dirname(testDir) !== realpathSync(tmpdir()) || !basename(testDir).startsWith("alaminn-test-") ||
-      basename(testFile) !== "test.sqlite" || !existsSync(join(testDir, ".disposable-alaminn-test"))) {
-    throw new Error("Missing disposable database marker");
-  }
-  try {
-    const r = await fetch(`${BASE}/api/health/ready`, { headers: { "x-alaminn-test-instance": instance } });
-    if (!r.ok || r.headers.get("x-alaminn-test-instance") !== "verified") throw new Error(`test instance readiness not verified`);
-    console.log(`[health] disposable test instance ready\n`);
-  } catch (e) {
-    console.error(`[health] Dev server not reachable at ${BASE}. Aborting. (${(e as Error).message})`);
-    process.exit(1);
-  }
+  console.log(`[health] disposable test instance ready\n`);
 
   // Setup test user
   await setupTestUser();

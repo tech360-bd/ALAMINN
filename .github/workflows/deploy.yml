@@ -103,47 +103,47 @@ jobs:
           APPROVE_MIGRATION: ${{ inputs.approve_database_migrations }}
         run: test "$APPROVE_BACKUP" = true && test "$APPROVE_MIGRATION" = true
 
-      - name: Pick commit
+      - name: Verify exact main CI
         id: pick
         env:
-          INPUT_COMMIT: ${{ github.event.inputs.commit }}
+          INPUT_COMMIT: ${{ inputs.commit }}
           GH_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           SHA="${INPUT_COMMIT:-$GH_SHA}"
           if ! [[ "$SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
-            echo "::error::Invalid commit SHA: $SHA"
+            echo "::error::Specify a valid commit SHA."
             exit 1
           fi
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "Deploy target SHA: $SHA"
-
-      - name: Check CI conclusion
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ steps.pick.outputs.sha }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
           FULL_SHA=$(gh api "repos/${REPO}/commits/${SHA}" --jq .sha)
+          [[ "$FULL_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ "$FULL_SHA" == "$SHA"* ]] || exit 1
           MAIN_RELATION=$(gh api "repos/${REPO}/compare/${FULL_SHA}...main" --jq .status)
           if [ "$MAIN_RELATION" != 'ahead' ] && [ "$MAIN_RELATION" != 'identical' ]; then
             echo "::error::Refusing deployment for a commit not in main."
             exit 1
           fi
-          RUN_ID=$(gh run list --repo "$REPO" --workflow ci.yml --branch main --event push --commit "$FULL_SHA" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
-          if [ -z "$RUN_ID" ]; then
-            echo "::error::No main-branch CI run for $FULL_SHA."
+          RUN=$(gh api --method GET "repos/${REPO}/actions/workflows/ci.yml/runs" \
+            -f head_sha="$FULL_SHA" -f event=push -f branch=main -F per_page=1 \
+            --jq '.workflow_runs[0] | [.id,.run_attempt,.head_sha,.head_branch,.event,.status,.conclusion] | @tsv')
+          IFS=$'\t' read -r RUN_ID ATTEMPT CI_SHA CI_BRANCH CI_EVENT CI_STATUS CI_RESULT <<< "$RUN"
+          if ! [[ "$RUN_ID" =~ ^[0-9]+$ && "$ATTEMPT" =~ ^[0-9]+$ && "$CI_SHA" == "$FULL_SHA" &&
+                  "$CI_BRANCH" == main && "$CI_EVENT" == push && "$CI_STATUS" == completed && "$CI_RESULT" == success ]]; then
+            echo "::error::No successful latest main push CI run for $FULL_SHA."
             exit 1
           fi
-          CHECKS=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs --jq '.jobs[] | [.name, .conclusion] | @tsv')
+          CHECKS=$(gh api --paginate "repos/${REPO}/actions/runs/${RUN_ID}/attempts/${ATTEMPT}/jobs" \
+            --jq '.jobs[] | [.name, .conclusion] | @tsv')
           for check in 'Typecheck · Lint · Test · Security · Build' 'MariaDB migration and persistence' 'Container build and runtime readiness'; do
-            STATUS=$(awk -F '\t' -v name="$check" '$1 == name { print $2; exit }' <<< "$CHECKS")
+            STATUS=$(awk -F '\t' -v name="$check" '$1 == name { print $2 }' <<< "$CHECKS")
             if [ "$STATUS" != "success" ]; then
               echo "::error::Refusing deployment: $check was not successful on $FULL_SHA."
               exit 1
             fi
           done
+          echo "sha=$FULL_SHA" >> "$GITHUB_OUTPUT"
+          echo "Deploy target SHA: $FULL_SHA (CI run $RUN_ID, attempt $ATTEMPT)"
 
       - name: Summary
         run: |

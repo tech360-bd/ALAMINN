@@ -4,13 +4,14 @@ import { randomBytes } from 'node:crypto';
 import { dirname } from 'node:path';
 import { rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
+import { verifyDisposableTarget } from './disposable-target.mjs';
 
 const disk = execFileSync(process.execPath, ['tests/fixtures/init-sqlite.mjs'], { encoding: 'utf8' }).trim();
 const secret = () => randomBytes(32).toString('hex');
 const env = {
   ...process.env, NODE_ENV: 'development', DATABASE_URL: `file:${disk}`,
   JWT_SECRET: secret(), AUTH_SECRET: secret(), SESSION_SECRET: secret(), CRON_SECRET: secret(),
-  ALAMINN_TEST_INSTANCE: secret(), RUN_STAFF_LIFECYCLE: '1', NEXT_TELEMETRY_DISABLED: '1',
+  ALAMINN_TEST_INSTANCE: secret(), NEXT_TELEMETRY_DISABLED: '1',
   TEST_BASE_URL: 'http://localhost:3000', SECURITY_TEST_BASE: 'http://localhost:3000', NEXT_PUBLIC_SITE_URL: 'http://localhost:3000',
   STAFF_BOOTSTRAP_EMAIL: 'staff-test@example.invalid', STAFF_BOOTSTRAP_PASSWORD: secret(), STAFF_BOOTSTRAP_NAME: 'Disposable staff administrator',
   ADMIN_BOOTSTRAP_EMAIL: 'ci-admin@alaminn.info', ADMIN_BOOTSTRAP_PASSWORD: secret(),
@@ -30,8 +31,7 @@ try {
   const end = Date.now() + 60_000;
   for (;;) {
     if (app.exitCode !== null || Date.now() > end) throw new Error('Disposable app did not become ready; check that port 3000 is free');
-    const response = await fetch(`${env.TEST_BASE_URL}/api/health/ready`, { headers: { 'x-alaminn-test-instance': env.ALAMINN_TEST_INSTANCE }, signal: AbortSignal.timeout(1500) }).catch(() => null);
-    if (response?.ok && response.headers.get('x-alaminn-test-instance') === 'verified') break;
+    if (await verifyDisposableTarget(env.TEST_BASE_URL, env).then(() => true, () => false)) break;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   await checked(['run', 'test:integration']);
