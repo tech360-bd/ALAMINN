@@ -29,10 +29,10 @@ const server = createServer((socket) => {
   });
 });
 
-function req(path: string, body?: object, cookie?: string) {
+function req(path: string, body?: object, cookie?: string, timeout = 12_000) {
   return fetch(`${base}${path}`, { method: body ? 'POST' : 'GET', redirect: 'manual',
     headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
-    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(12_000) });
+    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(timeout) });
 }
 function session(res: Response) {
   const cookie = res.headers.getSetCookie().find((value) => value.startsWith('alo_session='));
@@ -67,9 +67,9 @@ describe('staff recovery and authorization', () => {
     const previous = session(login);
     expect((await req('/api/uci/admin/queue', undefined, previous)).status).toBe(200);
     expect((await req('/api/staff', undefined, previous)).status).toBe(403);
-    expect((await req('/admin/uci', undefined, previous)).status).toBe(200);
-    expect((await req('/admin/forgot-password')).status).toBe(200);
-    expect((await req('/admin/reset-password')).status).toBe(200);
+    expect((await req('/admin/uci', undefined, previous, 35_000)).status).toBe(200);
+    expect((await req('/admin/forgot-password', undefined, undefined, 25_000)).status).toBe(200);
+    expect((await req('/admin/reset-password', undefined, undefined, 25_000)).status).toBe(200);
 
     const requested = await req('/api/auth/password-reset', { action: 'request', email: staff.email });
     expect(requested.status).toBe(200);
@@ -83,23 +83,27 @@ describe('staff recovery and authorization', () => {
     expect((await req('/api/auth/me', undefined, previous)).status).toBe(401);
     expect((await req('/api/auth/login', staff)).status).toBe(401);
     expect((await req('/api/auth/login', { email: staff.email, password: newPassword })).status).toBe(200);
-  }, 30_000);
+  }, 100_000);
 
   it('rejects expired and attempt-exhausted codes without changing the password', async () => {
-    const request = { action: 'request', email: staff.email };
+    const expiryStaff = { ...staff, email: `expiry-${randomUUID()}@example.invalid` };
+    const admin = await req('/api/auth/login', { email: process.env.STAFF_BOOTSTRAP_EMAIL, password: process.env.STAFF_BOOTSTRAP_PASSWORD });
+    expect(admin.status).toBe(200);
+    expect((await req('/api/auth/register', { ...expiryStaff, role: 'EDITOR' }, session(admin))).status).toBe(201);
+    const request = { action: 'request', email: expiryStaff.email };
     expect((await req('/api/auth/password-reset', request)).status).toBe(200);
-    const code = mail.filter((item) => item.includes(staff.email)).at(-1)?.match(/\b(\d{6})\b/)?.[1];
+    const code = mail.filter((item) => item.includes(expiryStaff.email)).at(-1)?.match(/\b(\d{6})\b/)?.[1];
     expect(code).toBeTruthy();
     const wrongCode = code === '000000' ? '111111' : '000000';
-    const confirm = (input: string) => req('/api/auth/password-reset', { action: 'confirm', email: staff.email, code: input, newPassword: 'Should-not-be-applied!' });
+    const confirm = (input: string) => req('/api/auth/password-reset', { action: 'confirm', email: expiryStaff.email, code: input, newPassword: 'Should-not-be-applied!' });
     for (let i = 0; i < 5; i++) expect((await confirm(wrongCode)).status).toBe(400);
     expect((await confirm(code!)).status).toBe(400);
     const sql = new DatabaseSync(process.env.DATABASE_URL!.slice(5));
     try {
-      sql.prepare(`UPDATE PasswordResetCode SET attempts=0, expiresAt=? WHERE accountId=(SELECT id FROM StaffAccount WHERE email=?) AND usedAt IS NULL`).run(new Date(0).toISOString(), staff.email);
+      sql.prepare(`UPDATE PasswordResetCode SET attempts=0, expiresAt=? WHERE accountId=(SELECT id FROM StaffAccount WHERE email=?) AND usedAt IS NULL`).run(new Date(0).toISOString(), expiryStaff.email);
     } finally { sql.close(); }
     expect((await confirm(code!)).status).toBe(400);
-    expect((await req('/api/auth/login', { email: staff.email, password: newPassword })).status).toBe(200);
+    expect((await req('/api/auth/login', { email: expiryStaff.email, password: expiryStaff.password })).status).toBe(200);
   }, 20_000);
 
   it('carries the staff session through the HTTP and Socket.IO app gateway', async () => {

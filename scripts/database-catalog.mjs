@@ -22,8 +22,8 @@ export function mariadbOptions(value) {
     env: { ...process.env, MYSQL_PWD: decodeURIComponent(u.password) } };
 }
 
-export function mariadbQuery(config, sql) {
-  const result = spawnSync('mariadb', [...config.args, '--batch', '--skip-column-names', config.database], {
+export function mariadbQuery(config, sql, {raw = false} = {}) {
+  const result = spawnSync('mariadb', [...config.args, '--batch', '--skip-column-names', ...(raw ? ['--raw'] : []), config.database], {
     input: sql, env: config.env, encoding: 'utf8', timeout: 90_000, maxBuffer: 16 * 1024 * 1024,
   });
   if (result.status !== 0) throw new Error('MariaDB catalog query failed');

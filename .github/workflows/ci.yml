@@ -211,7 +211,7 @@ jobs:
           docker exec -i "$MARIADB_CONTAINER" mariadb -uroot -pci-mariadb-disposable <<SQL
           CREATE DATABASE alaminn_backup_verify_ci;
           CREATE USER 'alaminn_verify'@'%' IDENTIFIED BY '$SCRATCH_PASS';
-          GRANT ALL PRIVILEGES ON alaminn_backup_verify_ci.* TO 'alaminn_verify'@'%';
+          GRANT ALL PRIVILEGES ON \`alaminn\_backup\_verify\_ci\`.* TO 'alaminn_verify'@'%';
           SQL
           for command in mariadb mariadb-dump; do
             cat > "$TMP/$command" <<'SH'

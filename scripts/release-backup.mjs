@@ -50,8 +50,10 @@ try {
     // A dedicated, empty database and a distinct restricted account are required for restore testing.
     // The database is never cleared by this script. Operators provision a fresh scratch target for each run.
     if (!scratch.database.startsWith('alaminn_backup_verify_') || scratch.database === live.database || !scratch.username || scratch.username === live.username) throw new Error('A separate scratch restore database is required');
-    const grants = mariadbQuery(scratch, 'SHOW GRANTS;').flat();
-    const scope = ` ON \`${scratch.database}\`.* TO `;
+    const grants = mariadbQuery(scratch, 'SHOW GRANTS;', { raw: true }).flat();
+    // In schema-level MariaDB grants, an unescaped underscore is a wildcard.
+    const literalSchema = scratch.database.replaceAll('_', '\\_');
+    const scope = ` ON \`${literalSchema}\`.* TO `;
     if (!grants.some((grant) => grant.includes(scope)) || grants.some((grant) =>
       !grant.startsWith('GRANT USAGE ON *.* TO ') && (!grant.includes(scope) || grant.includes('WITH GRANT OPTION')))) {
       throw new Error('Scratch account must not have privileges outside its verification database');
