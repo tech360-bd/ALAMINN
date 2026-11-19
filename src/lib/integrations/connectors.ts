@@ -42,6 +42,71 @@ async function testHttpSms(cfg: Record<string, string>): Promise<TestResult> {
     return { ok: false, message: `httpSMS responded with status ${r.status}.`, status: r.status, latencyMs };
   } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Could not reach httpSMS.", latencyMs: Date.now() - start }; }
 }
+/** Textbelt: GET /status?key=... to validate a key (free tier: key=TEXTBELT). */
+async function testTextbelt(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  const base = trimBase(cfg.baseUrl || "https://textbelt.com");
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  try {
+    const r = await probe(`${base}/status?key=${encodeURIComponent(cfg.apiKey || "TEXTBELT")}`, {
+      headers: { Accept: "application/json" },
+    });
+    const latencyMs = Date.now() - start;
+    if (r.ok) {
+      const body = (await r.json().catch(() => ({}))) as { success?: boolean; quotaRemaining?: number };
+      if (body.success) {
+        return { ok: true, message: `Textbelt key is valid (quota remaining: ${body.quotaRemaining ?? "n/a"}).`, status: r.status, latencyMs };
+      }
+      return { ok: false, message: "Textbelt rejected the key.", status: r.status, latencyMs };
+    }
+    if (r.status === 401 || r.status === 403) return { ok: false, message: "Textbelt rejected the key (unauthorized).", status: r.status, latencyMs };
+    return { ok: false, message: `Textbelt responded with status ${r.status}.`, status: r.status, latencyMs };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Could not reach Textbelt.", latencyMs: Date.now() - start }; }
+}
+/** SparkPost: GET /api/v1/account with x-api-key auth. */
+async function testSparkPost(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  if (!cfg.apiKey) return { ok: false, message: "Add your SparkPost API key first.", latencyMs: 0 };
+  const base = trimBase(cfg.baseUrl || "https://api.sparkpost.com");
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  try {
+    const r = await probe(`${base}/api/v1/account`, { headers: { "x-api-key": cfg.apiKey, Accept: "application/json" } });
+    const latencyMs = Date.now() - start;
+    if (r.ok) return { ok: true, message: "Connected to SparkPost. Your API key is valid.", status: r.status, latencyMs };
+    if (r.status === 401 || r.status === 403) return { ok: false, message: "SparkPost rejected the API key (unauthorized).", status: r.status, latencyMs };
+    return { ok: false, message: `SparkPost responded with status ${r.status}.`, status: r.status, latencyMs };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Could not reach SparkPost.", latencyMs: Date.now() - start }; };
+}
+
+/** Pepipost: GET /v2/send_mail with api_key header. */
+async function testPepipost(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  if (!cfg.apiKey) return { ok: false, message: "Add your Pepipost API key first.", latencyMs: 0 };
+  const base = trimBase(cfg.baseUrl || "https://api.pepipost.com/v2");
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  try {
+    const r = await probe(`${base}/send_mail`, { headers: { api_key: cfg.apiKey, Accept: "application/json" } });
+    const latencyMs = Date.now() - start;
+    if (r.ok) return { ok: true, message: "Connected to Pepipost. Your API key is valid.", status: r.status, latencyMs };
+    if (r.status === 401 || r.status === 403) return { ok: false, message: "Pepipost rejected the API key (unauthorized).", status: r.status, latencyMs };
+    return { ok: false, message: `Pepipost responded with status ${r.status}.`, status: r.status, latencyMs };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Could not reach Pepipost.", latencyMs: Date.now() - start }; };
+}
+
+/** Elastic Email: GET /v4/email/send with apikey param. */
+async function testElasticEmail(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  if (!cfg.apiKey) return { ok: false, message: "Add your Elastic Email API key first.", latencyMs: 0 };
+  const base = trimBase(cfg.baseUrl || "https://api.elasticemail.com/v4");
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  try {
+    const r = await probe(`${base}/email/send?apikey=${encodeURIComponent(cfg.apiKey)}`, { headers: { Accept: "application/json" } });
+    const latencyMs = Date.now() - start;
+    if (r.ok) return { ok: true, message: "Connected to Elastic Email. Your API key is valid.", status: r.status, latencyMs };
+    if (r.status === 401 || r.status === 403) return { ok: false, message: "Elastic Email rejected the API key (unauthorized).", status: r.status, latencyMs };
+    return { ok: false, message: `Elastic Email responded with status ${r.status}.`, status: r.status, latencyMs };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Could not reach Elastic Email.", latencyMs: Date.now() - start }; };
+}
 
 /** OpenRouter: GET /api/v1/key with Bearer. */
 async function testOpenRouter(cfg: Record<string, string>): Promise<TestResult> {
@@ -98,6 +163,10 @@ async function testGeneric(def: IntegrationDefinition, cfg: Record<string, strin
 export async function testIntegration(def: IntegrationDefinition, cfg: Record<string, string>): Promise<TestResult> {
   switch (def.connector) {
     case "httpsms": return testHttpSms(cfg);
+    case "textbelt": return testTextbelt(cfg);
+    case "sparkpost": return testSparkPost(cfg);
+    case "pepipost": return testPepipost(cfg);
+    case "elasticemail": return testElasticEmail(cfg);
     case "openrouter": return testOpenRouter(cfg);
     case "meta": return testMeta(cfg);
     case "generic": return testGeneric(def, cfg);

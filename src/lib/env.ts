@@ -62,6 +62,70 @@ export type AppEnv = {
   whatsappAiModel: string;
   /** AI mode: "ACTIVE" | "HUMAN_ONLY" | "APPROVAL_REQUIRED" | "PAUSED" */
   whatsappAiMode: "ACTIVE" | "HUMAN_ONLY" | "APPROVAL_REQUIRED" | "PAUSED";
+  // ─── SMS (free provider failover loop) ─────────────────────────────
+  /** Preferred SMS provider: "httpsms" | "textbelt" | "twilio" | "plivo" | "auto" */
+  smsPreferredProvider: string;
+  /** httpSMS API key (from https://httpsms.com/settings) */
+  smsHttpsmsApiKey: string | null;
+  /** httpSMS API base URL */
+  smsHttpsmsBaseUrl: string | null;
+  /** httpSMS sender ID / From number */
+  smsHttpsmsFrom: string | null;
+  /** Textbelt key (use "TEXTBELT" for the free 1-SMS/day tier) */
+  smsTextbeltKey: string | null;
+  /** Twilio Account SID (free trial) */
+  smsTwilioAccountSid: string | null;
+  /** Twilio Auth Token */
+  smsTwilioAuthToken: string | null;
+  /** Twilio From / Messaging Service SID */
+  smsTwilioFrom: string | null;
+  /** Plivo Auth ID */
+  smsPlivoAuthId: string | null;
+  /** Plivo Auth Token */
+  smsPlivoAuthToken: string | null;
+  /** Plivo From number */
+  smsPlivoFrom: string | null;
+  // ─── Email (free provider failover loop) ─────────────────────────────
+  /** Preferred email provider: "sparkpost" | "mailgun" | "sendgrid" | ... | "auto" */
+  emailPreferredProvider: string;
+  /** SparkPost API key */
+  emailSparkpostApiKey: string | null;
+  /** SparkPost from address */
+  emailSparkpostFrom: string | null;
+  /** Mailgun API key */
+  emailMailgunApiKey: string | null;
+  /** Mailgun domain */
+  emailMailgunDomain: string | null;
+  /** Mailgun from address */
+  emailMailgunFrom: string | null;
+  /** SendGrid API key */
+  emailSendgridApiKey: string | null;
+  /** SendGrid from address */
+  emailSendgridFrom: string | null;
+  /** Mailjet API key */
+  emailMailjetApiKey: string | null;
+  /** Mailjet secret key */
+  emailMailjetSecretKey: string | null;
+  /** Mailjet from address */
+  emailMailjetFrom: string | null;
+  /** SendinBlue API key */
+  emailSendinblueApiKey: string | null;
+  /** SendinBlue from address */
+  emailSendinblueFrom: string | null;
+  /** SendPulse client ID */
+  emailSendpulseClientId: string | null;
+  /** SendPulse client secret */
+  emailSendpulseClientSecret: string | null;
+  /** SendPulse from address */
+  emailSendpulseFrom: string | null;
+  /** Pepipost API key */
+  emailPepipostApiKey: string | null;
+  /** Pepipost from address */
+  emailPepipostFrom: string | null;
+  /** Elastic Email API key */
+  emailElasticemailApiKey: string | null;
+  /** Elastic Email from address */
+  emailElasticemailFrom: string | null;
 };
 
 const DEV_SITE_URL = "http://localhost:3000";
@@ -169,6 +233,43 @@ function buildEnv(): AppEnv {
     );
   }
 
+  // ─── SMS (free provider failover loop) ─────────────────────────────
+  const smsPreferredProvider =
+    process.env.SMS_PREFERRED_PROVIDER || "httpsms";
+  const smsHttpsmsApiKey = process.env.SMS_HTTPSMS_API_KEY || null;
+  const smsHttpsmsBaseUrl = process.env.SMS_HTTPSMS_BASE_URL || null;
+  const smsHttpsmsFrom = process.env.SMS_HTTPSMS_FROM || null;
+  const smsTextbeltKey = process.env.SMS_TEXTBELT_KEY || null;
+  const smsTwilioAccountSid = process.env.SMS_TWILIO_ACCOUNT_SID || null;
+  const smsTwilioAuthToken = process.env.SMS_TWILIO_AUTH_TOKEN || null;
+  const smsTwilioFrom = process.env.SMS_TWILIO_FROM || null;
+  const smsPlivoAuthId = process.env.SMS_PLIVO_AUTH_ID || null;
+  const smsPlivoAuthToken = process.env.SMS_PLIVO_AUTH_TOKEN || null;
+  const smsPlivoFrom = process.env.SMS_PLIVO_FROM || null;
+
+  // ─── Email (free provider failover loop) ─────────────────────────────
+  const emailPreferredProvider =
+    process.env.EMAIL_PREFERRED_PROVIDER || "sparkpost";
+  const emailSparkpostApiKey = process.env.EMAIL_SPARKPOST_API_KEY || null;
+  const emailSparkpostFrom = process.env.EMAIL_SPARKPOST_FROM || null;
+  const emailMailgunApiKey = process.env.EMAIL_MAILGUN_API_KEY || null;
+  const emailMailgunDomain = process.env.EMAIL_MAILGUN_DOMAIN || null;
+  const emailMailgunFrom = process.env.EMAIL_MAILGUN_FROM || null;
+  const emailSendgridApiKey = process.env.EMAIL_SENDGRID_API_KEY || null;
+  const emailSendgridFrom = process.env.EMAIL_SENDGRID_FROM || null;
+  const emailMailjetApiKey = process.env.EMAIL_MAILJET_API_KEY || null;
+  const emailMailjetSecretKey = process.env.EMAIL_MAILJET_SECRET_KEY || null;
+  const emailMailjetFrom = process.env.EMAIL_MAILJET_FROM || null;
+  const emailSendinblueApiKey = process.env.EMAIL_SENDINBLUE_API_KEY || null;
+  const emailSendinblueFrom = process.env.EMAIL_SENDINBLUE_FROM || null;
+  const emailSendpulseClientId = process.env.EMAIL_SENDPULSE_CLIENT_ID || null;
+  const emailSendpulseClientSecret = process.env.EMAIL_SENDPULSE_CLIENT_SECRET || null;
+  const emailSendpulseFrom = process.env.EMAIL_SENDPULSE_FROM || null;
+  const emailPepipostApiKey = process.env.EMAIL_PEPIPOST_API_KEY || null;
+  const emailPepipostFrom = process.env.EMAIL_PEPIPOST_FROM || null;
+  const emailElasticemailApiKey = process.env.EMAIL_ELASTICEMAIL_API_KEY || null;
+  const emailElasticemailFrom = process.env.EMAIL_ELASTICEMAIL_FROM || null;
+
   return {
     nodeEnv,
     isProd,
@@ -195,6 +296,37 @@ function buildEnv(): AppEnv {
     whatsappAiProvider,
     whatsappAiModel,
     whatsappAiMode,
+    smsPreferredProvider,
+    smsHttpsmsApiKey,
+    smsHttpsmsBaseUrl,
+    smsHttpsmsFrom,
+    smsTextbeltKey,
+    smsTwilioAccountSid,
+    smsTwilioAuthToken,
+    smsTwilioFrom,
+    smsPlivoAuthId,
+    smsPlivoAuthToken,
+    smsPlivoFrom,
+    emailPreferredProvider,
+    emailSparkpostApiKey,
+    emailSparkpostFrom,
+    emailMailgunApiKey,
+    emailMailgunDomain,
+    emailMailgunFrom,
+    emailSendgridApiKey,
+    emailSendgridFrom,
+    emailMailjetApiKey,
+    emailMailjetSecretKey,
+    emailMailjetFrom,
+    emailSendinblueApiKey,
+    emailSendinblueFrom,
+    emailSendpulseClientId,
+    emailSendpulseClientSecret,
+    emailSendpulseFrom,
+    emailPepipostApiKey,
+    emailPepipostFrom,
+    emailElasticemailApiKey,
+    emailElasticemailFrom,
   };
 }
 
