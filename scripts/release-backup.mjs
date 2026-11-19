@@ -68,7 +68,7 @@ try {
     stage = 'MariaDB dump';
     await transfer('mariadb-dump', live, ['--single-transaction', '--quick', '--skip-lock-tables', '--no-tablespaces', '--hex-blob', live.database], createWriteStream(pending, { mode: 0o600 }), true);
     stage = 'scratch restore';
-    await transfer('mariadb', scratch, [], createReadStream(pending), false);
+    await transfer('mariadb', scratch, [scratch.database], createReadStream(pending), false);
     stage = 'restored catalog';
     const restored = auditMaria(scratch);
     if (!restored.integrityOk || restored.invalidFKs || !restored.tables.includes('User') || restored.schemaDigest !== expected.schemaDigest) {
