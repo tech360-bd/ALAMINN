@@ -67,8 +67,8 @@ describe("Task 01, 08, 10, 14, 15, 16 — Provisioning, CI, Portability & Repo H
     expect(ci).toContain("actions/checkout@v4");
     expect(ci).toContain("actions/setup-node@v4");
     expect(ci).toContain("actions/setup-python@v5");
-    expect(ci).toContain("SQLite Prisma schema drift detected");
-    expect(ci).toContain("MariaDB Prisma schema drift detected");
+    expect(ci).toContain("SQLite Prisma migrate diff failed with exit code");
+    expect(ci).toContain("MariaDB Prisma migrate diff failed with exit code");
     expect(ci).not.toContain("::warning::SQLite Prisma catalog drift detected");
     expect(ci).not.toContain("::warning::MariaDB Prisma catalog drift detected");
   });
