@@ -85,35 +85,25 @@ export class AuthMiddleware {
 
   /**
    * Create middleware for authentication.
+   * Always enforces HMAC token verification and rejects unauthenticated callers with 401.
    */
   static authenticate(
-    options: AuthMiddlewareOptions = {},
+    _options: AuthMiddlewareOptions = {},
   ): (req: Request, res: Response, next: NextFunction) => void {
     return (req: Request, res: Response, next: NextFunction) => {
       const authSecret = resolveAuthSecret();
-
-      if (options.skipPaths && options.skipPaths.length > 0) {
-        const path = req.path || req.url || "";
-        if (options.skipPaths.some((p) => path === p || path.startsWith(p))) {
-          return next();
-        }
-      }
-
       const token = this.extractSession(req);
 
       if (!token) {
-        if (options.requireAuth) {
-          res.status(401).json({
-            success: false,
-            error: {
-              code: "UNAUTHENTICATED",
-              message: "Authentication required",
-            },
-            requestId: req.headers["x-request-id"] || "unknown",
-          });
-          return;
-        }
-        return next();
+        res.status(401).json({
+          success: false,
+          error: {
+            code: "UNAUTHENTICATED",
+            message: "Authentication required",
+          },
+          requestId: req.headers["x-request-id"] || "unknown",
+        });
+        return;
       }
 
       const result = this.verifyToken(token, authSecret);

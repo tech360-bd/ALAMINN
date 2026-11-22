@@ -141,10 +141,9 @@ export function numParam(v: string | null): number | undefined {
 
 export function generateReferralCode(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I, O, 0, 1
-  const bytes = crypto.randomBytes(REFERRAL_CODE_LENGTH);
   let out = "";
   for (let i = 0; i < REFERRAL_CODE_LENGTH; i++) {
-    out += alphabet[bytes[i] % alphabet.length];
+    out += alphabet[crypto.randomInt(0, alphabet.length)];
   }
   return out;
 }

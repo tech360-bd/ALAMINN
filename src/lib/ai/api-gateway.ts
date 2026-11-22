@@ -274,7 +274,6 @@ export class ApiGateway {
 
     // Middleware
     this.app.use(RateLimiter.middleware());
-    this.app.use(AuthMiddleware.authenticate());
     this.app.use(AuditLogger.audit());
 
     // Routes
@@ -390,11 +389,13 @@ export class ApiGateway {
     // Inference endpoints (GET + POST)
     this.app.get(
       "/api/v1/inference",
+      AuthMiddleware.authenticate(),
       AuthMiddleware.requiresPermission("ai_tasks.create"),
       (req: ExpressRequest, res: ExpressResponse) => this.handleInference(req, res),
     );
     this.app.post(
       "/api/v1/inference",
+      AuthMiddleware.authenticate(),
       AuthMiddleware.requiresPermission("ai_tasks.create"),
       (req: ExpressRequest, res: ExpressResponse) => this.handleInference(req, res),
     );
@@ -402,6 +403,7 @@ export class ApiGateway {
     // Knowledge retrieval endpoint
     this.app.post(
       "/api/v1/knowledge",
+      AuthMiddleware.authenticate(),
       AuthMiddleware.requiresPermission("knowledge.retrieve"),
       (req: ExpressRequest, res: ExpressResponse) =>
         this.handleKnowledgeRequest(req, res),
