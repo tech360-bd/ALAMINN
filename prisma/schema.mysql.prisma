@@ -12,42 +12,42 @@ datasource db {
 
 // ─── Identity & Auth ──────────────────────────────────────────────
 model User {
-  id                    String @db.VarChar(191)       @id @default(cuid())
-  email                 String @db.VarChar(191)       @unique
-  name                  String @db.VarChar(500)
-  role                  String @db.VarChar(191)       @default("VIEWER") // SUPER_ADMIN | OWNER | EXECUTIVE_ASSISTANT | CRM_MANAGER | PARTNERSHIP_MANAGER | CONTENT_MANAGER | MARKETING_MANAGER | PROJECT_MANAGER | AI_REVIEWER | SECURITY_AUDITOR | VIEWER
-  status                String @db.VarChar(191)       @default("active") // active | suspended | inactive
-  passwordHash          String? @db.VarChar(500)
-  passwordResetToken    String? @db.VarChar(500)
+  id                     String       @id @default(cuid()) @db.VarChar(191)
+  email                  String       @unique @db.VarChar(191)
+  name                   String       @db.VarChar(500)
+  role                   String       @default("VIEWER") @db.VarChar(191) // SUPER_ADMIN | OWNER | EXECUTIVE_ASSISTANT | CRM_MANAGER | PARTNERSHIP_MANAGER | CONTENT_MANAGER | MARKETING_MANAGER | PROJECT_MANAGER | AI_REVIEWER | SECURITY_AUDITOR | VIEWER
+  status                 String       @default("active") @db.VarChar(191) // active | suspended | inactive
+  passwordHash           String?      @db.VarChar(500)
+  passwordResetToken     String?      @db.VarChar(500)
   passwordResetExpiresAt DateTime?
-  lastLoginAt           DateTime?
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
-  inquiries             Inquiry[]
-  aiTasks               AiTask[]     @relation("AiRequester")
-  aiApprovals           AiApproval[]
-  auditLogs             AuditLog[]
-  tasks                 Task[]
-  notes                 Note[]
-  documents             Document[]
+  lastLoginAt            DateTime?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  inquiries              Inquiry[]
+  aiTasks                AiTask[]     @relation("AiRequester")
+  aiApprovals            AiApproval[]
+  auditLogs              AuditLog[]
+  tasks                  Task[]
+  notes                  Note[]
+  documents              Document[]
 
   @@index([passwordResetToken])
 }
 
 model Contact {
-  id               String @db.VarChar(191)            @id @default(cuid())
-  fullName         String @db.VarChar(500)
-  email            String @db.VarChar(191)            @unique
-  phone            String? @db.VarChar(500)
-  whatsapp         String? @db.VarChar(500)
-  organization     String? @db.VarChar(500)
-  role             String? @db.VarChar(191)
-  country          String? @db.VarChar(500)
-  city             String? @db.VarChar(500)
-  preferredChannel String? @db.VarChar(500) // email | phone | whatsapp
-  tags             String? @db.VarChar(500) // comma separated
-  status           String @db.VarChar(191)            @default("active") // active | nurturing | converted | archived
-  source           String? @db.VarChar(191) // utm source / referral
+  id               String            @id @default(cuid()) @db.VarChar(191)
+  fullName         String            @db.VarChar(500)
+  email            String            @unique @db.VarChar(191)
+  phone            String?           @db.VarChar(500)
+  whatsapp         String?           @db.VarChar(500)
+  organization     String?           @db.VarChar(500)
+  role             String?           @db.VarChar(191)
+  country          String?           @db.VarChar(500)
+  city             String?           @db.VarChar(500)
+  preferredChannel String?           @db.VarChar(500) // email | phone | whatsapp
+  tags             String?           @db.VarChar(500) // comma separated
+  status           String            @default("active") @db.VarChar(191) // active | nurturing | converted | archived
+  source           String?           @db.VarChar(191) // utm source / referral
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   inquiries        Inquiry[]
@@ -58,12 +58,12 @@ model Contact {
 }
 
 model Organization {
-  id           String @db.VarChar(191)        @id @default(cuid())
-  name         String @db.VarChar(500)
-  type         String? @db.VarChar(191) // university | education-business | company | media | partner
-  country      String? @db.VarChar(500)
-  website      String? @db.VarChar(500)
-  status       String @db.VarChar(191)        @default("active")
+  id           String        @id @default(cuid()) @db.VarChar(191)
+  name         String        @db.VarChar(500)
+  type         String?       @db.VarChar(191) // university | education-business | company | media | partner
+  country      String?       @db.VarChar(500)
+  website      String?       @db.VarChar(500)
+  status       String        @default("active") @db.VarChar(191)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   partnerships Partnership[]
@@ -71,30 +71,30 @@ model Organization {
 
 // ─── Inquiries & CRM ──────────────────────────────────────────────
 model Inquiry {
-  id                 String @db.VarChar(191)           @id @default(cuid())
-  reference          String @db.VarChar(191)           @unique
-  type               String @db.VarChar(191) // university-partnership | business-consultation | operations-review | sales-strategy | education-advisory | ai-automation | crm-digital | tech-collaboration | personal-branding | speaking | media | student-referral | other
-  contactId          String @db.VarChar(191)
+  id                 String           @id @default(cuid()) @db.VarChar(191)
+  reference          String           @unique @db.VarChar(191)
+  type               String           @db.VarChar(191) // university-partnership | business-consultation | operations-review | sales-strategy | education-advisory | ai-automation | crm-digital | tech-collaboration | personal-branding | speaking | media | student-referral | other
+  contactId          String           @db.VarChar(191)
   contact            Contact          @relation(fields: [contactId], references: [id])
-  createdById        String? @db.VarChar(191)
+  createdById        String?          @db.VarChar(191)
   createdBy          User?            @relation(fields: [createdById], references: [id])
-  currentChallenge   String? @db.LongText
-  desiredOutcome     String? @db.LongText
-  timeline           String? @db.VarChar(500)
-  scope              String? @db.LongText
-  existingSystem     String? @db.LongText
-  preferredTime      String? @db.VarChar(500)
-  notes              String? @db.LongText
-  utmSource          String? @db.VarChar(500)
-  utmMedium          String? @db.VarChar(500)
-  utmCampaign        String? @db.VarChar(500)
-  referralSource     String? @db.VarChar(500)
+  currentChallenge   String?          @db.LongText
+  desiredOutcome     String?          @db.LongText
+  timeline           String?          @db.VarChar(500)
+  scope              String?          @db.LongText
+  existingSystem     String?          @db.LongText
+  preferredTime      String?          @db.VarChar(500)
+  notes              String?          @db.LongText
+  utmSource          String?          @db.VarChar(500)
+  utmMedium          String?          @db.VarChar(500)
+  utmCampaign        String?          @db.VarChar(500)
+  referralSource     String?          @db.VarChar(500)
   privacyConsent     Boolean          @default(false)
   commsConsent       Boolean          @default(false)
   marketingConsent   Boolean          @default(false)
   studentDataConsent Boolean          @default(false)
-  status             String @db.VarChar(191)           @default("new") // new | reviewing | qualified | responded | converted | archived
-  ipHash             String? @db.VarChar(500)
+  status             String           @default("new") @db.VarChar(191) // new | reviewing | qualified | responded | converted | archived
+  ipHash             String?          @db.VarChar(500)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   opportunity        Opportunity?
@@ -102,117 +102,117 @@ model Inquiry {
 }
 
 model Opportunity {
-  id        String @db.VarChar(191)    @id @default(cuid())
-  contactId String @db.VarChar(191)
+  id        String    @id @default(cuid()) @db.VarChar(191)
+  contactId String    @db.VarChar(191)
   contact   Contact   @relation(fields: [contactId], references: [id])
-  inquiryId String? @db.VarChar(191)   @unique
+  inquiryId String?   @unique @db.VarChar(191)
   inquiry   Inquiry?  @relation(fields: [inquiryId], references: [id])
-  title     String @db.VarChar(500)
+  title     String    @db.VarChar(500)
   value     Int? // estimated value
-  currency  String @db.VarChar(191)    @default("USD")
-  stage     String @db.VarChar(191)    @default("new") // new | review-required | qualified | discovery-scheduled | discovery-completed | scope-required | proposal-drafting | proposal-sent | negotiation | approved | in-progress | won | lost | on-hold | archived
-  priority  String @db.VarChar(191)    @default("medium") // low | medium | high | critical
+  currency  String    @default("USD") @db.VarChar(191)
+  stage     String    @default("new") @db.VarChar(191) // new | review-required | qualified | discovery-scheduled | discovery-completed | scope-required | proposal-drafting | proposal-sent | negotiation | approved | in-progress | won | lost | on-hold | archived
+  priority  String    @default("medium") @db.VarChar(191) // low | medium | high | critical
   closeDate DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
 
 model Partnership {
-  id             String @db.VarChar(191)       @id @default(cuid())
-  organizationId String @db.VarChar(191)
+  id             String       @id @default(cuid()) @db.VarChar(191)
+  organizationId String       @db.VarChar(191)
   organization   Organization @relation(fields: [organizationId], references: [id])
-  name           String @db.VarChar(500)
-  type           String? @db.VarChar(191) // university-partnership | institutional-collaboration | tech-partner | media
-  stage          String @db.VarChar(191)       @default("new-institution") // new-institution | initial-review | introductory-contact | meeting-planned | requirements-received | due-diligence | proposal-agreement | internal-approval | active-partnership | on-hold | closed
-  alAminnRole    String? @db.VarChar(500)
-  problemSolved  String? @db.LongText
-  status         String @db.VarChar(191)       @default("planned") // planned | in-testing | connected | active | on-hold
+  name           String       @db.VarChar(500)
+  type           String?      @db.VarChar(191) // university-partnership | institutional-collaboration | tech-partner | media
+  stage          String       @default("new-institution") @db.VarChar(191) // new-institution | initial-review | introductory-contact | meeting-planned | requirements-received | due-diligence | proposal-agreement | internal-approval | active-partnership | on-hold | closed
+  alAminnRole    String?      @db.VarChar(500)
+  problemSolved  String?      @db.LongText
+  status         String       @default("planned") @db.VarChar(191) // planned | in-testing | connected | active | on-hold
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 }
 
 model StudentReferral {
-  id              String @db.VarChar(191)   @id @default(cuid())
-  contactId       String @db.VarChar(191)
+  id              String   @id @default(cuid()) @db.VarChar(191)
+  contactId       String   @db.VarChar(191)
   contact         Contact  @relation(fields: [contactId], references: [id])
-  inquiryId       String? @db.VarChar(191)  @unique
+  inquiryId       String?  @unique @db.VarChar(191)
   inquiry         Inquiry? @relation(fields: [inquiryId], references: [id])
-  studentName     String @db.VarChar(500)
-  interestCountry String? @db.VarChar(500)
-  interestProgram String? @db.VarChar(500)
+  studentName     String   @db.VarChar(500)
+  interestCountry String?  @db.VarChar(500)
+  interestProgram String?  @db.VarChar(500)
   consent         Boolean  @default(false)
-  stage           String @db.VarChar(191)   @default("new-referral") // new-referral | consent-pending | consent-confirmed | sent-to-alo-education | accepted | counselor-assigned | in-progress | converted | closed | duplicate | consent-withdrawn
+  stage           String   @default("new-referral") @db.VarChar(191) // new-referral | consent-pending | consent-confirmed | sent-to-alo-education | accepted | counselor-assigned | in-progress | converted | closed | duplicate | consent-withdrawn
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
 
 model Task {
-  id          String @db.VarChar(191)    @id @default(cuid())
-  title       String @db.VarChar(500)
-  description String? @db.LongText
+  id          String    @id @default(cuid()) @db.VarChar(191)
+  title       String    @db.VarChar(500)
+  description String?   @db.LongText
   dueDate     DateTime?
-  priority    String @db.VarChar(191)    @default("medium")
-  status      String @db.VarChar(191)    @default("open") // open | in-progress | done | overdue | cancelled
-  assigneeId  String? @db.VarChar(191)
+  priority    String    @default("medium") @db.VarChar(191)
+  status      String    @default("open") @db.VarChar(191) // open | in-progress | done | overdue | cancelled
+  assigneeId  String?   @db.VarChar(191)
   assignee    User?     @relation(fields: [assigneeId], references: [id])
-  contactId   String? @db.VarChar(191)
+  contactId   String?   @db.VarChar(191)
   contact     Contact?  @relation(fields: [contactId], references: [id])
-  relatedType String? @db.VarChar(500) // inquiry | opportunity | partnership | project | ai-task
-  relatedId   String? @db.VarChar(191)
+  relatedType String?   @db.VarChar(500) // inquiry | opportunity | partnership | project | ai-task
+  relatedId   String?   @db.VarChar(191)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 
 model Note {
-  id        String @db.VarChar(191)   @id @default(cuid())
-  body      String @db.LongText
-  contactId String? @db.VarChar(191)
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  body      String   @db.LongText
+  contactId String?  @db.VarChar(191)
   contact   Contact? @relation(fields: [contactId], references: [id])
-  authorId  String? @db.VarChar(191)
+  authorId  String?  @db.VarChar(191)
   author    User?    @relation(fields: [authorId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model NewsletterSubscriber {
-  id        String @db.VarChar(191)   @id @default(cuid())
-  email     String @db.VarChar(191)   @unique
-  name      String? @db.VarChar(500)
-  interest  String? @db.VarChar(500) // executive | operations | education | technology | partnership | student | other
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  email     String   @unique @db.VarChar(191)
+  name      String?  @db.VarChar(500)
+  interest  String?  @db.VarChar(500) // executive | operations | education | technology | partnership | student | other
   consent   Boolean  @default(false)
-  status    String @db.VarChar(191)   @default("pending") // pending | confirmed | unsubscribed
-  token     String? @db.VarChar(191)  @unique
+  status    String   @default("pending") @db.VarChar(191) // pending | confirmed | unsubscribed
+  token     String?  @unique @db.VarChar(191)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 // ─── Content ──────────────────────────────────────────────────────
 model Project {
-  id               String @db.VarChar(191)    @id @default(cuid())
-  slug             String @db.VarChar(191)    @unique
-  name             String @db.VarChar(500)
-  subtitle         String? @db.VarChar(500)
-  category         String @db.VarChar(191) // education | ai | software | crm | automation | marketing | research | professional-brand | client-work
-  shortDescription String @db.LongText
-  fullDescription  String @db.LongText
-  businessProblem  String? @db.LongText
-  approvedRole     String? @db.VarChar(500)
-  responsibilities String? @db.LongText
-  solution         String? @db.LongText
-  architecture     String? @db.LongText
-  technologies     String? @db.VarChar(500) // comma separated
-  workflows        String? @db.LongText
-  outputs          String? @db.LongText
-  outcomes         String? @db.LongText
-  evidenceStatus   String @db.VarChar(191)    @default("unverified") // unverified | evidence-uploaded | under-review | verified | expired | rejected | archived
-  confidentiality  String @db.VarChar(191)    @default("public") // public | partially-anonymized | fully-anonymized | summary-only | private
-  status           String @db.VarChar(191)    @default("planned") // planned | in-testing | connected | active | on-hold
-  approvedUrl      String? @db.VarChar(500)
-  logo             String? @db.VarChar(500)
-  coverMedia       String? @db.VarChar(500)
-  gallery          String? @db.VarChar(500) // comma separated
+  id               String    @id @default(cuid()) @db.VarChar(191)
+  slug             String    @unique @db.VarChar(191)
+  name             String    @db.VarChar(500)
+  subtitle         String?   @db.VarChar(500)
+  category         String    @db.VarChar(191) // education | ai | software | crm | automation | marketing | research | professional-brand | client-work
+  shortDescription String    @db.LongText
+  fullDescription  String    @db.LongText
+  businessProblem  String?   @db.LongText
+  approvedRole     String?   @db.VarChar(500)
+  responsibilities String?   @db.LongText
+  solution         String?   @db.LongText
+  architecture     String?   @db.LongText
+  technologies     String?   @db.VarChar(500) // comma separated
+  workflows        String?   @db.LongText
+  outputs          String?   @db.LongText
+  outcomes         String?   @db.LongText
+  evidenceStatus   String    @default("unverified") @db.VarChar(191) // unverified | evidence-uploaded | under-review | verified | expired | rejected | archived
+  confidentiality  String    @default("public") @db.VarChar(191) // public | partially-anonymized | fully-anonymized | summary-only | private
+  status           String    @default("planned") @db.VarChar(191) // planned | in-testing | connected | active | on-hold
+  approvedUrl      String?   @db.VarChar(500)
+  logo             String?   @db.VarChar(500)
+  coverMedia       String?   @db.VarChar(500)
+  gallery          String?   @db.VarChar(500) // comma separated
   featured         Boolean   @default(false)
-  visibility       String @db.VarChar(191)    @default("public") // public | private
+  visibility       String    @default("public") @db.VarChar(191) // public | private
   startDate        DateTime?
   endDate          DateTime?
   createdAt        DateTime  @default(now())
@@ -220,65 +220,65 @@ model Project {
 }
 
 model Article {
-  id                 String @db.VarChar(191)   @id @default(cuid())
-  slug               String @db.VarChar(191)   @unique
-  title              String @db.VarChar(500)
-  summary            String @db.LongText
-  body               String @db.LongText
-  category           String @db.VarChar(191) // executive-leadership | business-operations | sales-growth | international-education | university-partnerships | bangladesh-market | ai-automation | crm-technology | digital-marketing | personal-branding | professional-development
-  tags               String? @db.VarChar(500) // comma separated
-  author             String @db.VarChar(500)   @default("Al Aminn")
+  id                 String   @id @default(cuid()) @db.VarChar(191)
+  slug               String   @unique @db.VarChar(191)
+  title              String   @db.VarChar(500)
+  summary            String   @db.LongText
+  body               String   @db.LongText
+  category           String   @db.VarChar(191) // executive-leadership | business-operations | sales-growth | international-education | university-partnerships | bangladesh-market | ai-automation | crm-technology | digital-marketing | personal-branding | professional-development
+  tags               String?  @db.VarChar(500) // comma separated
+  author             String   @default("Al Aminn") @db.VarChar(500)
   readingMinutes     Int      @default(5)
-  verificationStatus String @db.VarChar(191)   @default("verified")
-  status             String @db.VarChar(191)   @default("published") // draft | review | approved | scheduled | published | archived
+  verificationStatus String   @default("verified") @db.VarChar(191)
+  status             String   @default("published") @db.VarChar(191) // draft | review | approved | scheduled | published | archived
   publishedAt        DateTime @default(now())
   updatedAt          DateTime @updatedAt
   featured           Boolean  @default(false)
-  coverMedia         String? @db.VarChar(500)
+  coverMedia         String?  @db.VarChar(500)
 }
 
 model Resource {
-  id          String @db.VarChar(191)   @id @default(cuid())
-  slug        String @db.VarChar(191)   @unique
-  title       String @db.VarChar(500)
-  description String @db.LongText
-  category    String @db.VarChar(191) // operations | sales | education-business | university-partnerships | ai-readiness | crm-planning | digital-transformation | bangladesh-market | personal-branding | professional-growth | study-abroad
-  type        String @db.VarChar(191) // guide | template | checklist | report | video | download
-  fileUrl     String? @db.VarChar(500)
+  id          String   @id @default(cuid()) @db.VarChar(191)
+  slug        String   @unique @db.VarChar(191)
+  title       String   @db.VarChar(500)
+  description String   @db.LongText
+  category    String   @db.VarChar(191) // operations | sales | education-business | university-partnerships | ai-readiness | crm-planning | digital-transformation | bangladesh-market | personal-branding | professional-growth | study-abroad
+  type        String   @db.VarChar(191) // guide | template | checklist | report | video | download
+  fileUrl     String?  @db.VarChar(500)
   readTime    Int      @default(5)
-  status      String @db.VarChar(191)   @default("published")
+  status      String   @default("published") @db.VarChar(191)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 model ImpactRecord {
-  id              String @db.VarChar(191)   @id @default(cuid())
-  category        String @db.VarChar(191) // operational-transformation | sales-workflow | student-journey | partnership-development | automation-systems | crm-implementation | team-accountability | platform-development
-  challenge       String @db.LongText
-  role            String @db.VarChar(191)
-  action          String @db.VarChar(191)
-  outcome         String @db.LongText
-  evidenceStatus  String @db.VarChar(191)   @default("verified")
-  confidentiality String @db.VarChar(191)   @default("summary-only")
-  projectId       String? @db.VarChar(191)
+  id              String   @id @default(cuid()) @db.VarChar(191)
+  category        String   @db.VarChar(191) // operational-transformation | sales-workflow | student-journey | partnership-development | automation-systems | crm-implementation | team-accountability | platform-development
+  challenge       String   @db.LongText
+  role            String   @db.VarChar(191)
+  action          String   @db.VarChar(191)
+  outcome         String   @db.LongText
+  evidenceStatus  String   @default("verified") @db.VarChar(191)
+  confidentiality String   @default("summary-only") @db.VarChar(191)
+  projectId       String?  @db.VarChar(191)
   date            DateTime @default(now())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
 
 model CaseStudy {
-  id              String @db.VarChar(191)   @id @default(cuid())
-  slug            String @db.VarChar(191)   @unique
-  title           String @db.VarChar(500)
-  category        String @db.VarChar(191) // education-operations | ai-crm | sales-growth
-  context         String @db.LongText
-  challenge       String @db.LongText
-  role            String @db.VarChar(191)
-  intervention    String @db.LongText
-  systemBuilt     String @db.LongText
-  outcome         String @db.LongText
-  evidenceStatus  String @db.VarChar(191)   @default("verified")
-  confidentiality String @db.VarChar(191)   @default("summary-only")
+  id              String   @id @default(cuid()) @db.VarChar(191)
+  slug            String   @unique @db.VarChar(191)
+  title           String   @db.VarChar(500)
+  category        String   @db.VarChar(191) // education-operations | ai-crm | sales-growth
+  context         String   @db.LongText
+  challenge       String   @db.LongText
+  role            String   @db.VarChar(191)
+  intervention    String   @db.LongText
+  systemBuilt     String   @db.LongText
+  outcome         String   @db.LongText
+  evidenceStatus  String   @default("verified") @db.VarChar(191)
+  confidentiality String   @default("summary-only") @db.VarChar(191)
   readTime        Int      @default(8)
   featured        Boolean  @default(false)
   createdAt       DateTime @default(now())
@@ -287,75 +287,75 @@ model CaseStudy {
 
 // ─── AI Workspace ─────────────────────────────────────────────────
 model AiTask {
-  id               String @db.VarChar(191)       @id @default(cuid())
-  requesterId      String @db.VarChar(191)
+  id               String       @id @default(cuid()) @db.VarChar(191)
+  requesterId      String       @db.VarChar(191)
   requester        User         @relation("AiRequester", fields: [requesterId], references: [id])
-  workflow         String @db.VarChar(500) // executive-linkedin-post | seo-article-draft | newsletter-draft | case-study-draft | partnership-proposal | university-research-brief | operations-audit | sales-process-review | crm-requirements-draft | presentation-outline | speaking-notes | media-response | monthly-authority-report | competitor-research | resource-checklist | risk-review | brand-consistency-audit ...
-  project          String? @db.VarChar(500)
-  objective        String @db.VarChar(500)
-  prompt           String @db.LongText
-  sensitivity      String @db.VarChar(191)       @default("internal") // public | internal | confidential
-  outputFormat     String @db.VarChar(191)       @default("markdown")
+  workflow         String       @db.VarChar(500) // executive-linkedin-post | seo-article-draft | newsletter-draft | case-study-draft | partnership-proposal | university-research-brief | operations-audit | sales-process-review | crm-requirements-draft | presentation-outline | speaking-notes | media-response | monthly-authority-report | competitor-research | resource-checklist | risk-review | brand-consistency-audit ...
+  project          String?      @db.VarChar(500)
+  objective        String       @db.VarChar(500)
+  prompt           String       @db.LongText
+  sensitivity      String       @default("internal") @db.VarChar(191) // public | internal | confidential
+  outputFormat     String       @default("markdown") @db.VarChar(191)
   approvalRequired Boolean      @default(true)
-  reviewerId       String? @db.VarChar(191)
+  reviewerId       String?      @db.VarChar(191)
   deadline         DateTime?
-  status           String @db.VarChar(191)       @default("draft") // draft | validation | queued | accepted | researching | processing | quality-review | safety-review | awaiting-approval | revision-requested | approved | rejected | delivered | failed | cancelled
-  result           String? @db.LongText
+  status           String       @default("draft") @db.VarChar(191) // draft | validation | queued | accepted | researching | processing | quality-review | safety-review | awaiting-approval | revision-requested | approved | rejected | delivered | failed | cancelled
+  result           String?      @db.LongText
   createdAt        DateTime     @default(now())
   completedAt      DateTime?
   approvals        AiApproval[]
 }
 
 model AiApproval {
-  id         String @db.VarChar(191)   @id @default(cuid())
-  taskId     String @db.VarChar(191)
+  id         String   @id @default(cuid()) @db.VarChar(191)
+  taskId     String   @db.VarChar(191)
   task       AiTask   @relation(fields: [taskId], references: [id])
-  reviewerId String? @db.VarChar(191)
+  reviewerId String?  @db.VarChar(191)
   reviewer   User?    @relation(fields: [reviewerId], references: [id])
-  decision   String? @db.VarChar(191) // approved | rejected | revision
-  note       String? @db.VarChar(500)
+  decision   String?  @db.VarChar(191) // approved | rejected | revision
+  note       String?  @db.VarChar(500)
   createdAt  DateTime @default(now())
 }
 
 // ─── Audit & Logs ─────────────────────────────────────────────────
 model AuditLog {
-  id         String @db.VarChar(191)   @id @default(cuid())
-  actorId    String? @db.VarChar(191)
+  id         String   @id @default(cuid()) @db.VarChar(191)
+  actorId    String?  @db.VarChar(191)
   actor      User?    @relation(fields: [actorId], references: [id])
-  action     String @db.VarChar(191)
-  resource   String? @db.VarChar(500)
-  resourceId String? @db.VarChar(191)
-  meta       String? @db.VarChar(500)
-  ipHash     String? @db.VarChar(500)
+  action     String   @db.VarChar(191)
+  resource   String?  @db.VarChar(500)
+  resourceId String?  @db.VarChar(191)
+  meta       String?  @db.VarChar(500)
+  ipHash     String?  @db.VarChar(500)
   createdAt  DateTime @default(now())
 }
 
 model SystemHealth {
-  id        String @db.VarChar(191)   @id @default(cuid())
-  component String @db.VarChar(500)
-  status    String @db.VarChar(191) // ok | degraded | down
-  message   String? @db.VarChar(500)
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  component String   @db.VarChar(500)
+  status    String   @db.VarChar(191) // ok | degraded | down
+  message   String?  @db.VarChar(500)
   checkedAt DateTime @default(now())
 }
 
 // ─── Meeting Requests ─────────────────────────────────────────────
 model MeetingRequest {
-  id            String @db.VarChar(191)   @id @default(cuid())
-  reference     String @db.VarChar(191)   @unique
-  meetingType   String @db.VarChar(500) // discovery | strategy | partnership | education
+  id            String   @id @default(cuid()) @db.VarChar(191)
+  reference     String   @unique @db.VarChar(191)
+  meetingType   String   @db.VarChar(500) // discovery | strategy | partnership | education
   requestedDate DateTime // the date the user picked
-  requestedTime String @db.VarChar(500) // HH:mm in Asia/Dhaka
-  timezone      String @db.VarChar(500)   @default("Asia/Dhaka")
-  contactName   String @db.VarChar(500)
-  contactEmail  String @db.VarChar(500)
-  organization  String? @db.VarChar(500)
-  topic         String? @db.VarChar(500)
-  status        String @db.VarChar(191)   @default("new") // new | confirmed | rescheduled | cancelled | completed
-  ipHash        String? @db.VarChar(500)
-  utmSource     String? @db.VarChar(500)
-  utmMedium     String? @db.VarChar(500)
-  utmCampaign   String? @db.VarChar(500)
-  notes         String? @db.LongText // admin notes
+  requestedTime String   @db.VarChar(500) // HH:mm in Asia/Dhaka
+  timezone      String   @default("Asia/Dhaka") @db.VarChar(500)
+  contactName   String   @db.VarChar(500)
+  contactEmail  String   @db.VarChar(500)
+  organization  String?  @db.VarChar(500)
+  topic         String?  @db.VarChar(500)
+  status        String   @default("new") @db.VarChar(191) // new | confirmed | rescheduled | cancelled | completed
+  ipHash        String?  @db.VarChar(500)
+  utmSource     String?  @db.VarChar(500)
+  utmMedium     String?  @db.VarChar(500)
+  utmCampaign   String?  @db.VarChar(500)
+  notes         String?  @db.LongText // admin notes
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -369,19 +369,19 @@ model MeetingRequest {
 // - utm_* fields capture marketing attribution (provided client-side).
 // - meta is a JSON string for event-specific data (depth, href, etc.).
 model AnalyticsEvent {
-  id          String @db.VarChar(191)   @id @default(cuid())
+  id          String   @id @default(cuid()) @db.VarChar(191)
   createdAt   DateTime @default(now())
-  eventName   String @db.VarChar(500)
-  page        String? @db.VarChar(500)
-  referrer    String? @db.VarChar(500)
-  utmSource   String? @db.VarChar(500)
-  utmMedium   String? @db.VarChar(500)
-  utmCampaign String? @db.VarChar(500)
-  utmContent  String? @db.VarChar(500)
-  utmTerm     String? @db.VarChar(500)
-  sessionId   String? @db.VarChar(191) // anonymous, rotated daily, no personal data
-  ipHash      String? @db.VarChar(500) // sha256 hash, never the raw IP
-  meta        String? @db.VarChar(500) // JSON string for event-specific data
+  eventName   String   @db.VarChar(500)
+  page        String?  @db.VarChar(500)
+  referrer    String?  @db.VarChar(500)
+  utmSource   String?  @db.VarChar(500)
+  utmMedium   String?  @db.VarChar(500)
+  utmCampaign String?  @db.VarChar(500)
+  utmContent  String?  @db.VarChar(500)
+  utmTerm     String?  @db.VarChar(500)
+  sessionId   String?  @db.VarChar(191) // anonymous, rotated daily, no personal data
+  ipHash      String?  @db.VarChar(500) // sha256 hash, never the raw IP
+  meta        String?  @db.VarChar(500) // JSON string for event-specific data
 
   @@index([eventName, createdAt])
   @@index([createdAt])
@@ -389,15 +389,15 @@ model AnalyticsEvent {
 
 // ─── Document Management ──────────────────────────────────────────
 model Document {
-  id           String @db.VarChar(191)   @id @default(cuid())
-  title        String @db.VarChar(500)
-  fileName     String @db.VarChar(500)
-  fileUrl      String @db.VarChar(500)
-  mimeType     String? @db.VarChar(500)
+  id           String   @id @default(cuid()) @db.VarChar(191)
+  title        String   @db.VarChar(500)
+  fileName     String   @db.VarChar(500)
+  fileUrl      String   @db.VarChar(500)
+  mimeType     String?  @db.VarChar(500)
   size         Int?
-  category     String? @db.VarChar(191) // contract | proposal | report | legal | financial | media | other
-  description  String? @db.LongText
-  uploadedById String? @db.VarChar(191)
+  category     String?  @db.VarChar(191) // contract | proposal | report | legal | financial | media | other
+  description  String?  @db.LongText
+  uploadedById String?  @db.VarChar(191)
   uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -408,12 +408,12 @@ model Document {
 
 // ─── Knowledge Base (for AI retrieval) ─────────────────────────────
 model KnowledgeChunk {
-  id         String @db.VarChar(191)   @id @default(cuid())
-  documentId String @db.VarChar(191)
-  content    String @db.LongText
+  id         String   @id @default(cuid()) @db.VarChar(191)
+  documentId String   @db.VarChar(191)
+  content    String   @db.LongText
   embedding  Json?
   chunkIndex Int
-  status     String @db.VarChar(191)   @default("indexed") // indexed | pending | failed
+  status     String   @default("indexed") @db.VarChar(191) // indexed | pending | failed
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -424,13 +424,13 @@ model KnowledgeChunk {
 
 // ─── Notifications ────────────────────────────────────────────────
 model Notification {
-  id        String @db.VarChar(191)   @id @default(cuid())
-  userId    String? @db.VarChar(191)
-  type      String @db.VarChar(191) // inquiry | meeting | ai-task | approval | system | contact | newsletter
-  title     String @db.VarChar(500)
-  message   String @db.VarChar(500)
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  userId    String?  @db.VarChar(191)
+  type      String   @db.VarChar(191) // inquiry | meeting | ai-task | approval | system | contact | newsletter
+  title     String   @db.VarChar(500)
+  message   String   @db.VarChar(500)
   read      Boolean  @default(false)
-  link      String? @db.VarChar(500)
+  link      String?  @db.VarChar(500)
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -442,23 +442,23 @@ model Notification {
 // Generic key-value store for site-level configuration (SEO meta,
 // maintenance mode flag, robots.txt overrides, etc).
 model Setting {
-  id        String @db.VarChar(191)   @id @default(cuid())
-  key       String @db.VarChar(500)   @unique
-  value     String @db.VarChar(500)
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  key       String   @unique @db.VarChar(500)
+  value     String   @db.VarChar(500)
   updatedAt DateTime @updatedAt
 }
 
 // ─── Media Library ────────────────────────────────────────────────
 model MediaAsset {
-  id        String @db.VarChar(191)   @id @default(cuid())
-  filename  String @db.VarChar(500)
-  url       String @db.VarChar(191)
-  altText   String? @db.LongText
-  mimeType  String? @db.VarChar(500)
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  filename  String   @db.VarChar(500)
+  url       String   @db.VarChar(191)
+  altText   String?  @db.LongText
+  mimeType  String?  @db.VarChar(500)
   size      Int?
   width     Int?
   height    Int?
-  category  String? @db.VarChar(191) // brand | portrait | project | article | case-study | general
+  category  String?  @db.VarChar(191) // brand | portrait | project | article | case-study | general
   createdAt DateTime @default(now())
 
   @@index([category])
@@ -473,43 +473,43 @@ model MediaAsset {
 
 // ─── Study Destinations ───────────────────────────────────────────
 model HigherStudyCountry {
-  id                     String @db.VarChar(191)                   @id @default(cuid())
-  slug                   String @db.VarChar(191)                   @unique // uk, usa, canada, australia...
-  name                   String @db.VarChar(500)
-  officialName           String? @db.VarChar(500)
-  region                 String? @db.VarChar(500) // Europe | North America | Asia-Pacific | Middle East
-  overview               String? @db.VarChar(500)
-  educationSystem        String? @db.VarChar(500)
-  studyLevels            String? @db.VarChar(500) // comma-separated
-  popularSubjects        String? @db.VarChar(500) // comma-separated
-  tuitionFeeRange        String? @db.VarChar(500)
-  livingCostRange        String? @db.VarChar(500)
-  majorStudentCities     String? @db.VarChar(500) // comma-separated
-  admissionRequirements  String? @db.VarChar(500)
-  englishRequirements    String? @db.VarChar(500)
-  availableIntakes       String? @db.VarChar(500)
-  applicationDeadlines   String? @db.VarChar(500)
+  id                     String                   @id @default(cuid()) @db.VarChar(191)
+  slug                   String                   @unique @db.VarChar(191) // uk, usa, canada, australia...
+  name                   String                   @db.VarChar(500)
+  officialName           String?                  @db.VarChar(500)
+  region                 String?                  @db.VarChar(500) // Europe | North America | Asia-Pacific | Middle East
+  overview               String?                  @db.VarChar(500)
+  educationSystem        String?                  @db.VarChar(500)
+  studyLevels            String?                  @db.VarChar(500) // comma-separated
+  popularSubjects        String?                  @db.VarChar(500) // comma-separated
+  tuitionFeeRange        String?                  @db.VarChar(500)
+  livingCostRange        String?                  @db.VarChar(500)
+  majorStudentCities     String?                  @db.VarChar(500) // comma-separated
+  admissionRequirements  String?                  @db.VarChar(500)
+  englishRequirements    String?                  @db.VarChar(500)
+  availableIntakes       String?                  @db.VarChar(500)
+  applicationDeadlines   String?                  @db.VarChar(500)
   scholarshipsAvailable  Boolean                  @default(true)
   researchOpportunities  Boolean                  @default(true)
-  studentVisaOverview    String? @db.VarChar(500)
-  financialEvidence      String? @db.VarChar(500)
-  workRights             String? @db.VarChar(500)
-  postStudyOpportunities String? @db.VarChar(500)
-  accommodation          String? @db.VarChar(500)
-  healthcare             String? @db.VarChar(500)
-  transport              String? @db.VarChar(500)
-  studentSafety          String? @db.VarChar(500)
-  culturalInfo           String? @db.VarChar(500)
-  applicationProcess     String? @db.VarChar(500)
-  requiredDocuments      String? @db.VarChar(500)
-  faq                    String? @db.VarChar(500) // JSON string
-  officialSources        String? @db.VarChar(500) // JSON string
-  imageUrl               String? @db.VarChar(500)
-  flagEmoji              String? @db.VarChar(500)
-  status                 String @db.VarChar(191)                   @default("published") // draft | pending-review | approved | published | needs-update | archived
+  studentVisaOverview    String?                  @db.VarChar(500)
+  financialEvidence      String?                  @db.VarChar(500)
+  workRights             String?                  @db.VarChar(500)
+  postStudyOpportunities String?                  @db.VarChar(500)
+  accommodation          String?                  @db.VarChar(500)
+  healthcare             String?                  @db.VarChar(500)
+  transport              String?                  @db.VarChar(500)
+  studentSafety          String?                  @db.VarChar(500)
+  culturalInfo           String?                  @db.VarChar(500)
+  applicationProcess     String?                  @db.VarChar(500)
+  requiredDocuments      String?                  @db.VarChar(500)
+  faq                    String?                  @db.VarChar(500) // JSON string
+  officialSources        String?                  @db.VarChar(500) // JSON string
+  imageUrl               String?                  @db.VarChar(500)
+  flagEmoji              String?                  @db.VarChar(500)
+  status                 String                   @default("published") @db.VarChar(191) // draft | pending-review | approved | published | needs-update | archived
   lastVerifiedAt         DateTime?
-  lastVerifiedBy         String? @db.VarChar(500)
-  officialSourceUrl      String? @db.VarChar(500)
+  lastVerifiedBy         String?                  @db.VarChar(500)
+  officialSourceUrl      String?                  @db.VarChar(500)
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
   cities                 HigherStudyCity[]
@@ -522,17 +522,17 @@ model HigherStudyCountry {
 }
 
 model HigherStudyCity {
-  id            String @db.VarChar(191)                  @id @default(cuid())
-  slug          String @db.VarChar(191)                  @unique
-  name          String @db.VarChar(500)
-  countryId     String @db.VarChar(191)
+  id            String                  @id @default(cuid()) @db.VarChar(191)
+  slug          String                  @unique @db.VarChar(191)
+  name          String                  @db.VarChar(500)
+  countryId     String                  @db.VarChar(191)
   country       HigherStudyCountry      @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  overview      String? @db.VarChar(500)
-  livingCost    String? @db.VarChar(500)
-  transport     String? @db.VarChar(500)
-  accommodation String? @db.VarChar(500)
-  studentLife   String? @db.VarChar(500)
-  status        String @db.VarChar(191)                  @default("published")
+  overview      String?                 @db.VarChar(500)
+  livingCost    String?                 @db.VarChar(500)
+  transport     String?                 @db.VarChar(500)
+  accommodation String?                 @db.VarChar(500)
+  studentLife   String?                 @db.VarChar(500)
+  status        String                  @default("published") @db.VarChar(191)
   createdAt     DateTime                @default(now())
   updatedAt     DateTime                @updatedAt
   universities  HigherStudyUniversity[]
@@ -542,23 +542,23 @@ model HigherStudyCity {
 
 // ─── Universities ──────────────────────────────────────────────────
 model HigherStudyUniversity {
-  id                           String @db.VarChar(191)                       @id @default(cuid())
-  slug                         String @db.VarChar(191)                       @unique
-  officialName                 String @db.VarChar(500)
-  alternativeNames             String? @db.VarChar(500) // comma-separated
-  overview                     String? @db.VarChar(500)
+  id                           String                       @id @default(cuid()) @db.VarChar(191)
+  slug                         String                       @unique @db.VarChar(191)
+  officialName                 String                       @db.VarChar(500)
+  alternativeNames             String?                      @db.VarChar(500) // comma-separated
+  overview                     String?                      @db.VarChar(500)
   establishedYear              Int?
-  institutionType              String? @db.VarChar(500) // public | private | specialist | conservatoire | research-intensive | modern
-  countryId                    String @db.VarChar(191)
+  institutionType              String?                      @db.VarChar(500) // public | private | specialist | conservatoire | research-intensive | modern
+  countryId                    String                       @db.VarChar(191)
   country                      HigherStudyCountry           @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  cityId                       String? @db.VarChar(191)
+  cityId                       String?                      @db.VarChar(191)
   city                         HigherStudyCity?             @relation(fields: [cityId], references: [id])
-  campusLocations              String? @db.VarChar(500)
-  officialWebsite              String? @db.VarChar(500)
-  contactEmail                 String? @db.VarChar(500)
-  contactPhone                 String? @db.VarChar(500)
-  availableIntakes             String? @db.VarChar(500)
-  studyLevels                  String? @db.VarChar(500) // comma-separated list of supported levels
+  campusLocations              String?                      @db.VarChar(500)
+  officialWebsite              String?                      @db.VarChar(500)
+  contactEmail                 String?                      @db.VarChar(500)
+  contactPhone                 String?                      @db.VarChar(500)
+  availableIntakes             String?                      @db.VarChar(500)
+  studyLevels                  String?                      @db.VarChar(500) // comma-separated list of supported levels
   undergraduateCount           Int?
   postgraduateCount            Int?
   hasMBA                       Boolean                      @default(false)
@@ -566,41 +566,41 @@ model HigherStudyUniversity {
   hasMPhil                     Boolean                      @default(false)
   hasPhD                       Boolean                      @default(false)
   hasProfessionalDoctorate     Boolean                      @default(false)
-  researchDepartments          String? @db.VarChar(500) // comma-separated
-  researchStrengths            String? @db.VarChar(500)
-  tuitionFeeRange              String? @db.VarChar(500)
-  depositInfo                  String? @db.VarChar(500)
-  academicEntryRequirements    String? @db.VarChar(500)
-  countrySpecificRequirements  String? @db.VarChar(500)
-  ieltsRequirement             String? @db.VarChar(500)
-  ieltsUkviRequirement         String? @db.VarChar(500)
-  pteRequirement               String? @db.VarChar(500)
-  toeflRequirement             String? @db.VarChar(500)
-  duolingoRequirement          String? @db.VarChar(500)
-  languageCertRequirement      String? @db.VarChar(500)
-  oxfordElltRequirement        String? @db.VarChar(500)
-  englishWaiverPolicy          String? @db.VarChar(500)
+  researchDepartments          String?                      @db.VarChar(500) // comma-separated
+  researchStrengths            String?                      @db.VarChar(500)
+  tuitionFeeRange              String?                      @db.VarChar(500)
+  depositInfo                  String?                      @db.VarChar(500)
+  academicEntryRequirements    String?                      @db.VarChar(500)
+  countrySpecificRequirements  String?                      @db.VarChar(500)
+  ieltsRequirement             String?                      @db.VarChar(500)
+  ieltsUkviRequirement         String?                      @db.VarChar(500)
+  pteRequirement               String?                      @db.VarChar(500)
+  toeflRequirement             String?                      @db.VarChar(500)
+  duolingoRequirement          String?                      @db.VarChar(500)
+  languageCertRequirement      String?                      @db.VarChar(500)
+  oxfordElltRequirement        String?                      @db.VarChar(500)
+  englishWaiverPolicy          String?                      @db.VarChar(500)
   workExperienceRequired       Boolean                      @default(false)
   portfolioRequired            Boolean                      @default(false)
   interviewRequired            Boolean                      @default(false)
-  applicationDeadlines         String? @db.VarChar(500)
-  accommodationOptions         String? @db.VarChar(500)
-  estimatedLivingCosts         String? @db.VarChar(500)
-  internationalStudentServices String? @db.VarChar(500)
-  disabilitySupport            String? @db.VarChar(500)
-  careerSupport                String? @db.VarChar(500)
-  graduateOutcomes             String? @db.VarChar(500)
-  graduateRouteGuidance        String? @db.VarChar(500)
-  applicationGuidance          String? @db.VarChar(500)
-  officialLinks                String? @db.VarChar(500) // JSON string of {label, url}[]
-  rankingsJson                 String? @db.VarChar(500) // JSON string of {provider, year, category, rank, source}[]
-  logoUrl                      String? @db.VarChar(500)
+  applicationDeadlines         String?                      @db.VarChar(500)
+  accommodationOptions         String?                      @db.VarChar(500)
+  estimatedLivingCosts         String?                      @db.VarChar(500)
+  internationalStudentServices String?                      @db.VarChar(500)
+  disabilitySupport            String?                      @db.VarChar(500)
+  careerSupport                String?                      @db.VarChar(500)
+  graduateOutcomes             String?                      @db.VarChar(500)
+  graduateRouteGuidance        String?                      @db.VarChar(500)
+  applicationGuidance          String?                      @db.VarChar(500)
+  officialLinks                String?                      @db.VarChar(500) // JSON string of {label, url}[]
+  rankingsJson                 String?                      @db.VarChar(500) // JSON string of {provider, year, category, rank, source}[]
+  logoUrl                      String?                      @db.VarChar(500)
   featured                     Boolean                      @default(false)
-  verificationStatus           String @db.VarChar(191)                       @default("pending-review") // draft | pending-review | verified | published | needs-update | archived
-  publicationStatus            String @db.VarChar(500)                       @default("published")
+  verificationStatus           String                       @default("pending-review") @db.VarChar(191) // draft | pending-review | verified | published | needs-update | archived
+  publicationStatus            String                       @default("published") @db.VarChar(500)
   lastVerifiedAt               DateTime?
-  lastVerifiedBy               String? @db.VarChar(500)
-  officialSourceUrl            String? @db.VarChar(500)
+  lastVerifiedBy               String?                      @db.VarChar(500)
+  officialSourceUrl            String?                      @db.VarChar(500)
   createdAt                    DateTime                     @default(now())
   updatedAt                    DateTime                     @updatedAt
   courses                      HigherStudyCourse[]
@@ -617,12 +617,12 @@ model HigherStudyUniversity {
 
 // ─── Subjects ─────────────────────────────────────────────────────
 model HigherStudySubject {
-  id          String @db.VarChar(191)              @id @default(cuid())
-  slug        String @db.VarChar(191)              @unique
-  name        String @db.VarChar(500)
-  category    String? @db.VarChar(191) // STEM | Business | Humanities | Arts | Social Sciences | Medicine | Law
-  description String? @db.LongText
-  iconUrl     String? @db.VarChar(500)
+  id          String              @id @default(cuid()) @db.VarChar(191)
+  slug        String              @unique @db.VarChar(191)
+  name        String              @db.VarChar(500)
+  category    String?             @db.VarChar(191) // STEM | Business | Humanities | Arts | Social Sciences | Medicine | Law
+  description String?             @db.LongText
+  iconUrl     String?             @db.VarChar(500)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   courses     HigherStudyCourse[]
@@ -632,13 +632,13 @@ model HigherStudySubject {
 
 // ─── Intakes ──────────────────────────────────────────────────────
 model HigherStudyIntake {
-  id                  String @db.VarChar(191)              @id @default(cuid())
-  slug                String @db.VarChar(191)              @unique // fall-2026, spring-2027
-  name                String @db.VarChar(500) // Fall 2026 (Sep–Oct)
+  id                  String              @id @default(cuid()) @db.VarChar(191)
+  slug                String              @unique @db.VarChar(191) // fall-2026, spring-2027
+  name                String              @db.VarChar(500) // Fall 2026 (Sep–Oct)
   startDate           DateTime?
   endDate             DateTime?
   applicationDeadline DateTime?
-  status              String @db.VarChar(191)              @default("open") // open | closed | upcoming
+  status              String              @default("open") @db.VarChar(191) // open | closed | upcoming
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   courses             HigherStudyCourse[]
@@ -649,44 +649,44 @@ model HigherStudyIntake {
 
 // ─── Courses ──────────────────────────────────────────────────────
 model HigherStudyCourse {
-  id                          String @db.VarChar(191)                @id @default(cuid())
-  slug                        String @db.VarChar(191)                @unique
-  title                       String @db.VarChar(500)
-  universityId                String @db.VarChar(191)
+  id                          String                @id @default(cuid()) @db.VarChar(191)
+  slug                        String                @unique @db.VarChar(191)
+  title                       String                @db.VarChar(500)
+  universityId                String                @db.VarChar(191)
   university                  HigherStudyUniversity @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  countryId                   String? @db.VarChar(191)
+  countryId                   String?               @db.VarChar(191)
   country                     HigherStudyCountry?   @relation(fields: [countryId], references: [id])
-  subjectId                   String? @db.VarChar(191)
+  subjectId                   String?               @db.VarChar(191)
   subject                     HigherStudySubject?   @relation(fields: [subjectId], references: [id])
-  studyLevel                  String @db.VarChar(500) // foundation | international-year-one | diploma | hnd | bachelors | bachelors-topup | graduate-certificate | graduate-diploma | pre-masters | masters | mba | executive-mba | msc | ma | llm | meng | march | mph | mpa | mres | mphil | phd | dba | edd | dprof | engineering-doctorate | postdoc | research-fellowship | online | distance | blended | executive-education | professional-cert
-  qualification               String? @db.VarChar(500) // BSc, MSc, MBA, PhD, etc.
-  specialisation              String? @db.VarChar(500)
-  overview                    String? @db.VarChar(500)
-  modules                     String? @db.VarChar(500) // JSON string of module list
-  duration                    String? @db.VarChar(500) // "1 year full-time"
-  studyMode                   String? @db.VarChar(500) // full-time | part-time | online | blended
+  studyLevel                  String                @db.VarChar(500) // foundation | international-year-one | diploma | hnd | bachelors | bachelors-topup | graduate-certificate | graduate-diploma | pre-masters | masters | mba | executive-mba | msc | ma | llm | meng | march | mph | mpa | mres | mphil | phd | dba | edd | dprof | engineering-doctorate | postdoc | research-fellowship | online | distance | blended | executive-education | professional-cert
+  qualification               String?               @db.VarChar(500) // BSc, MSc, MBA, PhD, etc.
+  specialisation              String?               @db.VarChar(500)
+  overview                    String?               @db.VarChar(500)
+  modules                     String?               @db.VarChar(500) // JSON string of module list
+  duration                    String?               @db.VarChar(500) // "1 year full-time"
+  studyMode                   String?               @db.VarChar(500) // full-time | part-time | online | blended
   tuitionFee                  Int? // in USD
-  tuitionCurrency             String @db.VarChar(500)                @default("USD")
-  otherCosts                  String? @db.VarChar(500)
+  tuitionCurrency             String                @default("USD") @db.VarChar(500)
+  otherCosts                  String?               @db.VarChar(500)
   scholarshipAvailable        Boolean               @default(false)
-  academicEntryRequirements   String? @db.VarChar(500)
-  countrySpecificRequirements String? @db.VarChar(500)
-  englishRequirements         String? @db.VarChar(500)
+  academicEntryRequirements   String?               @db.VarChar(500)
+  countrySpecificRequirements String?               @db.VarChar(500)
+  englishRequirements         String?               @db.VarChar(500)
   workExperienceRequired      Boolean               @default(false)
   portfolioRequired           Boolean               @default(false)
   interviewRequired           Boolean               @default(false)
-  careerOutcomes              String? @db.VarChar(500)
-  placementInfo               String? @db.VarChar(500)
-  researchComponent           String? @db.VarChar(500)
-  applicationDeadline         String? @db.VarChar(500)
-  requiredDocuments           String? @db.VarChar(500)
-  intakeId                    String? @db.VarChar(191)
+  careerOutcomes              String?               @db.VarChar(500)
+  placementInfo               String?               @db.VarChar(500)
+  researchComponent           String?               @db.VarChar(500)
+  applicationDeadline         String?               @db.VarChar(500)
+  requiredDocuments           String?               @db.VarChar(500)
+  intakeId                    String?               @db.VarChar(191)
   intake                      HigherStudyIntake?    @relation(fields: [intakeId], references: [id])
-  officialSourceUrl           String? @db.VarChar(500)
-  verificationStatus          String @db.VarChar(191)                @default("pending-review")
-  publicationStatus           String @db.VarChar(500)                @default("published")
+  officialSourceUrl           String?               @db.VarChar(500)
+  verificationStatus          String                @default("pending-review") @db.VarChar(191)
+  publicationStatus           String                @default("published") @db.VarChar(500)
   lastVerifiedAt              DateTime?
-  lastVerifiedBy              String? @db.VarChar(500)
+  lastVerifiedBy              String?               @db.VarChar(500)
   featured                    Boolean               @default(false)
   createdAt                   DateTime              @default(now())
   updatedAt                   DateTime              @updatedAt
@@ -702,39 +702,39 @@ model HigherStudyCourse {
 
 // ─── Scholarships ─────────────────────────────────────────────────
 model HigherStudyScholarship {
-  id                     String @db.VarChar(191)                 @id @default(cuid())
-  slug                   String @db.VarChar(191)                 @unique
-  name                   String @db.VarChar(500)
-  provider               String? @db.VarChar(191) // university | government | research-council | private
-  countryId              String? @db.VarChar(191)
+  id                     String                 @id @default(cuid()) @db.VarChar(191)
+  slug                   String                 @unique @db.VarChar(191)
+  name                   String                 @db.VarChar(500)
+  provider               String?                @db.VarChar(191) // university | government | research-council | private
+  countryId              String?                @db.VarChar(191)
   country                HigherStudyCountry?    @relation(fields: [countryId], references: [id])
-  universityId           String? @db.VarChar(191)
+  universityId           String?                @db.VarChar(191)
   university             HigherStudyUniversity? @relation(fields: [universityId], references: [id])
-  eligibleStudyLevels    String? @db.VarChar(500) // comma-separated
-  eligibleSubjects       String? @db.VarChar(500) // comma-separated
-  eligibleNationalities  String? @db.VarChar(500) // comma-separated
-  fundingType            String? @db.VarChar(500) // fully-funded | partially-funded | government | university | department | research-council | merit | need | country-specific | subject-specific | women | leadership | sports | disability | phd-studentship | research-assistantship | teaching-assistantship | tuition-discount | fee-waiver | bursary | grant | fellowship | travel | living-cost
-  fundingAmount          String? @db.VarChar(500)
+  eligibleStudyLevels    String?                @db.VarChar(500) // comma-separated
+  eligibleSubjects       String?                @db.VarChar(500) // comma-separated
+  eligibleNationalities  String?                @db.VarChar(500) // comma-separated
+  fundingType            String?                @db.VarChar(500) // fully-funded | partially-funded | government | university | department | research-council | merit | need | country-specific | subject-specific | women | leadership | sports | disability | phd-studentship | research-assistantship | teaching-assistantship | tuition-discount | fee-waiver | bursary | grant | fellowship | travel | living-cost
+  fundingAmount          String?                @db.VarChar(500)
   tuitionCoverage        Boolean                @default(false)
   livingCostCoverage     Boolean                @default(false)
   travelSupport          Boolean                @default(false)
   healthInsurance        Boolean                @default(false)
-  otherBenefits          String? @db.VarChar(500)
-  eligibilityCriteria    String? @db.VarChar(500)
-  academicRequirement    String? @db.VarChar(500)
-  englishRequirement     String? @db.VarChar(500)
+  otherBenefits          String?                @db.VarChar(500)
+  eligibilityCriteria    String?                @db.VarChar(500)
+  academicRequirement    String?                @db.VarChar(500)
+  englishRequirement     String?                @db.VarChar(500)
   workExperienceRequired Boolean                @default(false)
-  requiredDocuments      String? @db.VarChar(500)
+  requiredDocuments      String?                @db.VarChar(500)
   openingDate            DateTime?
   deadline               DateTime?
-  applicationProcess     String? @db.VarChar(500)
-  selectionProcess       String? @db.VarChar(500)
-  restrictions           String? @db.VarChar(500)
-  officialSourceUrl      String? @db.VarChar(500)
-  verificationStatus     String @db.VarChar(191)                 @default("pending-review")
-  publicationStatus      String @db.VarChar(500)                 @default("published")
+  applicationProcess     String?                @db.VarChar(500)
+  selectionProcess       String?                @db.VarChar(500)
+  restrictions           String?                @db.VarChar(500)
+  officialSourceUrl      String?                @db.VarChar(500)
+  verificationStatus     String                 @default("pending-review") @db.VarChar(191)
+  publicationStatus      String                 @default("published") @db.VarChar(500)
   lastVerifiedAt         DateTime?
-  lastVerifiedBy         String? @db.VarChar(500)
+  lastVerifiedBy         String?                @db.VarChar(500)
   featured               Boolean                @default(false)
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @updatedAt
@@ -749,10 +749,10 @@ model HigherStudyScholarship {
 
 // ─── Research Areas ───────────────────────────────────────────────
 model HigherStudyResearchArea {
-  id               String @db.VarChar(191)                       @id @default(cuid())
-  slug             String @db.VarChar(191)                       @unique
-  name             String @db.VarChar(500)
-  description      String? @db.LongText
+  id               String                       @id @default(cuid()) @db.VarChar(191)
+  slug             String                       @unique @db.VarChar(191)
+  name             String                       @db.VarChar(500)
+  description      String?                      @db.LongText
   createdAt        DateTime                     @default(now())
   updatedAt        DateTime                     @updatedAt
   researchProjects HigherStudyResearchProject[]
@@ -763,38 +763,38 @@ model HigherStudyResearchArea {
 
 // ─── PhD / Research Projects ──────────────────────────────────────
 model HigherStudyResearchProject {
-  id                   String @db.VarChar(191)                   @id @default(cuid())
-  slug                 String @db.VarChar(191)                   @unique
-  title                String @db.VarChar(500)
-  universityId         String @db.VarChar(191)
+  id                   String                   @id @default(cuid()) @db.VarChar(191)
+  slug                 String                   @unique @db.VarChar(191)
+  title                String                   @db.VarChar(500)
+  universityId         String                   @db.VarChar(191)
   university           HigherStudyUniversity    @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  department           String? @db.VarChar(500)
-  researchGroupId      String? @db.VarChar(191)
-  researchAreaId       String? @db.VarChar(191)
+  department           String?                  @db.VarChar(500)
+  researchGroupId      String?                  @db.VarChar(191)
+  researchAreaId       String?                  @db.VarChar(191)
   researchArea         HigherStudyResearchArea? @relation(fields: [researchAreaId], references: [id])
-  supervisorId         String? @db.VarChar(191)
+  supervisorId         String?                  @db.VarChar(191)
   supervisor           HigherStudySupervisor?   @relation(fields: [supervisorId], references: [id])
-  coSupervisorId       String? @db.VarChar(191)
-  projectSummary       String? @db.VarChar(500)
-  researchObjectives   String? @db.VarChar(500)
-  methodologySummary   String? @db.VarChar(500)
-  candidateProfile     String? @db.VarChar(500)
-  academicRequirements String? @db.VarChar(500)
-  englishRequirements  String? @db.VarChar(500)
-  fundingStatus        String? @db.VarChar(500) // fully-funded | partially-funded | self-funded | studentship | unfunded
+  coSupervisorId       String?                  @db.VarChar(191)
+  projectSummary       String?                  @db.VarChar(500)
+  researchObjectives   String?                  @db.VarChar(500)
+  methodologySummary   String?                  @db.VarChar(500)
+  candidateProfile     String?                  @db.VarChar(500)
+  academicRequirements String?                  @db.VarChar(500)
+  englishRequirements  String?                  @db.VarChar(500)
+  fundingStatus        String?                  @db.VarChar(500) // fully-funded | partially-funded | self-funded | studentship | unfunded
   tuitionCoverage      Boolean                  @default(false)
-  stipend              String? @db.VarChar(500)
-  additionalFunding    String? @db.VarChar(500)
-  duration             String? @db.VarChar(500)
+  stipend              String?                  @db.VarChar(500)
+  additionalFunding    String?                  @db.VarChar(500)
+  duration             String?                  @db.VarChar(500)
   startDate            DateTime?
   applicationDeadline  DateTime?
-  requiredDocuments    String? @db.VarChar(500)
-  applicationProcess   String? @db.VarChar(500)
-  officialSourceUrl    String? @db.VarChar(500)
-  verificationStatus   String @db.VarChar(191)                   @default("pending-review")
-  publicationStatus    String @db.VarChar(500)                   @default("published")
+  requiredDocuments    String?                  @db.VarChar(500)
+  applicationProcess   String?                  @db.VarChar(500)
+  officialSourceUrl    String?                  @db.VarChar(500)
+  verificationStatus   String                   @default("pending-review") @db.VarChar(191)
+  publicationStatus    String                   @default("published") @db.VarChar(500)
   lastVerifiedAt       DateTime?
-  lastVerifiedBy       String? @db.VarChar(500)
+  lastVerifiedBy       String?                  @db.VarChar(500)
   featured             Boolean                  @default(false)
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
@@ -809,26 +809,26 @@ model HigherStudyResearchProject {
 
 // ─── Supervisors ──────────────────────────────────────────────────
 model HigherStudySupervisor {
-  id                   String @db.VarChar(191)                       @id @default(cuid())
-  slug                 String @db.VarChar(191)                       @unique
-  name                 String @db.VarChar(500)
-  academicTitle        String? @db.VarChar(500) // Professor, Dr, Lecturer
-  universityId         String @db.VarChar(191)
+  id                   String                       @id @default(cuid()) @db.VarChar(191)
+  slug                 String                       @unique @db.VarChar(191)
+  name                 String                       @db.VarChar(500)
+  academicTitle        String?                      @db.VarChar(500) // Professor, Dr, Lecturer
+  universityId         String                       @db.VarChar(191)
   university           HigherStudyUniversity        @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  department           String? @db.VarChar(500)
-  publicProfileUrl     String? @db.VarChar(500)
-  researchAreaId       String? @db.VarChar(191)
+  department           String?                      @db.VarChar(500)
+  publicProfileUrl     String?                      @db.VarChar(500)
+  researchAreaId       String?                      @db.VarChar(191)
   researchArea         HigherStudyResearchArea?     @relation(fields: [researchAreaId], references: [id])
-  researchInterests    String? @db.VarChar(500) // comma-separated
-  selectedPublications String? @db.VarChar(500) // JSON string
-  currentProjects      String? @db.VarChar(500) // JSON string
+  researchInterests    String?                      @db.VarChar(500) // comma-separated
+  selectedPublications String?                      @db.VarChar(500) // JSON string
+  currentProjects      String?                      @db.VarChar(500) // JSON string
   acceptingStudents    Boolean                      @default(false)
-  applicationGuidance  String? @db.VarChar(500)
-  verificationStatus   String @db.VarChar(191)                       @default("pending-review")
-  publicationStatus    String @db.VarChar(500)                       @default("published")
+  applicationGuidance  String?                      @db.VarChar(500)
+  verificationStatus   String                       @default("pending-review") @db.VarChar(191)
+  publicationStatus    String                       @default("published") @db.VarChar(500)
   lastVerifiedAt       DateTime?
-  lastVerifiedBy       String? @db.VarChar(500)
-  officialSourceUrl    String? @db.VarChar(500)
+  lastVerifiedBy       String?                      @db.VarChar(500)
+  officialSourceUrl    String?                      @db.VarChar(500)
   createdAt            DateTime                     @default(now())
   updatedAt            DateTime                     @updatedAt
   researchProjects     HigherStudyResearchProject[]
@@ -841,25 +841,25 @@ model HigherStudySupervisor {
 
 // ─── Study Resources ──────────────────────────────────────────────
 model HigherStudyResource {
-  id                      String @db.VarChar(191)    @id @default(cuid())
-  slug                    String @db.VarChar(191)    @unique
-  title                   String @db.VarChar(500)
-  category                String? @db.VarChar(191) // planning | country-guides | university-guides | course-selection | scholarship-guides | phd-guides | research-guides | proposal-guides | supervisor-contact | sop | personal-statement | cv | recommendation-letter | portfolio | visa | financial | accommodation | pre-departure | student-life | checklists | interview | ielts | ielts-ukvi | pte | toefl | duolingo | languagecert | academic-writing | research-methods | publication | referencing | research-ethics | comparison | faq
-  summary                 String? @db.LongText
-  content                 String? @db.LongText // markdown body
-  author                  String? @db.VarChar(500)
-  reviewer                String? @db.VarChar(500)
+  id                      String    @id @default(cuid()) @db.VarChar(191)
+  slug                    String    @unique @db.VarChar(191)
+  title                   String    @db.VarChar(500)
+  category                String?   @db.VarChar(191) // planning | country-guides | university-guides | course-selection | scholarship-guides | phd-guides | research-guides | proposal-guides | supervisor-contact | sop | personal-statement | cv | recommendation-letter | portfolio | visa | financial | accommodation | pre-departure | student-life | checklists | interview | ielts | ielts-ukvi | pte | toefl | duolingo | languagecert | academic-writing | research-methods | publication | referencing | research-ethics | comparison | faq
+  summary                 String?   @db.LongText
+  content                 String?   @db.LongText // markdown body
+  author                  String?   @db.VarChar(500)
+  reviewer                String?   @db.VarChar(500)
   publishedAt             DateTime?
   updatedAt               DateTime  @updatedAt
   lastVerifiedAt          DateTime?
   readingTimeMinutes      Int?
-  tableOfContents         String? @db.VarChar(500) // JSON string
-  relatedUniversitySlugs  String? @db.VarChar(500) // comma-separated
-  relatedCourseSlugs      String? @db.VarChar(500)
-  relatedScholarshipSlugs String? @db.VarChar(500)
-  officialSourceUrl       String? @db.VarChar(500)
-  verificationStatus      String @db.VarChar(191)    @default("pending-review")
-  publicationStatus       String @db.VarChar(500)    @default("published")
+  tableOfContents         String?   @db.VarChar(500) // JSON string
+  relatedUniversitySlugs  String?   @db.VarChar(500) // comma-separated
+  relatedCourseSlugs      String?   @db.VarChar(500)
+  relatedScholarshipSlugs String?   @db.VarChar(500)
+  officialSourceUrl       String?   @db.VarChar(500)
+  verificationStatus      String    @default("pending-review") @db.VarChar(191)
+  publicationStatus       String    @default("published") @db.VarChar(500)
   featured                Boolean   @default(false)
   createdAt               DateTime  @default(now())
 
@@ -871,16 +871,16 @@ model HigherStudyResource {
 
 // ─── Student Stories ──────────────────────────────────────────────
 model HigherStudyStudentStory {
-  id             String @db.VarChar(191)    @id @default(cuid())
-  slug           String @db.VarChar(191)    @unique
-  studentName    String @db.VarChar(500)
-  universityName String? @db.VarChar(500)
-  courseName     String? @db.VarChar(500)
-  country        String? @db.VarChar(500)
-  intake         String? @db.VarChar(500)
-  story          String? @db.VarChar(500)
-  advice         String? @db.VarChar(500)
-  imageUrl       String? @db.VarChar(500)
+  id             String    @id @default(cuid()) @db.VarChar(191)
+  slug           String    @unique @db.VarChar(191)
+  studentName    String    @db.VarChar(500)
+  universityName String?   @db.VarChar(500)
+  courseName     String?   @db.VarChar(500)
+  country        String?   @db.VarChar(500)
+  intake         String?   @db.VarChar(500)
+  story          String?   @db.VarChar(500)
+  advice         String?   @db.VarChar(500)
+  imageUrl       String?   @db.VarChar(500)
   publishedAt    DateTime?
   featured       Boolean   @default(false)
   createdAt      DateTime  @default(now())
@@ -891,17 +891,17 @@ model HigherStudyStudentStory {
 
 // ─── Events / Webinars ────────────────────────────────────────────
 model HigherStudyEvent {
-  id              String @db.VarChar(191)    @id @default(cuid())
-  slug            String @db.VarChar(191)    @unique
-  title           String @db.VarChar(500)
-  description     String? @db.LongText
+  id              String    @id @default(cuid()) @db.VarChar(191)
+  slug            String    @unique @db.VarChar(191)
+  title           String    @db.VarChar(500)
+  description     String?   @db.LongText
   eventDate       DateTime
   endDate         DateTime?
-  location        String? @db.VarChar(500) // online | city name
-  organiser       String? @db.VarChar(500)
-  registrationUrl String? @db.VarChar(500)
-  imageUrl        String? @db.VarChar(500)
-  status          String @db.VarChar(191)    @default("upcoming") // upcoming | live | ended | cancelled
+  location        String?   @db.VarChar(500) // online | city name
+  organiser       String?   @db.VarChar(500)
+  registrationUrl String?   @db.VarChar(500)
+  imageUrl        String?   @db.VarChar(500)
+  status          String    @default("upcoming") @db.VarChar(191) // upcoming | live | ended | cancelled
   createdAt       DateTime  @default(now())
 
   @@index([eventDate])
@@ -910,13 +910,13 @@ model HigherStudyEvent {
 
 // ─── Saved Items (anonymous via session, or authenticated via userId) ─
 model HigherStudySavedItem {
-  id         String @db.VarChar(191)   @id @default(cuid())
-  userId     String? @db.VarChar(191) // optional — if authenticated alaminn.info user
-  sessionId  String? @db.VarChar(191) // anonymous session id (localStorage)
-  entityType String @db.VarChar(191) // university | course | scholarship | research | supervisor | resource | comparison
-  entitySlug String @db.VarChar(500)
-  entityName String @db.VarChar(500)
-  notes      String? @db.LongText
+  id         String   @id @default(cuid()) @db.VarChar(191)
+  userId     String?  @db.VarChar(191) // optional — if authenticated alaminn.info user
+  sessionId  String?  @db.VarChar(191) // anonymous session id (localStorage)
+  entityType String   @db.VarChar(191) // university | course | scholarship | research | supervisor | resource | comparison
+  entitySlug String   @db.VarChar(500)
+  entityName String   @db.VarChar(500)
+  notes      String?  @db.LongText
   createdAt  DateTime @default(now())
 
   @@unique([userId, entityType, entitySlug])
@@ -927,12 +927,12 @@ model HigherStudySavedItem {
 
 // ─── Comparisons ──────────────────────────────────────────────────
 model HigherStudyComparison {
-  id          String @db.VarChar(191)   @id @default(cuid())
-  userId      String? @db.VarChar(191)
-  sessionId   String? @db.VarChar(191)
-  entityType  String @db.VarChar(191) // university | course | scholarship
-  entitySlugs String @db.VarChar(500) // comma-separated list of slugs (max 4)
-  name        String? @db.VarChar(500)
+  id          String   @id @default(cuid()) @db.VarChar(191)
+  userId      String?  @db.VarChar(191)
+  sessionId   String?  @db.VarChar(191)
+  entityType  String   @db.VarChar(191) // university | course | scholarship
+  entitySlugs String   @db.VarChar(500) // comma-separated list of slugs (max 4)
+  name        String?  @db.VarChar(500)
   createdAt   DateTime @default(now())
 
   @@index([userId, entityType])
@@ -941,34 +941,34 @@ model HigherStudyComparison {
 
 // ─── ALO Education Referral (server-to-server handoff audit) ─────
 model HigherStudyReferral {
-  id               String @db.VarChar(191)    @id @default(cuid())
-  referralCode     String @db.VarChar(500)    @unique // short-lived signed token
-  source           String @db.VarChar(191)    @default("ALAMINN_HIGHER_STUDY")
-  referralType     String @db.VarChar(500) // course-application | university-application | scholarship-application | phd-application | research-application | supervisor-enquiry | eligibility-check | consultation | resource-referral | deadline-alert | english-referral
-  targetUrl        String @db.VarChar(500) // ALO Education destination URL
+  id               String    @id @default(cuid()) @db.VarChar(191)
+  referralCode     String    @unique @db.VarChar(500) // short-lived signed token
+  source           String    @default("ALAMINN_HIGHER_STUDY") @db.VarChar(191)
+  referralType     String    @db.VarChar(500) // course-application | university-application | scholarship-application | phd-application | research-application | supervisor-enquiry | eligibility-check | consultation | resource-referral | deadline-alert | english-referral
+  targetUrl        String    @db.VarChar(500) // ALO Education destination URL
   // Public context (safe to put in URL)
-  countrySlug      String? @db.VarChar(500)
-  universitySlug   String? @db.VarChar(500)
-  courseSlug       String? @db.VarChar(500)
-  scholarshipSlug  String? @db.VarChar(500)
-  researchSlug     String? @db.VarChar(500)
-  supervisorSlug   String? @db.VarChar(500)
-  studyLevel       String? @db.VarChar(500)
-  intake           String? @db.VarChar(500)
-  campaignCode     String? @db.VarChar(500)
+  countrySlug      String?   @db.VarChar(500)
+  universitySlug   String?   @db.VarChar(500)
+  courseSlug       String?   @db.VarChar(500)
+  scholarshipSlug  String?   @db.VarChar(500)
+  researchSlug     String?   @db.VarChar(500)
+  supervisorSlug   String?   @db.VarChar(500)
+  studyLevel       String?   @db.VarChar(500)
+  intake           String?   @db.VarChar(500)
+  campaignCode     String?   @db.VarChar(500)
   // Consent tracking
   consentGiven     Boolean   @default(false)
-  consentVersion   String? @db.VarChar(500)
+  consentVersion   String?   @db.VarChar(500)
   consentTimestamp DateTime?
   // Status
-  status           String @db.VarChar(191)    @default("created") // created | transferred | completed | failed | expired
+  status           String    @default("created") @db.VarChar(191) // created | transferred | completed | failed | expired
   transferredAt    DateTime?
   completedAt      DateTime?
-  failureReason    String? @db.VarChar(500)
+  failureReason    String?   @db.VarChar(500)
   expiresAt        DateTime? // 24h validity — set by app code (now + 86400000)
   // Audit
-  ipHash           String? @db.VarChar(500)
-  deviceCategory   String? @db.VarChar(500) // mobile | tablet | desktop
+  ipHash           String?   @db.VarChar(500)
+  deviceCategory   String?   @db.VarChar(500) // mobile | tablet | desktop
   createdAt        DateTime  @default(now())
 
   @@index([status])
@@ -978,21 +978,21 @@ model HigherStudyReferral {
 
 // ─── Deadline Alerts ──────────────────────────────────────────────
 model HigherStudyAlert {
-  id               String @db.VarChar(191)    @id @default(cuid())
-  userId           String? @db.VarChar(191)
-  sessionId        String? @db.VarChar(191)
-  email            String? @db.VarChar(191) // optional — for email alerts
-  whatsapp         String? @db.VarChar(500) // optional — only with explicit consent
-  entityType       String @db.VarChar(191) // scholarship | research | course | event
-  entitySlug       String @db.VarChar(500)
-  entityName       String @db.VarChar(500)
+  id               String    @id @default(cuid()) @db.VarChar(191)
+  userId           String?   @db.VarChar(191)
+  sessionId        String?   @db.VarChar(191)
+  email            String?   @db.VarChar(191) // optional — for email alerts
+  whatsapp         String?   @db.VarChar(500) // optional — only with explicit consent
+  entityType       String    @db.VarChar(191) // scholarship | research | course | event
+  entitySlug       String    @db.VarChar(500)
+  entityName       String    @db.VarChar(500)
   deadlineDate     DateTime
-  alertChannel     String @db.VarChar(500)    @default("email") // email | in-app | whatsapp
+  alertChannel     String    @default("email") @db.VarChar(500) // email | in-app | whatsapp
   alertSent        Boolean   @default(false)
   alertSentAt      DateTime?
   consentGiven     Boolean   @default(false)
   consentTimestamp DateTime?
-  status           String @db.VarChar(191)    @default("active") // active | fired | cancelled | expired
+  status           String    @default("active") @db.VarChar(191) // active | fired | cancelled | expired
   createdAt        DateTime  @default(now())
 
   @@index([userId, status])
@@ -1002,16 +1002,16 @@ model HigherStudyAlert {
 
 // ─── Audit Log (Higher Study specific) ────────────────────────────
 model HigherStudyAuditLog {
-  id          String @db.VarChar(191)   @id @default(cuid())
-  actorUserId String? @db.VarChar(191)
-  action      String @db.VarChar(191) // create | update | publish | archive | verify | import | delete
-  entityType  String @db.VarChar(191)
-  entityId    String @db.VarChar(191)
-  entitySlug  String? @db.VarChar(500)
-  beforeData  String? @db.LongText // JSON string
-  afterData   String? @db.LongText // JSON string
-  ipHash      String? @db.VarChar(500)
-  userAgent   String? @db.VarChar(500)
+  id          String   @id @default(cuid()) @db.VarChar(191)
+  actorUserId String?  @db.VarChar(191)
+  action      String   @db.VarChar(191) // create | update | publish | archive | verify | import | delete
+  entityType  String   @db.VarChar(191)
+  entityId    String   @db.VarChar(191)
+  entitySlug  String?  @db.VarChar(500)
+  beforeData  String?  @db.LongText // JSON string
+  afterData   String?  @db.LongText // JSON string
+  ipHash      String?  @db.VarChar(500)
+  userAgent   String?  @db.VarChar(500)
   createdAt   DateTime @default(now())
 
   @@index([actorUserId])
@@ -1021,20 +1021,20 @@ model HigherStudyAuditLog {
 
 // ─── Import Jobs (bulk university/course/scholarship import) ──────
 model HigherStudyImportJob {
-  id            String @db.VarChar(191)    @id @default(cuid())
-  fileName      String @db.VarChar(500)
-  fileType      String @db.VarChar(500)    @default("csv")
-  entityType    String @db.VarChar(191) // university | course | scholarship | research | supervisor | resource
+  id            String    @id @default(cuid()) @db.VarChar(191)
+  fileName      String    @db.VarChar(500)
+  fileType      String    @default("csv") @db.VarChar(500)
+  entityType    String    @db.VarChar(191) // university | course | scholarship | research | supervisor | resource
   totalRows     Int       @default(0)
   processedRows Int       @default(0)
   successRows   Int       @default(0)
   errorRows     Int       @default(0)
-  status        String @db.VarChar(191)    @default("pending") // pending | preview | importing | completed | failed | cancelled
+  status        String    @default("pending") @db.VarChar(191) // pending | preview | importing | completed | failed | cancelled
   dryRun        Boolean   @default(false)
-  errors        String? @db.VarChar(500) // JSON string of {row, error}[]
+  errors        String?   @db.VarChar(500) // JSON string of {row, error}[]
   startedAt     DateTime?
   completedAt   DateTime?
-  createdBy     String? @db.VarChar(500)
+  createdBy     String?   @db.VarChar(500)
   createdAt     DateTime  @default(now())
 
   @@index([status])
@@ -1048,37 +1048,37 @@ model HigherStudyImportJob {
 // follow the same verification + publication discipline as Higher Study.
 
 model EnglishLearningCourse {
-  id                 String @db.VarChar(191)                      @id @default(cuid())
-  slug               String @db.VarChar(191)                      @unique
-  title              String @db.VarChar(500)
-  summary            String? @db.LongText
-  description        String? @db.LongText // markdown
-  level              String @db.VarChar(500)                      @default("intermediate") // beginner | intermediate | advanced | ielts | toefl | pte | det | gre | gmat
+  id                 String                      @id @default(cuid()) @db.VarChar(191)
+  slug               String                      @unique @db.VarChar(191)
+  title              String                      @db.VarChar(500)
+  summary            String?                     @db.LongText
+  description        String?                     @db.LongText // markdown
+  level              String                      @default("intermediate") @db.VarChar(500) // beginner | intermediate | advanced | ielts | toefl | pte | det | gre | gmat
   durationWeeks      Int?
   hoursPerWeek       Int?
   priceUsd           Int?
-  currency           String @db.VarChar(191)                      @default("USD")
+  currency           String                      @default("USD") @db.VarChar(191)
   isFeatured         Boolean                     @default(false)
   isPublished        Boolean                     @default(true)
-  verificationStatus String @db.VarChar(191)                      @default("pending-review") // draft | pending-review | verified | published | needs-update | archived
-  publicationStatus  String @db.VarChar(500)                      @default("published") // draft | published | archived
+  verificationStatus String                      @default("pending-review") @db.VarChar(191) // draft | pending-review | verified | published | needs-update | archived
+  publicationStatus  String                      @default("published") @db.VarChar(500) // draft | published | archived
   lastVerifiedAt     DateTime?
-  lastVerifiedBy     String? @db.VarChar(500)
-  officialSourceUrl  String? @db.VarChar(500)
-  createdByUserId    String? @db.VarChar(191)
+  lastVerifiedBy     String?                     @db.VarChar(500)
+  officialSourceUrl  String?                     @db.VarChar(500)
+  createdByUserId    String?                     @db.VarChar(191)
   createdAt          DateTime                    @default(now())
   updatedAt          DateTime                    @updatedAt
-  metaTitle          String? @db.VarChar(500)
-  metaDescription    String? @db.LongText
+  metaTitle          String?                     @db.VarChar(500)
+  metaDescription    String?                     @db.LongText
   keywords           Json?
   tags               Json?
-  heroImageUrl       String? @db.VarChar(500)
-  introVideoUrl      String? @db.VarChar(500)
+  heroImageUrl       String?                     @db.VarChar(500)
+  introVideoUrl      String?                     @db.VarChar(500)
   syllabus           Json?
   prerequisites      Json?
   targetAudience     Json?
   learningOutcomes   Json?
-  certificationType  String? @db.VarChar(500)
+  certificationType  String?                     @db.VarChar(500)
   passScore          Int?
   enrollmentCount    Int                         @default(0)
   lessons            EnglishLearningLesson[]
@@ -1092,18 +1092,18 @@ model EnglishLearningCourse {
 }
 
 model EnglishLearningLesson {
-  id              String @db.VarChar(191)                    @id @default(cuid())
-  courseId        String @db.VarChar(191)
+  id              String                    @id @default(cuid()) @db.VarChar(191)
+  courseId        String                    @db.VarChar(191)
   course          EnglishLearningCourse     @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  slug            String @db.VarChar(191)                    @unique
-  title           String @db.VarChar(500)
-  summary         String? @db.LongText
-  content         String? @db.LongText // markdown
+  slug            String                    @unique @db.VarChar(191)
+  title           String                    @db.VarChar(500)
+  summary         String?                   @db.LongText
+  content         String?                   @db.LongText // markdown
   orderIndex      Int                       @default(0)
   durationMinutes Int?
-  lessonType      String @db.VarChar(500)                    @default("video") // video | reading | listening | speaking | writing | grammar | vocab | quiz
-  videoUrl        String? @db.VarChar(500)
-  transcript      String? @db.VarChar(500) // markdown
+  lessonType      String                    @default("video") @db.VarChar(500) // video | reading | listening | speaking | writing | grammar | vocab | quiz
+  videoUrl        String?                   @db.VarChar(500)
+  transcript      String?                   @db.VarChar(500) // markdown
   isFreePreview   Boolean                   @default(false)
   isPublished     Boolean                   @default(true)
   createdAt       DateTime                  @default(now())
@@ -1118,12 +1118,12 @@ model EnglishLearningLesson {
 }
 
 model EnglishLearningPracticeTest {
-  id              String @db.VarChar(191)                    @id @default(cuid())
-  slug            String @db.VarChar(191)                    @unique
-  title           String @db.VarChar(500)
-  description     String? @db.LongText
-  testType        String @db.VarChar(500)                    @default("ielts-reading") // ielts-reading | ielts-listening | ielts-writing | ielts-speaking | toefl-reading | toefl-listening | toefl-writing | toefl-speaking | pte | duolingo | gre-verbal | gmat-verbal
-  level           String @db.VarChar(500)                    @default("intermediate") // beginner | intermediate | advanced | ielts | toefl | pte | det | gre | gmat
+  id              String                    @id @default(cuid()) @db.VarChar(191)
+  slug            String                    @unique @db.VarChar(191)
+  title           String                    @db.VarChar(500)
+  description     String?                   @db.LongText
+  testType        String                    @default("ielts-reading") @db.VarChar(500) // ielts-reading | ielts-listening | ielts-writing | ielts-speaking | toefl-reading | toefl-listening | toefl-writing | toefl-speaking | pte | duolingo | gre-verbal | gmat-verbal
+  level           String                    @default("intermediate") @db.VarChar(500) // beginner | intermediate | advanced | ielts | toefl | pte | det | gre | gmat
   durationMinutes Int?
   totalQuestions  Int                       @default(0)
   passingScore    Int?
@@ -1141,17 +1141,17 @@ model EnglishLearningPracticeTest {
 }
 
 model EnglishLearningQuestion {
-  id            String @db.VarChar(191)                      @id @default(cuid())
-  testId        String @db.VarChar(191)
+  id            String                      @id @default(cuid()) @db.VarChar(191)
+  testId        String                      @db.VarChar(191)
   test          EnglishLearningPracticeTest @relation(fields: [testId], references: [id], onDelete: Cascade)
-  questionType  String @db.VarChar(500)                      @default("multiple-choice") // multiple-choice | true-false | fill-blank | short-answer | essay | matching
-  questionText  String @db.LongText
+  questionType  String                      @default("multiple-choice") @db.VarChar(500) // multiple-choice | true-false | fill-blank | short-answer | essay | matching
+  questionText  String                      @db.LongText
   options       Json?
-  correctAnswer String? @db.VarChar(500)
-  explanation   String? @db.VarChar(500) // markdown
+  correctAnswer String?                     @db.VarChar(500)
+  explanation   String?                     @db.VarChar(500) // markdown
   points        Int                         @default(1)
   orderIndex    Int                         @default(0)
-  skillArea     String @db.VarChar(500)                      @default("reading") // reading | listening | speaking | writing | grammar | vocab
+  skillArea     String                      @default("reading") @db.VarChar(500) // reading | listening | speaking | writing | grammar | vocab
 
   @@index([testId])
   @@index([questionType])
@@ -1160,23 +1160,23 @@ model EnglishLearningQuestion {
 }
 
 model EnglishLearningTutor {
-  id                 String @db.VarChar(191)    @id @default(cuid())
-  slug               String @db.VarChar(191)    @unique
-  name               String @db.VarChar(500)
-  bio                String? @db.VarChar(500)
-  avatarUrl          String? @db.VarChar(500)
+  id                 String    @id @default(cuid()) @db.VarChar(191)
+  slug               String    @unique @db.VarChar(191)
+  name               String    @db.VarChar(500)
+  bio                String?   @db.VarChar(500)
+  avatarUrl          String?   @db.VarChar(500)
   specialties        Json?
   qualifications     Json?
   yearsExperience    Int?
   hourlyRateUsd      Int?
-  currency           String @db.VarChar(191)    @default("USD")
+  currency           String    @default("USD") @db.VarChar(191)
   rating             Float     @default(0)
   reviewCount        Int       @default(0)
   isAvailable        Boolean   @default(true)
   isPublished        Boolean   @default(true)
-  verificationStatus String @db.VarChar(191)    @default("pending-review")
+  verificationStatus String    @default("pending-review") @db.VarChar(191)
   lastVerifiedAt     DateTime?
-  officialProfileUrl String? @db.VarChar(500)
+  officialProfileUrl String?   @db.VarChar(500)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -1187,22 +1187,22 @@ model EnglishLearningTutor {
 }
 
 model EnglishLearningResource {
-  id                 String @db.VarChar(191)   @id @default(cuid())
-  slug               String @db.VarChar(191)   @unique
-  title              String @db.VarChar(500)
-  summary            String? @db.LongText
-  description        String? @db.LongText // markdown
-  resourceType       String @db.VarChar(500)   @default("article") // article | video | infographic | audio | pdf
-  url                String? @db.VarChar(191)
+  id                 String   @id @default(cuid()) @db.VarChar(191)
+  slug               String   @unique @db.VarChar(191)
+  title              String   @db.VarChar(500)
+  summary            String?  @db.LongText
+  description        String?  @db.LongText // markdown
+  resourceType       String   @default("article") @db.VarChar(500) // article | video | infographic | audio | pdf
+  url                String?  @db.VarChar(191)
   durationMinutes    Int?
   readingTimeMinutes Int?
-  level              String @db.VarChar(500)   @default("intermediate")
+  level              String   @default("intermediate") @db.VarChar(500)
   isPublished        Boolean  @default(true)
   isFeatured         Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
-  authorName         String? @db.VarChar(500)
-  sourceName         String? @db.VarChar(500)
+  authorName         String?  @db.VarChar(500)
+  sourceName         String?  @db.VarChar(500)
 
   @@index([resourceType])
   @@index([level])
@@ -1211,12 +1211,12 @@ model EnglishLearningResource {
 }
 
 model EnglishLearningEnrollment {
-  id              String @db.VarChar(191)                    @id @default(cuid())
-  userId          String? @db.VarChar(191)
-  sessionId       String @db.VarChar(191)
-  courseId        String @db.VarChar(191)
+  id              String                    @id @default(cuid()) @db.VarChar(191)
+  userId          String?                   @db.VarChar(191)
+  sessionId       String                    @db.VarChar(191)
+  courseId        String                    @db.VarChar(191)
   course          EnglishLearningCourse     @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  status          String @db.VarChar(191)                    @default("enrolled") // enrolled | started | completed | abandoned
+  status          String                    @default("enrolled") @db.VarChar(191) // enrolled | started | completed | abandoned
   progressPercent Int                       @default(0)
   lastAccessedAt  DateTime?
   completedAt     DateTime?
@@ -1232,14 +1232,14 @@ model EnglishLearningEnrollment {
 }
 
 model EnglishLearningProgress {
-  id               String @db.VarChar(191)                       @id @default(cuid())
-  enrollmentId     String @db.VarChar(191)
+  id               String                       @id @default(cuid()) @db.VarChar(191)
+  enrollmentId     String                       @db.VarChar(191)
   enrollment       EnglishLearningEnrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  lessonId         String? @db.VarChar(191)
+  lessonId         String?                      @db.VarChar(191)
   lesson           EnglishLearningLesson?       @relation(fields: [lessonId], references: [id], onDelete: SetNull)
-  testId           String? @db.VarChar(191)
+  testId           String?                      @db.VarChar(191)
   test             EnglishLearningPracticeTest? @relation(fields: [testId], references: [id], onDelete: SetNull)
-  status           String @db.VarChar(191)                       @default("not-started") // not-started | in-progress | completed
+  status           String                       @default("not-started") @db.VarChar(191) // not-started | in-progress | completed
   scorePercent     Int?
   timeSpentMinutes Int                          @default(0)
   lastAttemptAt    DateTime?
@@ -1254,17 +1254,17 @@ model EnglishLearningProgress {
 }
 
 model EnglishLearningReferral {
-  id               String @db.VarChar(191)    @id @default(cuid())
-  referralCode     String @db.VarChar(500)    @unique
-  referralType     String @db.VarChar(500)    @default("course-package") // course-package | tutor-booking | mock-test-bundle
-  sourceEntityId   String? @db.VarChar(191)
-  sourceEntityType String? @db.VarChar(500)
-  targetUrl        String @db.VarChar(500)
-  status           String @db.VarChar(191)    @default("created") // created | transferred | completed | failed | expired
+  id               String    @id @default(cuid()) @db.VarChar(191)
+  referralCode     String    @unique @db.VarChar(500)
+  referralType     String    @default("course-package") @db.VarChar(500) // course-package | tutor-booking | mock-test-bundle
+  sourceEntityId   String?   @db.VarChar(191)
+  sourceEntityType String?   @db.VarChar(500)
+  targetUrl        String    @db.VarChar(500)
+  status           String    @default("created") @db.VarChar(191) // created | transferred | completed | failed | expired
   createdAt        DateTime  @default(now())
   completedAt      DateTime?
-  ipHash           String? @db.VarChar(500)
-  userAgent        String? @db.VarChar(500)
+  ipHash           String?   @db.VarChar(500)
+  userAgent        String?   @db.VarChar(500)
   notes            Json?
 
   @@index([status])
@@ -1273,15 +1273,15 @@ model EnglishLearningReferral {
 }
 
 model EnglishLearningAuditLog {
-  id          String @db.VarChar(191)   @id @default(cuid())
-  actorUserId String? @db.VarChar(191)
-  action      String @db.VarChar(191)
-  entityType  String @db.VarChar(191)
-  entityId    String @db.VarChar(191)
+  id          String   @id @default(cuid()) @db.VarChar(191)
+  actorUserId String?  @db.VarChar(191)
+  action      String   @db.VarChar(191)
+  entityType  String   @db.VarChar(191)
+  entityId    String   @db.VarChar(191)
   beforeData  Json?
   afterData   Json?
-  ipHash      String? @db.VarChar(500)
-  userAgent   String? @db.VarChar(500)
+  ipHash      String?  @db.VarChar(500)
+  userAgent   String?  @db.VarChar(500)
   createdAt   DateTime @default(now())
 
   @@index([actorUserId])
@@ -1291,10 +1291,10 @@ model EnglishLearningAuditLog {
 }
 
 model EnglishLearningSetting {
-  id        String @db.VarChar(191)   @id @default(cuid())
-  key       String @db.VarChar(500)   @unique
-  value     String @db.VarChar(500)
-  category  String @db.VarChar(191)   @default("general")
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  key       String   @unique @db.VarChar(500)
+  value     String   @db.VarChar(500)
+  category  String   @default("general") @db.VarChar(191)
   updatedAt DateTime @updatedAt
 
   @@index([category])
@@ -1308,26 +1308,26 @@ model EnglishLearningSetting {
 // ══════════════════════════════════════════════════════════════════
 
 model SocialAccount {
-  id               String @db.VarChar(191)    @id @default(cuid())
-  platform         String @db.VarChar(191) // facebook | whatsapp | instagram | youtube | linkedin | tiktok
-  externalId       String @db.VarChar(191) // page id / phone_number_id / ig user id
-  displayName      String @db.VarChar(500)
-  username         String? @db.VarChar(500)
-  status           String @db.VarChar(191)    @default("disconnected") // connected | disconnected | expired | error | pending
-  capabilities     String? @db.LongText // JSON string[] e.g. ["publish","inbox","comments"]
-  tokenEncrypted   String? @db.VarChar(500) // AES-256-GCM ciphertext — never returned to client
-  tokenExpiresAt   DateTime?
-  webhookVerified  Boolean   @default(false)
-  automationEnabled Boolean  @default(false)
-  responseMode     String @db.VarChar(500)    @default("approval") // manual | approval | controlled
-  aiProfileId      String? @db.VarChar(191)
-  assignedUserId   String? @db.VarChar(191)
-  lastHealthAt     DateTime?
-  healthError      String? @db.VarChar(500)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  conversations    SocialConversation[]
-  contents         SocialContentTarget[]
+  id                String                @id @default(cuid()) @db.VarChar(191)
+  platform          String                @db.VarChar(191) // facebook | whatsapp | instagram | youtube | linkedin | tiktok
+  externalId        String                @db.VarChar(191) // page id / phone_number_id / ig user id
+  displayName       String                @db.VarChar(500)
+  username          String?               @db.VarChar(500)
+  status            String                @default("disconnected") @db.VarChar(191) // connected | disconnected | expired | error | pending
+  capabilities      String?               @db.LongText // JSON string[] e.g. ["publish","inbox","comments"]
+  tokenEncrypted    String?               @db.VarChar(500) // AES-256-GCM ciphertext — never returned to client
+  tokenExpiresAt    DateTime?
+  webhookVerified   Boolean               @default(false)
+  automationEnabled Boolean               @default(false)
+  responseMode      String                @default("approval") @db.VarChar(500) // manual | approval | controlled
+  aiProfileId       String?               @db.VarChar(191)
+  assignedUserId    String?               @db.VarChar(191)
+  lastHealthAt      DateTime?
+  healthError       String?               @db.VarChar(500)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  conversations     SocialConversation[]
+  contents          SocialContentTarget[]
 
   @@unique([platform, externalId])
   @@index([platform])
@@ -1335,38 +1335,38 @@ model SocialAccount {
 }
 
 model SocialAutomationState {
-  id                 String @db.VarChar(191)   @id @default("global")
-  engagementEnabled  Boolean  @default(false) // global auto-reply switch — default OFF (fail-safe)
-  publishingEnabled  Boolean  @default(false)
-  generationEnabled  Boolean  @default(true)
-  version            Int      @default(1) // optimistic-concurrency / race guard
-  changedById        String? @db.VarChar(191)
-  changedByName      String? @db.VarChar(500)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                String   @id @default("global") @db.VarChar(191)
+  engagementEnabled Boolean  @default(false) // global auto-reply switch — default OFF (fail-safe)
+  publishingEnabled Boolean  @default(false)
+  generationEnabled Boolean  @default(true)
+  version           Int      @default(1) // optimistic-concurrency / race guard
+  changedById       String?  @db.VarChar(191)
+  changedByName     String?  @db.VarChar(500)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model AiPersonalityProfile {
-  id                String @db.VarChar(191)   @id @default(cuid())
-  name              String @db.VarChar(500)
+  id                String   @id @default(cuid()) @db.VarChar(191)
+  name              String   @db.VarChar(500)
   isDefault         Boolean  @default(false)
-  identity          String? @db.VarChar(500) // preferred name + professional identity
-  brandContext      String? @db.VarChar(500)
-  languages         String @db.VarChar(500)   @default("en,bn") // comma list: en | bn | banglish
+  identity          String?  @db.VarChar(500) // preferred name + professional identity
+  brandContext      String?  @db.VarChar(500)
+  languages         String   @default("en,bn") @db.VarChar(500) // comma list: en | bn | banglish
   formality         Int      @default(3) // 1 casual .. 5 formal
   friendliness      Int      @default(4) // 1 .. 5
-  greeting          String? @db.VarChar(500)
-  signOff           String? @db.VarChar(500)
-  sentenceStyle     String? @db.VarChar(500) // short | balanced | detailed
-  preferredPhrases  String? @db.VarChar(500) // JSON string[]
-  avoidPhrases      String? @db.VarChar(500) // JSON string[]
-  servicePrinciples String? @db.VarChar(500)
-  faqs              String? @db.VarChar(500) // JSON [{q,a}]
-  businessHours     String? @db.VarChar(500)
-  escalationContact String? @db.VarChar(500)
-  platformStyles    String? @db.VarChar(500) // JSON {facebook: "...", whatsapp: "..."}
-  neverAnswerTopics String? @db.VarChar(500) // JSON string[] — always escalate
-  examplePairs      String? @db.VarChar(500) // JSON [{incoming, approvedReply}]
+  greeting          String?  @db.VarChar(500)
+  signOff           String?  @db.VarChar(500)
+  sentenceStyle     String?  @db.VarChar(500) // short | balanced | detailed
+  preferredPhrases  String?  @db.VarChar(500) // JSON string[]
+  avoidPhrases      String?  @db.VarChar(500) // JSON string[]
+  servicePrinciples String?  @db.VarChar(500)
+  faqs              String?  @db.VarChar(500) // JSON [{q,a}]
+  businessHours     String?  @db.VarChar(500)
+  escalationContact String?  @db.VarChar(500)
+  platformStyles    String?  @db.VarChar(500) // JSON {facebook: "...", whatsapp: "..."}
+  neverAnswerTopics String?  @db.VarChar(500) // JSON string[] — always escalate
+  examplePairs      String?  @db.VarChar(500) // JSON [{incoming, approvedReply}]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -1374,12 +1374,12 @@ model AiPersonalityProfile {
 }
 
 model SocialKnowledgeSource {
-  id        String @db.VarChar(191)   @id @default(cuid())
-  title     String @db.VarChar(500)
-  category  String @db.VarChar(191)   @default("faq") // faq | policy | service | pricing | document
-  content   String @db.LongText
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  title     String   @db.VarChar(500)
+  category  String   @default("faq") @db.VarChar(191) // faq | policy | service | pricing | document
+  content   String   @db.LongText
   approved  Boolean  @default(false)
-  profileId String? @db.VarChar(191)
+  profileId String?  @db.VarChar(191)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1388,19 +1388,19 @@ model SocialKnowledgeSource {
 }
 
 model SocialConversation {
-  id               String @db.VarChar(191)          @id @default(cuid())
-  accountId        String @db.VarChar(191)
+  id               String          @id @default(cuid()) @db.VarChar(191)
+  accountId        String          @db.VarChar(191)
   account          SocialAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  platform         String @db.VarChar(191)
-  externalThreadId String @db.VarChar(191) // participant id / thread id from provider
-  participantId    String @db.VarChar(191)
-  participantName  String? @db.VarChar(500)
-  status           String @db.VarChar(191)          @default("unread") // unread | pending | resolved | escalated
-  priority         String @db.VarChar(191)          @default("normal") // low | normal | high | urgent
-  assignedUserId   String? @db.VarChar(191)
-  labels           String? @db.LongText // JSON string[]
-  language         String? @db.VarChar(191)
-  contactId        String? @db.VarChar(191) // link to CRM Contact
+  platform         String          @db.VarChar(191)
+  externalThreadId String          @db.VarChar(191) // participant id / thread id from provider
+  participantId    String          @db.VarChar(191)
+  participantName  String?         @db.VarChar(500)
+  status           String          @default("unread") @db.VarChar(191) // unread | pending | resolved | escalated
+  priority         String          @default("normal") @db.VarChar(191) // low | normal | high | urgent
+  assignedUserId   String?         @db.VarChar(191)
+  labels           String?         @db.LongText // JSON string[]
+  language         String?         @db.VarChar(191)
+  contactId        String?         @db.VarChar(191) // link to CRM Contact
   unreadCount      Int             @default(0)
   lastMessageAt    DateTime        @default(now())
   createdAt        DateTime        @default(now())
@@ -1414,18 +1414,18 @@ model SocialConversation {
 }
 
 model SocialMessage {
-  id                String @db.VarChar(191)             @id @default(cuid())
-  conversationId    String @db.VarChar(191)
+  id                String             @id @default(cuid()) @db.VarChar(191)
+  conversationId    String             @db.VarChar(191)
   conversation      SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  providerMessageId String? @db.VarChar(191)
-  direction         String @db.VarChar(191) // inbound | outbound
-  kind              String @db.VarChar(191)   @default("message") // message | comment | mention
-  senderId          String? @db.VarChar(191)
-  senderName        String? @db.VarChar(500)
-  body              String @db.LongText
-  mediaUrl          String? @db.VarChar(500)
+  providerMessageId String?            @db.VarChar(191)
+  direction         String             @db.VarChar(191) // inbound | outbound
+  kind              String             @default("message") @db.VarChar(191) // message | comment | mention
+  senderId          String?            @db.VarChar(191)
+  senderName        String?            @db.VarChar(500)
+  body              String             @db.LongText
+  mediaUrl          String?            @db.VarChar(500)
   isOwn             Boolean            @default(false)
-  deliveryStatus    String @db.VarChar(191)   @default("received") // received | queued | sending | sent | delivered | read | failed | suppressed
+  deliveryStatus    String             @default("received") @db.VarChar(191) // received | queued | sending | sent | delivered | read | failed | suppressed
   createdAt         DateTime           @default(now())
 
   @@unique([providerMessageId])
@@ -1434,14 +1434,14 @@ model SocialMessage {
 }
 
 model SocialWebhookEvent {
-  id              String @db.VarChar(191)    @id @default(cuid())
-  provider        String @db.VarChar(191)
-  providerEventId String @db.VarChar(191)
-  accountId       String? @db.VarChar(191)
-  payloadHash     String @db.VarChar(500)
-  status          String @db.VarChar(191)    @default("received") // received | processed | duplicate | failed | ignored
+  id              String    @id @default(cuid()) @db.VarChar(191)
+  provider        String    @db.VarChar(191)
+  providerEventId String    @db.VarChar(191)
+  accountId       String?   @db.VarChar(191)
+  payloadHash     String    @db.VarChar(500)
+  status          String    @default("received") @db.VarChar(191) // received | processed | duplicate | failed | ignored
   attempts        Int       @default(0)
-  error           String? @db.LongText
+  error           String?   @db.LongText
   processedAt     DateTime?
   createdAt       DateTime  @default(now())
 
@@ -1451,22 +1451,22 @@ model SocialWebhookEvent {
 }
 
 model SocialReplyDecision {
-  id             String @db.VarChar(191)   @id @default(cuid())
-  conversationId String @db.VarChar(191)
-  messageId      String? @db.VarChar(191)
-  category       String @db.VarChar(191) // general | service | lead | appointment | complaint | spam | sensitive | pricing | human-required
-  language       String? @db.VarChar(191)
-  confidence     Float    @default(0)
-  risk           String @db.VarChar(191)   @default("high") // low | medium | high
-  draft          String? @db.LongText
-  finalText      String? @db.LongText
-  decision       String @db.VarChar(191)   @default("held") // auto_sent | held | approved_sent | edited_sent | rejected | escalated | suppressed_off | manual_sent | failed
-  reason         String? @db.VarChar(500)
-  modelUsed      String? @db.VarChar(500)
-  knowledgeRefs  String? @db.LongText // JSON string[]
-  automationVersion Int?  // global switch version observed at decision time
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                String   @id @default(cuid()) @db.VarChar(191)
+  conversationId    String   @db.VarChar(191)
+  messageId         String?  @db.VarChar(191)
+  category          String   @db.VarChar(191) // general | service | lead | appointment | complaint | spam | sensitive | pricing | human-required
+  language          String?  @db.VarChar(191)
+  confidence        Float    @default(0)
+  risk              String   @default("high") @db.VarChar(191) // low | medium | high
+  draft             String?  @db.LongText
+  finalText         String?  @db.LongText
+  decision          String   @default("held") @db.VarChar(191) // auto_sent | held | approved_sent | edited_sent | rejected | escalated | suppressed_off | manual_sent | failed
+  reason            String?  @db.VarChar(500)
+  modelUsed         String?  @db.VarChar(500)
+  knowledgeRefs     String?  @db.LongText // JSON string[]
+  automationVersion Int? // global switch version observed at decision time
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([conversationId])
   @@index([decision])
@@ -1474,93 +1474,93 @@ model SocialReplyDecision {
 }
 
 model SocialApproval {
-  id          String @db.VarChar(191)   @id @default(cuid())
-  decisionId  String @db.VarChar(191)   @unique
-  status      String @db.VarChar(191)   @default("pending") // pending | approved | edited_approved | rejected | escalated | resolved
-  editedText  String? @db.LongText
-  decidedById String? @db.VarChar(191)
+  id          String    @id @default(cuid()) @db.VarChar(191)
+  decisionId  String    @unique @db.VarChar(191)
+  status      String    @default("pending") @db.VarChar(191) // pending | approved | edited_approved | rejected | escalated | resolved
+  editedText  String?   @db.LongText
+  decidedById String?   @db.VarChar(191)
   decidedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([status])
   @@index([createdAt])
 }
 
 model SocialAutomationRule {
-  id              String @db.VarChar(191)   @id @default(cuid())
-  name            String @db.VarChar(500)
-  accountId       String? @db.VarChar(191) // null = all accounts
-  platform        String? @db.VarChar(191)
-  category        String? @db.VarChar(191) // null = any category
-  action          String @db.VarChar(191)   @default("approval") // auto_reply | approval | escalate | ignore
-  minConfidence   Float    @default(0.85)
-  enabled         Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(cuid()) @db.VarChar(191)
+  name          String   @db.VarChar(500)
+  accountId     String?  @db.VarChar(191) // null = all accounts
+  platform      String?  @db.VarChar(191)
+  category      String?  @db.VarChar(191) // null = any category
+  action        String   @default("approval") @db.VarChar(191) // auto_reply | approval | escalate | ignore
+  minConfidence Float    @default(0.85)
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([accountId])
   @@index([enabled])
 }
 
 model SocialCampaign {
-  id          String @db.VarChar(191)   @id @default(cuid())
-  name        String @db.VarChar(500)
-  objective   String? @db.VarChar(500)
-  pillar      String? @db.VarChar(500)
-  audience    String? @db.VarChar(500)
-  status      String @db.VarChar(191)   @default("draft") // draft | active | paused | completed
-  startsAt    DateTime?
-  endsAt      DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  contents    SocialContent[]
+  id             String          @id @default(cuid()) @db.VarChar(191)
+  name           String          @db.VarChar(500)
+  objective      String?         @db.VarChar(500)
+  pillar         String?         @db.VarChar(500)
+  audience       String?         @db.VarChar(500)
+  status         String          @default("draft") @db.VarChar(191) // draft | active | paused | completed
+  startsAt       DateTime?
+  endsAt         DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  contents       SocialContent[]
   emailCampaigns EmailCampaign[]
-  budget      Int      @default(0)
-  currency    String @db.VarChar(191)   @default("USD")
-  channels    String @db.LongText   @default("[]")
-  brief       String? @db.VarChar(500)
-  utmCampaign String? @db.VarChar(500)
+  budget         Int             @default(0)
+  currency       String          @default("USD") @db.VarChar(191)
+  channels       String          @default("[]") @db.LongText
+  brief          String?         @db.VarChar(500)
+  utmCampaign    String?         @db.VarChar(500)
 
   @@index([status])
 }
 
 model SocialContent {
-  id          String @db.VarChar(191)   @id @default(cuid())
-  campaignId  String? @db.VarChar(191)
-  campaign    SocialCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  title       String @db.VarChar(500)
-  body        String @db.LongText
-  variants    String? @db.LongText // JSON {platform: body}
-  hashtags    String? @db.LongText // JSON string[]
-  cta         String? @db.VarChar(500)
-  mediaUrls   String? @db.LongText // JSON string[]
-  language    String @db.VarChar(191)   @default("en")
-  status      String @db.VarChar(191)   @default("draft") // draft | review | approved | scheduled | publishing | published | failed
-  scheduledAt DateTime?
-  approvedById String? @db.VarChar(191)
-  createdById String? @db.VarChar(191)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  targets     SocialContentTarget[]
+  id           String                @id @default(cuid()) @db.VarChar(191)
+  campaignId   String?               @db.VarChar(191)
+  campaign     SocialCampaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  title        String                @db.VarChar(500)
+  body         String                @db.LongText
+  variants     String?               @db.LongText // JSON {platform: body}
+  hashtags     String?               @db.LongText // JSON string[]
+  cta          String?               @db.VarChar(500)
+  mediaUrls    String?               @db.LongText // JSON string[]
+  language     String                @default("en") @db.VarChar(191)
+  status       String                @default("draft") @db.VarChar(191) // draft | review | approved | scheduled | publishing | published | failed
+  scheduledAt  DateTime?
+  approvedById String?               @db.VarChar(191)
+  createdById  String?               @db.VarChar(191)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  targets      SocialContentTarget[]
 
   @@index([status])
   @@index([scheduledAt])
 }
 
 model SocialContentTarget {
-  id          String @db.VarChar(191)        @id @default(cuid())
-  contentId   String @db.VarChar(191)
-  content     SocialContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  accountId   String @db.VarChar(191)
-  account     SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  status      String @db.VarChar(191)        @default("pending") // pending | publishing | published | failed | suppressed
-  providerPostId String? @db.VarChar(191)
-  error       String? @db.LongText
-  attempts    Int           @default(0)
-  publishedAt DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id             String        @id @default(cuid()) @db.VarChar(191)
+  contentId      String        @db.VarChar(191)
+  content        SocialContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  accountId      String        @db.VarChar(191)
+  account        SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  status         String        @default("pending") @db.VarChar(191) // pending | publishing | published | failed | suppressed
+  providerPostId String?       @db.VarChar(191)
+  error          String?       @db.LongText
+  attempts       Int           @default(0)
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@unique([contentId, accountId])
   @@index([status])
@@ -1573,96 +1573,101 @@ model SocialContentTarget {
 // ══════════════════════════════════════════════════════════════════
 
 model HigherStudyFaculty {
-  id           String @db.VarChar(191)   @id @default(cuid())
-  universityId String @db.VarChar(191)
-  name         String @db.VarChar(500)
-  type         String @db.VarChar(191)   @default("faculty") // faculty | school | department | college | institute
-  parentId     String? @db.VarChar(191)
-  officialUrl  String? @db.VarChar(500)
-  sourceUrl    String? @db.VarChar(500)
-  lastVerifiedAt DateTime?
-  verificationStatus String @db.VarChar(191) @default("pending-review")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 String    @id @default(cuid()) @db.VarChar(191)
+  universityId       String    @db.VarChar(191)
+  name               String    @db.VarChar(500)
+  type               String    @default("faculty") @db.VarChar(191) // faculty | school | department | college | institute
+  parentId           String?   @db.VarChar(191)
+  officialUrl        String?   @db.VarChar(500)
+  sourceUrl          String?   @db.VarChar(500)
+  lastVerifiedAt     DateTime?
+  verificationStatus String    @default("pending-review") @db.VarChar(191)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
   @@index([universityId])
   @@index([type])
 }
 
 model HigherStudyCourseIntake {
-  id             String @db.VarChar(191)   @id @default(cuid())
-  courseId       String @db.VarChar(191)
-  intakeName     String @db.VarChar(500) // e.g. September 2027
-  academicYear   String? @db.VarChar(500)
-  opensAt        DateTime?
-  deadline       DateTime?
-  intlDeadline   DateTime?
+  id                  String    @id @default(cuid()) @db.VarChar(191)
+  courseId            String    @db.VarChar(191)
+  intakeName          String    @db.VarChar(500) // e.g. September 2027
+  academicYear        String?   @db.VarChar(500)
+  opensAt             DateTime?
+  deadline            DateTime?
+  intlDeadline        DateTime?
   scholarshipDeadline DateTime?
-  startsAt       DateTime?
-  rolling        Boolean  @default(false)
-  intlConfirmed  Boolean  @default(false)
-  sourceUrl      String? @db.VarChar(500)
-  lastVerifiedAt DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  startsAt            DateTime?
+  rolling             Boolean   @default(false)
+  intlConfirmed       Boolean   @default(false)
+  sourceUrl           String?   @db.VarChar(500)
+  lastVerifiedAt      DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
   @@index([courseId])
   @@index([deadline])
   @@index([startsAt])
 }
 
 model HigherStudySourceRecord {
-  id           String @db.VarChar(191)   @id @default(cuid())
-  url          String @db.VarChar(191)   @unique
-  owner        String? @db.VarChar(500) // university / government body
-  sourceType   String @db.VarChar(191)   @default("university-course") // university-course | uni-admissions | uni-fees | uni-scholarship | government | immigration | ranking | pdf
-  entityType   String? @db.VarChar(191) // university | course | scholarship | country | government
-  entityId     String? @db.VarChar(191)
-  countrySlug  String? @db.VarChar(500)
-  title        String? @db.VarChar(500)
-  licenseNote  String? @db.VarChar(500)
-  active       Boolean  @default(true)
+  id            String    @id @default(cuid()) @db.VarChar(191)
+  url           String    @unique @db.VarChar(191)
+  owner         String?   @db.VarChar(500) // university / government body
+  sourceType    String    @default("university-course") @db.VarChar(191) // university-course | uni-admissions | uni-fees | uni-scholarship | government | immigration | ranking | pdf
+  entityType    String?   @db.VarChar(191) // university | course | scholarship | country | government
+  entityId      String?   @db.VarChar(191)
+  countrySlug   String?   @db.VarChar(500)
+  title         String?   @db.VarChar(500)
+  licenseNote   String?   @db.VarChar(500)
+  active        Boolean   @default(true)
   lastCheckedAt DateTime?
-  lastStatus   String? @db.VarChar(191) // ok | unavailable | parse-error | changed
-  failCount    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  lastStatus    String?   @db.VarChar(191) // ok | unavailable | parse-error | changed
+  failCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
   @@index([entityType, entityId])
   @@index([active])
   @@index([sourceType])
 }
 
 model HigherStudySourceSnapshot {
-  id          String @db.VarChar(191)   @id @default(cuid())
-  sourceId    String @db.VarChar(191)
-  contentHash String @db.VarChar(191)
-  title       String? @db.VarChar(500)
-  signals     String? @db.LongText // JSON extracted signals {fees:[], deadlines:[], ielts:null,...}
+  id          String   @id @default(cuid()) @db.VarChar(191)
+  sourceId    String   @db.VarChar(191)
+  contentHash String   @db.VarChar(191)
+  title       String?  @db.VarChar(500)
+  signals     String?  @db.LongText // JSON extracted signals {fees:[], deadlines:[], ielts:null,...}
   fetchedAt   DateTime @default(now())
   httpStatus  Int?
+
   @@index([sourceId, fetchedAt])
   @@index([contentHash])
 }
 
 model HigherStudyDataChange {
-  id             String @db.VarChar(191)   @id @default(cuid())
-  runId          String? @db.VarChar(191)
-  sourceId       String? @db.VarChar(191)
-  entityType     String @db.VarChar(191) // university | course | scholarship | government
-  entityId       String? @db.VarChar(191)
-  entityLabel    String? @db.VarChar(500)
-  field          String? @db.VarChar(191)
-  changeType     String @db.VarChar(191) // NEW_COURSE | COURSE_CLOSED | FEE_CHANGED | DEADLINE_CHANGED | REQUIREMENT_CHANGED | ENGLISH_REQUIREMENT_CHANGED | SCHOLARSHIP_NEW | SCHOLARSHIP_UPDATED | INTAKE_CHANGED | SOURCE_CHANGED | SOURCE_UNAVAILABLE | POSSIBLE_DATA_CONFLICT | NEEDS_MANUAL_REVIEW | OFFICIAL_POLICY_CHANGE | GOVERNMENT_POLICY_CHANGE ...
-  impact         String @db.VarChar(191)   @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
-  oldValue       String? @db.LongText
-  newValue       String? @db.LongText
-  sourceUrl      String? @db.VarChar(500)
-  confidence     Float    @default(0)
-  aiSummary      String? @db.LongText
-  status         String @db.VarChar(191)   @default("pending") // pending | approved | rejected | needs-review | recheck-requested
-  decidedById    String? @db.VarChar(191)
-  decidedAt      DateTime?
-  detectedAt     DateTime @default(now())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id          String    @id @default(cuid()) @db.VarChar(191)
+  runId       String?   @db.VarChar(191)
+  sourceId    String?   @db.VarChar(191)
+  entityType  String    @db.VarChar(191) // university | course | scholarship | government
+  entityId    String?   @db.VarChar(191)
+  entityLabel String?   @db.VarChar(500)
+  field       String?   @db.VarChar(191)
+  changeType  String    @db.VarChar(191) // NEW_COURSE | COURSE_CLOSED | FEE_CHANGED | DEADLINE_CHANGED | REQUIREMENT_CHANGED | ENGLISH_REQUIREMENT_CHANGED | SCHOLARSHIP_NEW | SCHOLARSHIP_UPDATED | INTAKE_CHANGED | SOURCE_CHANGED | SOURCE_UNAVAILABLE | POSSIBLE_DATA_CONFLICT | NEEDS_MANUAL_REVIEW | OFFICIAL_POLICY_CHANGE | GOVERNMENT_POLICY_CHANGE ...
+  impact      String    @default("MEDIUM") @db.VarChar(191) // LOW | MEDIUM | HIGH | CRITICAL
+  oldValue    String?   @db.LongText
+  newValue    String?   @db.LongText
+  sourceUrl   String?   @db.VarChar(500)
+  confidence  Float     @default(0)
+  aiSummary   String?   @db.LongText
+  status      String    @default("pending") @db.VarChar(191) // pending | approved | rejected | needs-review | recheck-requested
+  decidedById String?   @db.VarChar(191)
+  decidedAt   DateTime?
+  detectedAt  DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   @@index([status])
   @@index([changeType])
   @@index([entityType, entityId])
@@ -1670,32 +1675,34 @@ model HigherStudyDataChange {
 }
 
 model HigherStudyMonitoringRun {
-  id           String @db.VarChar(191)   @id @default(cuid()) // also the dedup/lock key per cycle
-  status       String @db.VarChar(191)   @default("running") // running | completed | failed
-  sourcesChecked Int    @default(0)
-  sourcesFailed  Int    @default(0)
-  changesDetected Int   @default(0)
-  error        String? @db.LongText
-  startedAt    DateTime @default(now())
-  completedAt  DateTime?
-  nextRunAt    DateTime?
+  id              String    @id @default(cuid()) @db.VarChar(191) // also the dedup/lock key per cycle
+  status          String    @default("running") @db.VarChar(191) // running | completed | failed
+  sourcesChecked  Int       @default(0)
+  sourcesFailed   Int       @default(0)
+  changesDetected Int       @default(0)
+  error           String?   @db.LongText
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  nextRunAt       DateTime?
+
   @@index([status])
   @@index([startedAt])
 }
 
 model HigherStudyOfficialDocument {
-  id           String @db.VarChar(191)   @id @default(cuid())
-  title        String @db.VarChar(500)
-  sourceUrl    String @db.VarChar(500)
-  universityId String? @db.VarChar(191)
-  countrySlug  String? @db.VarChar(500)
-  category     String @db.VarChar(191)   @default("guide") // admission-guide | scholarship-pdf | handbook | policy
-  fileHash     String? @db.VarChar(191)
-  version      Int      @default(1)
-  approvalStatus String @db.VarChar(191) @default("pending") // pending | approved | rejected
-  publishedAt  DateTime?
-  discoveredAt DateTime @default(now())
-  lastCheckedAt DateTime?
+  id             String    @id @default(cuid()) @db.VarChar(191)
+  title          String    @db.VarChar(500)
+  sourceUrl      String    @db.VarChar(500)
+  universityId   String?   @db.VarChar(191)
+  countrySlug    String?   @db.VarChar(500)
+  category       String    @default("guide") @db.VarChar(191) // admission-guide | scholarship-pdf | handbook | policy
+  fileHash       String?   @db.VarChar(191)
+  version        Int       @default(1)
+  approvalStatus String    @default("pending") @db.VarChar(191) // pending | approved | rejected
+  publishedAt    DateTime?
+  discoveredAt   DateTime  @default(now())
+  lastCheckedAt  DateTime?
+
   @@unique([sourceUrl, version])
   @@index([countrySlug])
   @@index([approvalStatus])
@@ -1703,12 +1710,12 @@ model HigherStudyOfficialDocument {
 
 // ─── Integrated feature kits (additive, no existing data rewritten) ─────
 model KitDocument {
-  id          String @db.VarChar(191)   @id @default(cuid())
-  kind        String @db.VarChar(191) // diagram | humanizer | storyboard | email-template
-  title       String @db.VarChar(500)
-  content     String @db.LongText // validated JSON or plain text, depending on kind
-  metadata    String? @db.LongText // provider / model / tone; never credentials
-  createdById String? @db.VarChar(191)
+  id          String   @id @default(cuid()) @db.VarChar(191)
+  kind        String   @db.VarChar(191) // diagram | humanizer | storyboard | email-template
+  title       String   @db.VarChar(500)
+  content     String   @db.LongText // validated JSON or plain text, depending on kind
+  metadata    String?  @db.LongText // provider / model / tone; never credentials
+  createdById String?  @db.VarChar(191)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1717,48 +1724,48 @@ model KitDocument {
 }
 
 model SeoAudit {
-  id          String @db.VarChar(191)   @id @default(cuid())
-  url         String @db.VarChar(191)
+  id          String   @id @default(cuid()) @db.VarChar(191)
+  url         String   @db.VarChar(191)
   score       Int
-  checks      String @db.LongText // JSON SeoCheck[]
-  summary     String @db.LongText
-  createdById String? @db.VarChar(191)
+  checks      String   @db.LongText // JSON SeoCheck[]
+  summary     String   @db.LongText
+  createdById String?  @db.VarChar(191)
   createdAt   DateTime @default(now())
 
   @@index([createdAt])
 }
 
 model EmailCampaign {
-  id           String @db.VarChar(191)         @id @default(cuid())
-  name         String @db.VarChar(500)
-  subject      String @db.VarChar(500)
-  preheader    String? @db.VarChar(500)
-  bodyHtml     String @db.LongText
-  bodyText     String @db.LongText
-  content      String @db.LongText // validated EmailContent JSON for safe personalized rendering
-  audience     String @db.VarChar(500)         @default("all")
-  status       String @db.VarChar(191)         @default("draft") // draft | queued | sending | sent | failed
-  scheduledAt  DateTime?
-  sentAt       DateTime?
-  createdById  String? @db.VarChar(191)
-  campaignId   String? @db.VarChar(191)
-  campaign     SocialCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  deliveries   EmailDelivery[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id          String          @id @default(cuid()) @db.VarChar(191)
+  name        String          @db.VarChar(500)
+  subject     String          @db.VarChar(500)
+  preheader   String?         @db.VarChar(500)
+  bodyHtml    String          @db.LongText
+  bodyText    String          @db.LongText
+  content     String          @db.LongText // validated EmailContent JSON for safe personalized rendering
+  audience    String          @default("all") @db.VarChar(500)
+  status      String          @default("draft") @db.VarChar(191) // draft | queued | sending | sent | failed
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  createdById String?         @db.VarChar(191)
+  campaignId  String?         @db.VarChar(191)
+  campaign    SocialCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  deliveries  EmailDelivery[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@index([status, scheduledAt])
 }
 
 model EmailDelivery {
-  id           String @db.VarChar(191)        @id @default(cuid())
-  campaignId   String @db.VarChar(191)
+  id           String        @id @default(cuid()) @db.VarChar(191)
+  campaignId   String        @db.VarChar(191)
   campaign     EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  subscriberId String @db.VarChar(191)
-  email        String @db.VarChar(191)
-  status       String @db.VarChar(191)        @default("pending") // pending | sending | sent | failed | skipped
-  providerId   String? @db.VarChar(191)
-  error        String? @db.LongText
+  subscriberId String        @db.VarChar(191)
+  email        String        @db.VarChar(191)
+  status       String        @default("pending") @db.VarChar(191) // pending | sending | sent | failed | skipped
+  providerId   String?       @db.VarChar(191)
+  error        String?       @db.LongText
   attempts     Int           @default(0)
   sentAt       DateTime?
   createdAt    DateTime      @default(now())
@@ -1769,12 +1776,12 @@ model EmailDelivery {
 }
 
 model SupportConversation {
-  id            String @db.VarChar(191)           @id @default(cuid())
-  visitorName   String @db.VarChar(500)
-  visitorEmail  String? @db.VarChar(500)
-  tokenHash     String @db.VarChar(191)           @unique
-  status        String @db.VarChar(191)           @default("open") // open | pending | resolved
-  assignedTo    String? @db.VarChar(500)
+  id            String           @id @default(cuid()) @db.VarChar(191)
+  visitorName   String           @db.VarChar(500)
+  visitorEmail  String?          @db.VarChar(500)
+  tokenHash     String           @unique @db.VarChar(191)
+  status        String           @default("open") @db.VarChar(191) // open | pending | resolved
+  assignedTo    String?          @db.VarChar(500)
   lastMessageAt DateTime         @default(now())
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -1784,12 +1791,12 @@ model SupportConversation {
 }
 
 model SupportMessage {
-  id             String @db.VarChar(191)              @id @default(cuid())
-  conversationId String @db.VarChar(191)
+  id             String              @id @default(cuid()) @db.VarChar(191)
+  conversationId String              @db.VarChar(191)
   conversation   SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         String @db.VarChar(191) // visitor | agent | system
-  senderName     String @db.VarChar(500)
-  body           String @db.LongText
+  sender         String              @db.VarChar(191) // visitor | agent | system
+  senderName     String              @db.VarChar(500)
+  body           String              @db.LongText
   createdAt      DateTime            @default(now())
 
   @@index([conversationId, createdAt])
@@ -1797,42 +1804,44 @@ model SupportMessage {
 
 // Experimental AgentOS foundation; not wired into existing AI tasks.
 model AgentOsTask {
-  id String @db.VarChar(191) @id
-  project String @db.VarChar(191)
-  agent String @db.VarChar(191)
-  objective String @db.LongText
-  inputs String @db.LongText
-  permissions String @db.LongText
-  outputs String? @db.LongText
-  deadline DateTime
+  id          String    @id @db.VarChar(191)
+  project     String    @db.VarChar(191)
+  agent       String    @db.VarChar(191)
+  objective   String    @db.LongText
+  inputs      String    @db.LongText
+  permissions String    @db.LongText
+  outputs     String?   @db.LongText
+  deadline    DateTime
   maxAttempts Int
-  attempts Int @default(0)
-  status String @db.VarChar(191) @default("queued")
-  leaseToken String? @db.VarChar(191)
-  leaseUntil DateTime?
-  createdBy String @db.VarChar(191)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  attempts    Int       @default(0)
+  status      String    @default("queued") @db.VarChar(191)
+  leaseToken  String?   @db.VarChar(191)
+  leaseUntil  DateTime?
+  createdBy   String    @db.VarChar(191)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   @@index([status, leaseUntil])
 }
 
 model AgentOsApproval {
-  id String @db.VarChar(191) @id
-  taskId String @db.VarChar(191)
-  action String @db.VarChar(191)
-  decision String @db.VarChar(191)
-  decidedBy String? @db.VarChar(191)
+  id        String   @id @db.VarChar(191)
+  taskId    String   @db.VarChar(191)
+  action    String   @db.VarChar(191)
+  decision  String   @db.VarChar(191)
+  decidedBy String?  @db.VarChar(191)
   expiresAt DateTime
   createdAt DateTime @default(now())
+
   @@index([taskId])
 }
 
 model AgentOsAudit {
-  sequence Int @id
-  event String @db.LongText
-  previousHash String @db.VarChar(191)
-  hash String @db.VarChar(191)
-  createdAt DateTime @default(now())
+  sequence     Int      @id
+  event        String   @db.LongText
+  previousHash String   @db.VarChar(191)
+  hash         String   @db.VarChar(191)
+  createdAt    DateTime @default(now())
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1844,11 +1853,11 @@ model AgentOsAudit {
 model Tenant {
   id             String   @id @default(cuid())
   slug           String   @unique // stable machine identifier used in URLs/rooms
-  name           String @db.Text // provisioned per deployment; never hard-coded
-  timezone       String @db.Text   @default("Asia/Dhaka")
+  name           String   @db.Text // provisioned per deployment; never hard-coded
+  timezone       String   @default("Asia/Dhaka") @db.Text
   messagingStart Int      @default(9) // allowed messaging window, tenant-local hours
   messagingEnd   Int      @default(21)
-  languages      String @db.Text   @default("bn,en,banglish")
+  languages      String   @default("bn,en,banglish") @db.Text
   aiAutoReply    Boolean  @default(true)
   createdAt      DateTime @default(now())
 
@@ -1867,21 +1876,21 @@ model MessagingUser {
   id                 String    @id @default(cuid())
   tenantId           String
   externalRef        String? // CRM/identity reference; uniqueness enforced per tenant only
-  displayName        String @db.Text
-  role               String @db.Text    @default("customer") // admin | agent | customer | ai
-  locale             String @db.Text    @default("bn")
+  displayName        String    @db.Text
+  role               String    @default("customer") @db.Text // admin | agent | customer | ai
+  locale             String    @default("bn") @db.Text
   lastSeenAt         DateTime?
   isBanned           Boolean   @default(false)
   isVerifiedBusiness Boolean   @default(false)
-  blockedIds         String @db.Text    @default("[]") // JSON array of blocked user ids
+  blockedIds         String    @default("[]") @db.Text // JSON array of blocked user ids
   createdAt          DateTime  @default(now())
 
-  tenant          Tenant                 @relation(fields: [tenantId], references: [id])
+  tenant          Tenant                    @relation(fields: [tenantId], references: [id])
   participations  ConversationParticipant[]
   messages        Message[]
   receipts        Receipt[]
   stars           Star[]
-  reportsFiled    Report[]               @relation("Reporter")
+  reportsFiled    Report[]                  @relation("Reporter")
   claimedHandoffs HandoffEvent[]
 
   @@unique([tenantId, externalRef])
@@ -1893,16 +1902,16 @@ model MessagingUser {
 model Conversation {
   id           String    @id @default(cuid())
   tenantId     String
-  type         String @db.Text // direct | group | channel | self
-  title        String? @db.Text
-  mode         String @db.Text    @default("two_way") // one_way | two_way (channels)
-  visibility   String @db.Text    @default("private") // private | public
+  type         String    @db.Text // direct | group | channel | self
+  title        String?   @db.Text
+  mode         String    @default("two_way") @db.Text // one_way | two_way (channels)
+  visibility   String    @default("private") @db.Text // private | public
   aiMode       Boolean   @default(true)
-  status       String @db.Text    @default("active") // active | needs_human | closed
+  status       String    @default("active") @db.Text // active | needs_human | closed
   burnoutAfter DateTime? // whole-conversation auto-delete instant
   createdAt    DateTime  @default(now())
 
-  tenant       Tenant                   @relation(fields: [tenantId], references: [id])
+  tenant       Tenant                    @relation(fields: [tenantId], references: [id])
   participants ConversationParticipant[]
   messages     Message[]
   handoffs     HandoffEvent[]
@@ -1912,14 +1921,14 @@ model Conversation {
 }
 
 model ConversationParticipant {
-  id               String    @id @default(cuid())
-  conversationId   String
-  userId           String
-  role             String @db.Text    @default("member") // owner | admin | member
+  id                String   @id @default(cuid())
+  conversationId    String
+  userId            String
+  role              String   @default("member") @db.Text // owner | admin | member
   lastReadMessageId String?
-  joinedAt         DateTime  @default(now())
+  joinedAt          DateTime @default(now())
 
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         MessagingUser @relation(fields: [userId], references: [id])
 
   @@unique([conversationId, userId])
@@ -1933,20 +1942,20 @@ model Message {
   tenantId       String
   conversationId String
   senderId       String?
-  type           String @db.Text    @default("text") // text | poll | admin | structured | custom | system | attachment
-  body           String @db.Text    @default("")
-  payload        String? @db.Text // JSON payload (poll options/votes, structured blocks, attachment meta)
-  mentions       String @db.Text    @default("[]") // JSON array of mentioned user ids
-  language       String? @db.Text
-  translation    String? @db.Text // cached translation (JSON: {lang, text})
+  type           String    @default("text") @db.Text // text | poll | admin | structured | custom | system | attachment
+  body           String    @default("") @db.Text
+  payload        String?   @db.Text // JSON payload (poll options/votes, structured blocks, attachment meta)
+  mentions       String    @default("[]") @db.Text // JSON array of mentioned user ids
+  language       String?   @db.Text
+  translation    String?   @db.Text // cached translation (JSON: {lang, text})
   scheduledFor   DateTime?
   sentAt         DateTime?
   expiresAt      DateTime? // disappearing-message expiry
   hidden         Boolean   @default(false) // moderation flag
   createdAt      DateTime  @default(now())
 
-  conversation Conversation              @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender       MessagingUser?                     @relation(fields: [senderId], references: [id])
+  conversation Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       MessagingUser? @relation(fields: [senderId], references: [id])
   receipts     Receipt[]
   stars        Star[]
 
@@ -1963,8 +1972,8 @@ model Receipt {
   deliveredAt DateTime?
   readAt      DateTime?
 
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user         MessagingUser @relation(fields: [userId], references: [id])
+  message Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    MessagingUser @relation(fields: [userId], references: [id])
 
   @@unique([messageId, userId])
   @@index([userId])
@@ -1977,8 +1986,8 @@ model Star {
   userId    String
   createdAt DateTime @default(now())
 
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user         MessagingUser @relation(fields: [userId], references: [id])
+  message Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    MessagingUser @relation(fields: [userId], references: [id])
 
   @@unique([messageId, userId])
 }
@@ -2003,24 +2012,24 @@ model Consent {
   id         String    @id @default(cuid())
   tenantId   String
   subjectRef String // external identity of the messaging/calling subject
-  channel    String @db.Text // chat | voice | sms
-  purpose    String @db.Text
+  channel    String    @db.Text // chat | voice | sms
+  purpose    String    @db.Text
   grantedAt  DateTime?
   revokedAt  DateTime?
-  proofRef   String? @db.Text // record of how consent was captured
+  proofRef   String?   @db.Text // record of how consent was captured
 
-  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, subjectRef])
 }
 
 model SuppressEntry {
-  id        String   @id @default(cuid())
-  tenantId  String
-  channel   String // chat | voice | sms | all
-  value     String // phone / externalRef / email
-  reason    String? @db.Text
-  addedAt   DateTime @default(now())
+  id       String   @id @default(cuid())
+  tenantId String
+  channel  String // chat | voice | sms | all
+  value    String // phone / externalRef / email
+  reason   String?  @db.Text
+  addedAt  DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
@@ -2031,7 +2040,7 @@ model ModerationWord {
   id       String @id @default(cuid())
   tenantId String
   word     String
-  severity String @db.Text @default("block") // block | flag
+  severity String @default("block") @db.Text // block | flag
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
@@ -2044,12 +2053,12 @@ model Report {
   reporterId   String
   targetUserId String?
   messageId    String?
-  reason       String @db.Text
+  reason       String   @db.Text
   status       String   @default("open") // open | reviewed | dismissed
   createdAt    DateTime @default(now())
 
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-  reporter     MessagingUser @relation("Reporter", fields: [reporterId], references: [id])
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  reporter MessagingUser @relation("Reporter", fields: [reporterId], references: [id])
 
   @@index([tenantId, status])
 }
@@ -2057,11 +2066,11 @@ model Report {
 model AuditEvent {
   id          String   @id @default(cuid())
   tenantId    String
-  type        String @db.Text // e.g. consent.granted, message.blocked, hours.violation
+  type        String   @db.Text // e.g. consent.granted, message.blocked, hours.violation
   actorId     String?
-  subjectType String? @db.Text
+  subjectType String?  @db.Text
   subjectId   String?
-  detail      String? @db.Text
+  detail      String?  @db.Text
   at          DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
@@ -2073,16 +2082,16 @@ model HandoffEvent {
   id             String    @id @default(cuid())
   tenantId       String
   conversationId String
-  trigger        String @db.Text // customer_request | low_confidence | negative_sentiment | repeated_failure | vip | compliance | manual
-  detail         String? @db.Text
+  trigger        String    @db.Text // customer_request | low_confidence | negative_sentiment | repeated_failure | vip | compliance | manual
+  detail         String?   @db.Text
   status         String    @default("open") // open | claimed | resolved
   claimedById    String?
   createdAt      DateTime  @default(now())
   resolvedAt     DateTime?
 
-  tenant       Tenant       @relation(fields: [tenantId], references: [id])
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  claimedBy    MessagingUser?        @relation(fields: [claimedById], references: [id])
+  tenant       Tenant         @relation(fields: [tenantId], references: [id])
+  conversation Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  claimedBy    MessagingUser? @relation(fields: [claimedById], references: [id])
 
   @@index([tenantId, status])
 }
@@ -2096,17 +2105,17 @@ model HandoffEvent {
 // ═══════════════════════════════════════════════════════════════════════════
 
 model UciSource {
-  id              String   @id @default(cuid())
-  key             String   @unique // stable machine key, e.g. "official_lsbu", "platform_applyboard", "marge"
-  name            String @db.Text
-  url             String? @db.Text  // exact source URL when confirmed
-  level           String @db.Text // OFFICIAL | PLATFORM | PUBLIC | INTERNAL
-  identityStatus  String @db.Text   @default("CONFIRMED") // CONFIRMED | PENDING_IDENTITY | UNREACHABLE
-  permissionNotes String? @db.Text  // permitted collection basis, robots/terms observations
+  id              String    @id @default(cuid())
+  key             String    @unique // stable machine key, e.g. "official_lsbu", "platform_applyboard", "marge"
+  name            String    @db.Text
+  url             String?   @db.Text // exact source URL when confirmed
+  level           String    @db.Text // OFFICIAL | PLATFORM | PUBLIC | INTERNAL
+  identityStatus  String    @default("CONFIRMED") @db.Text // CONFIRMED | PENDING_IDENTITY | UNREACHABLE
+  permissionNotes String?   @db.Text // permitted collection basis, robots/terms observations
   robotsAllowed   Boolean? // null = not yet checked
   lastCheckedAt   DateTime?
-  notes           String? @db.Text
-  createdAt       DateTime @default(now())
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now())
 
   jobs UciCollectionJob[]
 }
@@ -2114,13 +2123,13 @@ model UciSource {
 model UciInstitution {
   id              String   @id @default(cuid())
   canonicalName   String   @unique
-  asWritten       String @db.Text   @default("[]") // JSON array of name variants found in sources
-  country         String @db.Text
-  cityNotes       String @db.Text   @default("[]") // JSON array of city/campus strings as published
-  institutionType String @db.Text   @default("UNKNOWN") // UNIVERSITY | COLLEGE | INSTITUTE | PATHWAY_PROVIDER | OTHER | UNKNOWN
+  asWritten       String   @default("[]") @db.Text // JSON array of name variants found in sources
+  country         String   @db.Text
+  cityNotes       String   @default("[]") @db.Text // JSON array of city/campus strings as published
+  institutionType String   @default("UNKNOWN") @db.Text // UNIVERSITY | COLLEGE | INSTITUTE | PATHWAY_PROVIDER | OTHER | UNKNOWN
   priorityCohort  Boolean  @default(false) // member of the 27 priority UK universities
-  officialWebsite String? @db.Text
-  status          String @db.Text   @default("DISCOVERED")
+  officialWebsite String?  @db.Text
+  status          String   @default("DISCOVERED") @db.Text
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -2129,24 +2138,24 @@ model UciInstitution {
 }
 
 model UciRequirementRecord {
-  id                String    @id @default(cuid())
+  id                 String    @id @default(cuid())
   version            Int       @default(0)
-  institutionId     String
-  context           String? @db.Text // e.g. "UK Bangladesh 2026", "UK MOI policy 2027"
-  fieldsJson        String @db.Text // verbatim captured fields (raw), JSON object
-  sourceFile        String @db.Text // internal evidence file key
-  sheet             String @db.Text
-  rowNumber         Int
-  sourceUrl         String? @db.Text // official URL when captured with the record
-  academicYear      String? @db.Text
-  verificationStatus String  @default("SOURCE_CHECK_REQUIRED")
-  collectedAt       DateTime  @default(now())
-  lastCheckedAt     DateTime?
-  lastVerifiedAt    DateTime?
-  reviewedBy        String? @db.Text
-  retiredReason     String? @db.Text
+  institutionId      String
+  context            String?   @db.Text // e.g. "UK Bangladesh 2026", "UK MOI policy 2027"
+  fieldsJson         String    @db.Text // verbatim captured fields (raw), JSON object
+  sourceFile         String    @db.Text // internal evidence file key
+  sheet              String    @db.Text
+  rowNumber          Int
+  sourceUrl          String?   @db.Text // official URL when captured with the record
+  academicYear       String?   @db.Text
+  verificationStatus String    @default("SOURCE_CHECK_REQUIRED")
+  collectedAt        DateTime  @default(now())
+  lastCheckedAt      DateTime?
+  lastVerifiedAt     DateTime?
+  reviewedBy         String?   @db.Text
+  retiredReason      String?   @db.Text
 
-  institution UciInstitution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  institution UciInstitution         @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   events      UciVerificationEvent[]
 
   @@index([institutionId, verificationStatus])
@@ -2154,24 +2163,24 @@ model UciRequirementRecord {
 }
 
 model UciProgramme {
-  id                String   @id @default(cuid())
-  institutionId     String?
-  institutionName   String // as-written fallback when no institution row exists yet
-  country           String
-  level             String?
-  programName       String @db.Text
-  duration          String? @db.Text
-  tuition           String? @db.Text
-  extraJson         String @db.Text   @default("{}")
-  sourceFile        String @db.Text
-  sheet             String @db.Text
-  rowNumber         Int
-  sourceUrl         String? @db.Text
-  verificationStatus String @db.Text  @default("SOURCE_CHECK_REQUIRED")
-  collectedAt       DateTime @default(now())
-  lastCheckedAt     DateTime?
-  lastVerifiedAt    DateTime?
-  reviewedBy        String? @db.Text
+  id                 String    @id @default(cuid())
+  institutionId      String?
+  institutionName    String // as-written fallback when no institution row exists yet
+  country            String
+  level              String?
+  programName        String    @db.Text
+  duration           String?   @db.Text
+  tuition            String?   @db.Text
+  extraJson          String    @default("{}") @db.Text
+  sourceFile         String    @db.Text
+  sheet              String    @db.Text
+  rowNumber          Int
+  sourceUrl          String?   @db.Text
+  verificationStatus String    @default("SOURCE_CHECK_REQUIRED") @db.Text
+  collectedAt        DateTime  @default(now())
+  lastCheckedAt      DateTime?
+  lastVerifiedAt     DateTime?
+  reviewedBy         String?   @db.Text
 
   institution UciInstitution? @relation(fields: [institutionId], references: [id])
 
@@ -2181,15 +2190,15 @@ model UciProgramme {
 }
 
 model UciVerificationEvent {
-  id          String   @id @default(cuid())
-  recordId    String
-  action      String @db.Text // VERIFY | CORRECT | RETIRE | APPROVE | FLAG_CONFLICT | RESOLVE_CONFLICT | NOTE
-  fromStatus  String? @db.Text
-  toStatus    String? @db.Text
-  actor       String @db.Text   @default("admin")
-  note        String? @db.Text
-  fieldPatch  String? @db.Text // JSON object of corrected field values (never overwrites raw silently)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  recordId   String
+  action     String   @db.Text // VERIFY | CORRECT | RETIRE | APPROVE | FLAG_CONFLICT | RESOLVE_CONFLICT | NOTE
+  fromStatus String?  @db.Text
+  toStatus   String?  @db.Text
+  actor      String   @default("admin") @db.Text
+  note       String?  @db.Text
+  fieldPatch String?  @db.Text // JSON object of corrected field values (never overwrites raw silently)
+  createdAt  DateTime @default(now())
 
   record UciRequirementRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
 
@@ -2199,14 +2208,14 @@ model UciVerificationEvent {
 model UciCollectionJob {
   id          String    @id @default(cuid())
   sourceKey   String
-  targetUrl   String @db.Text
-  type        String @db.Text    @default("SOURCE_CHECK") // SOURCE_CHECK | DISCOVERY
+  targetUrl   String    @db.Text
+  type        String    @default("SOURCE_CHECK") @db.Text // SOURCE_CHECK | DISCOVERY
   status      String    @default("PENDING") // PENDING | RUNNING | SUCCESS | FAILED | ROBOTS_BLOCKED
   httpStatus  Int?
-  contentHash String? @db.Text // sha256 of response body for change detection
+  contentHash String?   @db.Text // sha256 of response body for change detection
   bytes       Int?
-  findings    String? @db.Text
-  lastError   String? @db.Text
+  findings    String?   @db.Text
+  lastError   String?   @db.Text
   attempts    Int       @default(0)
   scheduledAt DateTime  @default(now())
   startedAt   DateTime?
@@ -2218,13 +2227,13 @@ model UciCollectionJob {
 }
 
 model UciAuditLog {
-  id         String   @id @default(cuid())
-  actor      String @db.Text   @default("admin")
-  action     String @db.Text
-  entity     String
-  entityId   String
-  detail     String? @db.Text // JSON detail
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  actor     String   @default("admin") @db.Text
+  action    String   @db.Text
+  entity    String
+  entityId  String
+  detail    String?  @db.Text // JSON detail
+  createdAt DateTime @default(now())
 
   @@index([entity, entityId])
 }
@@ -2240,9 +2249,9 @@ model UciAuditLog {
 model StaffAccount {
   id           String    @id @default(cuid())
   email        String    @unique
-  passwordHash String @db.Text // scrypt format: salt:hash (hex)
-  name         String @db.Text
-  role         String @db.Text    @default("VIEWER") // ADMIN | EDITOR | AGENT | VIEWER
+  passwordHash String    @db.Text // scrypt format: salt:hash (hex)
+  name         String    @db.Text
+  role         String    @default("VIEWER") @db.Text // ADMIN | EDITOR | AGENT | VIEWER
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
@@ -2253,13 +2262,13 @@ model StaffAccount {
 }
 
 model StaffSession {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   accountId String
-  tokenHash String    @unique // sha256(hex) of the cookie token
-  ip        String? @db.Text
-  userAgent String? @db.Text
+  tokenHash String   @unique // sha256(hex) of the cookie token
+  ip        String?  @db.Text
+  userAgent String?  @db.Text
   expiresAt DateTime
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   account StaffAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2270,7 +2279,7 @@ model PasswordResetCode {
   id        String    @id @default(cuid())
   accountId String
   attempts  Int       @default(0)
-  codeHash  String @db.Text    // sha256 of the 6-digit OTP
+  codeHash  String    @db.Text // sha256 of the 6-digit OTP
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
@@ -2279,3 +2288,4 @@ model PasswordResetCode {
 
   @@index([accountId])
 }
+
