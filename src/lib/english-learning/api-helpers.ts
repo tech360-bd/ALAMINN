@@ -227,6 +227,33 @@ export function hashIp(ip: string | null | undefined, secret = ""): string {
     .slice(0, 16);
 }
 
+const DEV_ENGLISH_LEARNING_SECRET =
+  "dev-only-english-learning-referral-secret-32b";
+
+export function resolveEnglishLearningReferralSecret(): string | null {
+  const candidate = (
+    process.env.ENGLISH_LEARNING_REFERRAL_SECRET ||
+    process.env.AUTH_SECRET ||
+    process.env.JWT_SECRET ||
+    ""
+  ).trim();
+  const minBytes = process.env.NODE_ENV === "production" ? 32 : 8;
+  if (candidate && Buffer.byteLength(candidate) >= minBytes) {
+    return candidate;
+  }
+  if (process.env.NODE_ENV !== "production" && !candidate) {
+    return DEV_ENGLISH_LEARNING_SECRET;
+  }
+  return null;
+}
+
+export function resolveEnglishLearningIpSalt(): string {
+  return (
+    resolveEnglishLearningReferralSecret() ||
+    "english-learning-ip-rate-limit-salt"
+  );
+}
+
 // ─── Public Prisma select objects ────────────────────────────────────
 
 export const publicCourseSelect = {

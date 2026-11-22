@@ -189,8 +189,21 @@ export async function createReferralRecord(
   });
 
   // Sign the referral token now — both sides verify with the shared secret.
+  const configuredSecret = (process.env.ENGLISH_LEARNING_REFERRAL_SECRET || "").trim();
   const secret =
-    process.env.ENGLISH_LEARNING_REFERRAL_SECRET || "alaminn-el-dev";
+    process.env.NODE_ENV === "production"
+      ? configuredSecret.length >= 16
+        ? configuredSecret
+        : ""
+      : configuredSecret ||
+        process.env.JWT_SECRET ||
+        process.env.AUTH_SECRET ||
+        "dev-only-english-learning-referral-secret";
+  if (!secret) {
+    throw new Error(
+      "ENGLISH_LEARNING_REFERRAL_SECRET is not configured in production.",
+    );
+  }
   const referralToken = signReferralToken(
     { referralCode, referralType: opts.referralType },
     secret,

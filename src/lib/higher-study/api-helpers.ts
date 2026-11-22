@@ -318,13 +318,99 @@ export function generateReferralCode(): string {
 }
 
 /**
+ * Resolve the shared HMAC secret used for Higher Study referral tokens
+ * and server-to-server callbacks.
+ *
+ * In production, `HIGHER_STUDY_REFERRAL_SECRET` (at least 16 chars) is
+ * mandatory and this function returns `null` when missing (fail closed).
+ * In development/test, falls back to JWT_SECRET / AUTH_SECRET or a
+ * local dev-only key.
+ */
+export function resolveHigherStudyReferralSecret(): string | null {
+  const configured = (process.env.HIGHER_STUDY_REFERRAL_SECRET || "").trim();
+  if (process.env.NODE_ENV === "production") {
+    return configured.length >= 16 ? configured : null;
+  }
+  if (configured.length > 0) return configured;
+  const fallback = (process.env.JWT_SECRET || process.env.AUTH_SECRET || "").trim();
+  return fallback.length > 0 ? fallback : "dev-only-higher-study-referral-secret-key";
+}
+
+/**
+ * Resolve the salt used for privacy-preserving IP hashing on public
+ * Higher Study endpoints.
+ */
+export function resolveHigherStudyIpSalt(): string {
+  return (
+    process.env.HIGHER_STUDY_REFERRAL_SECRET ||
+    process.env.JWT_SECRET ||
+    process.env.AUTH_SECRET ||
+    "alaminn-hs-ip-salt"
+  );
+}
+
+/**
+ * Sign a server-to-server referral confirmation callback body using
+ * HMAC-SHA256 over `${referralCode}.${rawBody}` (base64url).
+ */
+export function signReferralCallback(
+  referralCode: string,
+  rawBody: string,
+  secret: string,
+): string {
+  return crypto
+    .createHmac("sha256", secret)
+    .update(`${referralCode}.${rawBody}`)
+    .digest("base64url");
+}
+
+/**
+ * Verify a server-to-server referral confirmation callback signature.
+ *
+ * - Rejects empty secrets, missing signatures, or browser-exposed
+ *   `referralToken` strings (which have the `<payload>.<sig>` dot format).
+ * - Uses constant-time comparison (`crypto.timingSafeEqual`) against
+ *   HMAC-SHA256 over `${referralCode}.${rawBody}` or `rawBody`
+ *   (supporting both base64url and `sha256=<hex>` encodings).
+ */
+export function verifyReferralCallback(
+  referralCode: string,
+  rawBody: string,
+  signatureHeader: string | null | undefined,
+  secret: string | null | undefined,
+): boolean {
+  if (!signatureHeader || typeof signatureHeader !== "string") return false;
+  if (!secret || typeof secret !== "string" || secret.length === 0) return false;
+  const sig = signatureHeader.trim();
+  if (!sig || sig.includes(".")) {
+    // Reject browser-facing referralTokens (`<payloadBase64Url>.<hmacBase64Url>`)
+    return false;
+  }
+
+  const candidates = [
+    crypto.createHmac("sha256", secret).update(`${referralCode}.${rawBody}`).digest("base64url"),
+    "sha256=" + crypto.createHmac("sha256", secret).update(`${referralCode}.${rawBody}`).digest("hex"),
+    crypto.createHmac("sha256", secret).update(rawBody).digest("base64url"),
+    "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex"),
+  ];
+
+  const sigBuf = Buffer.from(sig, "utf8");
+  for (const expected of candidates) {
+    const expBuf = Buffer.from(expected, "utf8");
+    if (sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Sign a referral token using HMAC-SHA256. The token carries the
  * referral code + referral type + issued-at + expiry, and is verifiable
  * by {@link verifyReferralToken}. The token is URL-safe (base64url).
  *
  * The `secret` should be a long random string (typically
- * `process.env.HIGHER_STUDY_REFERRAL_SECRET`); falls back to a
- * session-constant if not configured.
+ * `process.env.HIGHER_STUDY_REFERRAL_SECRET`).
  */
 export function signReferralToken(
   payload: Omit<ReferralTokenPayload, "iat" | "exp">,

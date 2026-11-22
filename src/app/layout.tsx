@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { RegisterSW } from "@/components/site/pwa/register-sw";
+import { safeJsonLdStringify } from "@/lib/json-ld";
 
 // ─── Self-hosted fonts (OFL-licensed, committed in src/fonts) ──────
 // Switched from `next/font/google` to `next/font/local` so builds are
@@ -214,7 +215,7 @@ export default function RootLayout({
         >
           <script
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
           />
           {children}
           <Toaster />

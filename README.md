@@ -1,177 +1,111 @@
-# Alaminn.info — Premium Build 2026-08-14
+# Alaminn.info — Executive Authority, Higher Study, English Learning & Command Center Platform
 
-> ### ✅ Verified state — 2026-09-30 audit
-> Production **live** at https://alaminn.info (health OK, admin API rejects
-> anonymous access, Higher Study hub serving 12 universities / 24 courses /
-> 8 scholarships / 30 destinations). Full quality gate re-run in a clean
-> environment: **typecheck 0 errors · lint 0 errors · 256/256 tests · 22/22
-> security tests · 291-route production build · standalone smoke test PASS**.
-> Evidence and per-feature status: [`docs/CURRENT-STATE-AUDIT.md`](./docs/CURRENT-STATE-AUDIT.md)
-> · [`docs/FEATURE-INVENTORY.md`](./docs/FEATURE-INVENTORY.md) ·
-> [`docs/FINAL-IMPLEMENTATION-REPORT.md`](./docs/FINAL-IMPLEMENTATION-REPORT.md).
+Integrated multi-surface platform for **Al Aminn** (`https://alaminn.info`), combining:
 
-Premium executive authority platform for **Al Aminn** — a single integrated
-application combining a public executive-authority website, a Higher Study
-advisory platform, an English Learning platform, a private Command Center
-(CRM + AI Workspace + Approvals + Audit), and an AI-powered WhatsApp Agent.
-
-Built with **Next.js 16** (App Router, Turbopack), **TypeScript 5**,
-**Tailwind CSS 4**, **shadcn/ui**, **Prisma ORM 7** (SQLite for dev, MySQL for
-production), **Framer Motion 12**, and **Node.js 22.22.3** (npm).
-
-> **Phase 1 foundation (JWT auth, `.env.config`, PM2, RBAC hierarchy):**
-> see [`docs/PHASE-1-FOUNDATION.md`](./docs/PHASE-1-FOUNDATION.md).
->
-> **📖 For the complete, exhaustive developer guide covering every file, every
-> command, every env variable, and every route — see
-> [DEVELOPMENT.md](./DEVELOPMENT.md).** That document is the single source of
-> truth for this project.
+1. **Executive Authority Website (`/`)** — Executive profile, work system, case studies, quantified impact records, projects, insights/articles, schedule-a-meeting flow, and AI advisor.
+2. **Higher Study Platform (`/higher-study`)** — Verified universities, courses, scholarships, PhD research, supervisors, destinations, intakes, comparison tools, eligibility checker, saved items, deadline alerts, and ALO Education referral attribution.
+3. **English Learning Platform (`/english-learning`)** — IELTS/English courses, lessons, timed practice tests with auto-grading, tutor directory, learner enrollment & progress tracking, and referral attribution.
+4. **Command Center Admin Portal (`/admin`)** — CRM (contacts, companies, inquiries, opportunities, meetings, tasks, notes, documents), AI Workspace & human-in-the-loop approvals, Higher Study & English Learning content administration, WhatsApp AI agent dashboard, social inbox/scheduler, audit logs, and RBAC user management.
+5. **ALO Education Staff & UCI/UMC Consoles (`/dashboard`, `/console`, `/reports`, `/admin/uci`)** — University Course Intelligence (UCI) verification console, Unified Messaging Channel (UMC), and staff session management.
 
 ---
 
-## What's New in This Build (2026-08-14)
+## Technology Stack
 
-This ZIP supersedes `ALAMINN-INFO-UPDATED-2026-08-13.zip` and
-`ALAMINN-INFO-COMPLETE-2026-08-04.zip`. Highlights:
-
-1. **Premium Navigation Simplification** — Main navbar reduced to **6 premium
-   destinations + 1 CTA**: `Logo (→ /) | About & Expertise | Impact | Projects |
-   Insights | Higher Study | Work With Me | [Schedule a Meeting]`. "Home" item
-   removed (logo links to `/`). Mega menu and Projects dropdown removed for a
-   cleaner, executive feel.
-2. **Higher Study Nav Takeover** — When the user enters Higher Study, the main
-   Alaminn.info navigation **completely disappears**. A dedicated Higher Study
-   navbar renders with only the Al Aminn logo (→ `/`) + 8 Higher Study links
-   (Universities, Courses, Scholarships, PhD & Research, Supervisors,
-   Destinations, Resources, Compare) + Apply Now CTA.
-3. **Merged Pages** (cleaner IA, fewer routes, more depth per page):
-   - `/about` — **About & Expertise** combined (professional profile, bio,
-     career journey timeline, core expertise & capabilities, operating
-     philosophy, full executive profile).
-   - `/insights` — **Insights hub** combining Articles + Resources with tab
-     filters. Fetches real published content from the DB.
-   - `/work-with-me` — **Work With Me + Contact** combined (engagement types,
-     services, collaboration process, schedule + inquiry form + trust card).
-4. **Clean Redirects** — Old routes preserved and redirected:
-   `/expertise → /about`, `/contact → /work-with-me`, `/articles → /insights`.
-   Individual article pages (`/articles/[slug]`) still work. No broken links.
-5. **Homepage restructure** (from 2026-08-13 build, retained) — Removed the
-   two post-Hero sections (StatsTicker + ExecutiveIntro). Added a premium
-   **Contact / Professional Profile / Social** section as Section 2.
-6. **AI WhatsApp Agent** (from 2026-08-13 build, retained) — 14-intent
-   conversational agent on `01716609554`, real LLM via `z-ai-web-dev-sdk`,
-   knowledge retrieval across 6 Prisma models, CRM lead creation with explicit
-   consent, human-handoff SLA, full admin dashboard at `/admin/whatsapp-ai`,
-   privacy-first (no message content stored).
-7. **Premium homepage sections** (from 2026-08-13 build, retained) — My Work,
-   real photo gallery with lightbox, Social Media Hub (8 platforms, verified
-   badges), Latest Updates rail, Work With Me, Schedule a Meeting.
-8. **Real data only** — Real user-provided photos in `/public/gallery/`, real
-   verified social URLs (Facebook + WhatsApp), real WhatsApp number. No
-   invented accounts, credentials, or handles.
-9. **Full production audit completed** — 166 route.ts files audited; 95%
-   directly tested via curl. 0 critical security issues. All admin endpoints
-   return 401 without auth. Rate limiting on all sensitive endpoints. CSP,
-   X-Frame-Options:DENY, X-Content-Type-Options:nosniff, Referrer-Policy,
-   Permissions-Policy all present. WhatsApp AI agent operational end-to-end.
+| Layer | Technology |
+| --- | --- |
+| Runtime & Package Manager | **Node.js 22 LTS** (`.nvmrc` -> `22.22.3`) · **npm** (`package-lock.json` is authoritative) |
+| Framework | **Next.js 16** (App Router, standalone output, custom `server.js` with Socket.IO UMC integration) |
+| Language & Styling | **TypeScript 5** (strict) · **Tailwind CSS 4** · **shadcn/ui** · **Framer Motion 12** |
+| ORM & Databases | **Prisma 7** — SQLite (`prisma/schema.prisma`, `prisma.config.ts`) for local/dev/CI; MySQL/MariaDB (`prisma/schema.mysql.prisma`, `prisma.config.mysql.ts`) for production |
+| Testing | **Vitest 4** (unit, component, lib, integration, API) + **Playwright** + security verification suite (`scripts/security-tests.ts`) |
 
 ---
 
-## Quick start (development)
+## Dual Authentication Architecture
+
+The platform intentionally separates executive Command Center administration from ALO Education operational staff accounts. Both systems are enforced at the edge/proxy layer (`src/proxy.ts`) and inside route handlers:
+
+| Dimension | 1. Command Center Auth (`User`) | 2. ALO Staff & UCI/UMC Auth (`StaffAccount`) |
+| --- | --- | --- |
+| Cookie Name | `auth_token` (`httpOnly`, `SameSite=Lax`, 24h TTL) | `alo_session` (`httpOnly`, `SameSite=Lax`, 7d TTL) |
+| Token Mechanism | HS256 JWT (`jose`) via `src/lib/auth/jwt.ts` + DB active-user verification in `src/lib/auth.ts` | HMAC-SHA256 token (`src/lib/auth/token.ts`) + revocable `StaffSession` row in `src/lib/auth/session.ts` |
+| Signing Secret | `resolveAuthSecret()` (`JWT_SECRET` -> `AUTH_SECRET`, >= 32 bytes required in production) | `resolveStaffSecret()` (`SESSION_SECRET` -> `JWT_SECRET` -> `AUTH_SECRET`, >= 32 bytes required in production) |
+| Roles | `SUPER_ADMIN`, `OWNER`, `EXECUTIVE_ASSISTANT`, `CRM_MANAGER`, `PARTNERSHIP_MANAGER`, `CONTENT_MANAGER`, `MARKETING_MANAGER`, `PROJECT_MANAGER`, `AI_REVIEWER`, `SECURITY_AUDITOR`, `VIEWER` (`src/lib/rbac.ts`) | `ADMIN`, `EDITOR`, `AGENT`, `VIEWER` (`src/lib/auth/rbac.ts`) |
+| Protected UI Prefixes | `/admin` and `/admin/*` (except `/admin/uci*` and `/admin/{login,forgot-password,reset-password}`) | `/dashboard`, `/console`, `/reports`, `/admin/uci` |
+| Protected API Prefixes | `/api/v1/admin/*`, `/api/v1/higher-study/admin/*`, `/api/v1/english-learning/admin/*`, `/api/v1/meetings/admin`, `/api/v1/whatsapp/admin/*` | `/api/staff/*`, `/api/settings`, `/api/uci/{admin,audit,import,export}`, `/api/umc/*` |
+
+---
+
+## Required Environment Variables
+
+Copy `.env.example` to `.env` for local development. Never commit real secrets.
+
+| Variable | Purpose | Production Requirement |
+| --- | --- | --- |
+| `DATABASE_URL` | Prisma datasource URL (`file:./db/custom.db` for SQLite or `mysql://...` for MySQL/MariaDB) | Required |
+| `JWT_SECRET` / `AUTH_SECRET` | Signing & AES-256-GCM encryption secret for Command Center JWTs and stored integration tokens | Required (>= 32 bytes) |
+| `SESSION_SECRET` | Signing secret for ALO Staff `alo_session` tokens and password-reset HMACs | Required (>= 32 bytes) |
+| `CRON_SECRET` | Shared secret authenticating `/api/cron/*` and `POST /api/health/ready` | Required (>= 16 chars) |
+| `WHATSAPP_WEBHOOK_SECRET` (or `META_APP_SECRET`) | Meta HMAC-SHA256 (`X-Hub-Signature-256`) secret for `/api/v1/whatsapp/webhook` and `/api/v1/social/webhooks/[platform]` | Required for webhook ingestion (endpoints return `503` when unset) |
+| `HIGHER_STUDY_REFERRAL_SECRET` | HMAC-SHA256 secret for Higher Study referral tokens and server-to-server `/api/v1/higher-study/referral/[code]/confirm` callbacks | Required in production (>= 32 bytes) |
+| `ENGLISH_LEARNING_REFERRAL_SECRET` | HMAC-SHA256 secret for English Learning referral tokens | Required in production (>= 32 bytes) |
+| `ADMIN_BOOTSTRAP_EMAIL` / `ADMIN_BOOTSTRAP_PASSWORD` | Initial Command Center `OWNER` account bootstrap credentials | Password >= 12 chars when bootstrapping |
+| `STAFF_BOOTSTRAP_EMAIL` / `STAFF_BOOTSTRAP_PASSWORD` | Initial ALO `StaffAccount` (`ADMIN`) bootstrap credentials | Password >= 12 chars when bootstrapping |
+
+---
+
+## Local Development Quick Start
 
 ```bash
-nvm install && nvm use             # Reads .nvmrc; npm is bundled with Node
-npm ci
-cp .env.config.example .env.config
-# Set JWT_SECRET, SESSION_SECRET, and CRON_SECRET to distinct generated values.
-# Set DATABASE_URL=file:./db/custom.db and NEXT_PUBLIC_SITE_URL=http://localhost:3000.
+nvm use                            # Node 22.22.3 (.nvmrc)
+npm ci                             # Install from package-lock.json & generate Prisma client
 mkdir -p db
-npm run env:check
-npm run db:migrate:deploy
-npm run db:migrate:status
-npm run dev
-```
-
-Open `http://localhost:3000`. The root `package-lock.json` is authoritative;
-Bun is optional for independent mini-services that document it. Do not run Bun
-install in the root instead of `npm ci`. See [INSTALL.md](./INSTALL.md) for the
-two account systems, optional seed data, and worker setup.
-
----
-
-## Project Structure
-
-```
-alaminn.info/
-├── src/
-│   ├── app/                    # Next.js App Router (pages + API routes)
-│   │   ├── page.tsx            # Homepage (restructured)
-│   │   ├── admin/              # Command Center (CRM + AI + Approvals + Audit)
-│   │   ├── higher-study/       # Higher Study advisory platform
-│   │   ├── english-learning/   # English Learning platform
-│   │   ├── about/ expertise/ projects/ articles/ ...
-│   │   └── api/v1/             # REST API (auth, whatsapp, higher-study, ...)
-│   ├── components/
-│   │   ├── ui/                 # shadcn/ui (New York style)
-│   │   ├── site/               # Public-site components
-│   │   │   ├── navbar.tsx footer.tsx hero.tsx ...
-│   │   │   └── sections/       # 25 homepage sections (incl. contact-profile-social)
-│   │   ├── higher-study/       # Higher Study shell + explorer + widgets
-│   │   ├── admin/              # Command Center UI
-│   │   └── whatsapp/           # WhatsApp chat widget + button
-│   ├── lib/                    # Auth, db, env, logger, site-data, ...
-│   ├── proxy.ts                # Next.js 16 middleware (replaces middleware.ts)
-│   └── instrumentation.ts      # OpenTelemetry / Sentry hooks
-├── prisma/
-│   └── schema.prisma           # 55 models (DB-agnostic — SQLite or MySQL)
-├── public/
-│   ├── brand/                  # Logos + portraits (real)
-│   ├── gallery/                # Real user-provided photos
-│   └── favicon.svg logo.svg sw.js
-├── mini-services/              # 5 independent Bun services
-│   ├── _shared/                # Shared utilities
-│   ├── email-worker/           # Port 3002 — outbound email (SMTP/Resend)
-│   ├── audit-worker/           # Port 3003 — audit log writer
-│   ├── health-monitor/         # Port 3004 — uptime + health checks
-│   ├── notification-service/   # Port 3005 — in-app + push notifications
-│   └── ai-worker/              # Port 3006 — background AI jobs
-├── scripts/                    # DB seed, verify, backup scripts
-├── deploy/                     # cPanel / Nginx / OpenLiteSpeed / PM2 / systemd
-├── .env.example                # Template env file
-├── package.json                # npm/Next.js scripts
-├── tsconfig.json next.config.ts tailwind.config.ts
-├── Caddyfile Dockerfile docker-compose.yml
-├── README.md INSTALL.md DEVELOPMENT.md
-└── prisma/schema.prisma
+node scripts/apply-sqlite-migrations.mjs   # Apply all versioned SQLite migrations
+npm run db:seed                    # Optional: seed development fixtures
+npm run dev                        # Start development server on http://localhost:3000
 ```
 
 ---
 
-## Quality Gates (Verified 2026-08-14)
+## Database Migrations
 
-- ✅ **ESLint**: 0 errors, 0 warnings
-- ✅ **TypeScript** (`tsc --noEmit`): 0 errors
-- ✅ **Production build** (`bun run build`): 147/147 static pages (added `/insights` and `/work-with-me`)
-- ✅ **Routes**: 20/20 key routes return HTTP 200
-- ✅ **Mobile**: No horizontal overflow at 375/390/414/768/1024/1280/1440px
-- ✅ **No console errors** on desktop or mobile
-- ✅ **WhatsApp AI E2E**: 20/20 spec scenarios pass
-- ✅ **Single global Navbar** on main site; dedicated **Higher Study Navbar** on `/higher-study/*` (main nav hidden)
-- ✅ **Merged pages**: `/about` (About+Expertise), `/insights` (Articles+Resources), `/work-with-me` (Work+Contact)
-- ✅ **Redirects**: `/expertise → /about`, `/contact → /work-with-me`, `/articles → /insights`
-- ✅ **166 routes audited** — 0 critical security issues, all admin endpoints protected, rate limiting on all sensitive endpoints
+Both SQLite and MySQL/MariaDB schemas are maintained in lockstep (enforced by `tests/unit/schema-parity.test.ts` and `tests/migrations/client-parity*.mjs`). Never use `prisma db push` in production or CI.
 
----
-
-## Key Documentation
-
-- [README.md](./README.md) — This file (quick start)
-- [INSTALL.md](./INSTALL.md) — Production deployment (5 minutes)
-- [DEVELOPMENT.md](./DEVELOPMENT.md) — Exhaustive developer guide
-- [.env.example](./.env.example) — All environment variables
+- **Validate both schemas:**
+  ```bash
+  npm run db:validate
+  npm run db:validate -- mysql
+  ```
+- **SQLite migration deployment:**
+  ```bash
+  npm run db:migrate:deploy
+  # or offline via Node built-in sqlite:
+  node scripts/apply-sqlite-migrations.mjs
+  ```
+- **MySQL / MariaDB migration deployment:**
+  ```bash
+  npx --no-install prisma migrate deploy --config prisma.config.mysql.ts
+  npm run db:generate -- mysql
+  ```
 
 ---
 
-## License
+## Quality Gates & Verification
 
-Proprietary — © Al Aminn. All rights reserved.
+```bash
+npm run typecheck                  # TypeScript strict check (tsc --noEmit)
+npm run lint                       # ESLint check
+npx vitest run                     # Unit, lib, component, integration & API test suites
+npm run build                      # Production Next.js build (standalone output)
+```
+
+---
+
+## Documentation Index
+
+- **[`DEVELOPMENT.md`](./DEVELOPMENT.md)** — Comprehensive developer reference (routes, Prisma models, services, and workflows).
+- **[`INSTALL.md`](./INSTALL.md)** — Installation, account bootstrap, and worker setup guide.
+- **[`DEPLOYMENT-GUIDE.md`](./DEPLOYMENT-GUIDE.md)** & **[`DEPLOYMENT-CHECKLIST.md`](./DEPLOYMENT-CHECKLIST.md)** — Production deployment and release runbooks.
+- **[`SECURITY-CHECKLIST.md`](./SECURITY-CHECKLIST.md)** — Security controls, secret hygiene, and verification checklist.
+- **[`docs/README.md`](./docs/README.md)** — Structured index of architecture, database, API, and archived historical reports (`docs/archive/`).

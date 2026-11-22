@@ -6,9 +6,15 @@
  * client-generated `sessionId` stored in localStorage) AND authenticated
  * Alaminn.info users (identified by the signed session cookie).
  *
- * The lookup key is `userId` if authenticated, else `sessionId`.
- * Anonymous callers MUST provide a sessionId — anonymous writes without
- * one are rejected.
+ * Security invariants:
+ *   - Authenticated sessions always take precedence over client-supplied
+ *     `sessionId` values.
+ *   - Anonymous `sessionId` values must be 8–128 URL-safe characters
+ *     (`[A-Za-z0-9_-]`) — short, empty, or placeholder values (`"null"`,
+ *     `"undefined"`) are rejected.
+ *   - Anonymous lookups explicitly scope queries with `userId: null` so
+ *     an anonymous caller with a guessed/shared `sessionId` can never
+ *     read, modify, or delete records owned by an authenticated user.
  */
 import type { NextRequest } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth";
@@ -21,10 +27,20 @@ export interface CallerContext {
   authenticated: boolean;
 }
 
+const SESSION_ID_RE = /^[A-Za-z0-9_-]{8,128}$/;
+
+export function isValidAnonymousSessionId(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  const trimmed = raw.trim();
+  if (trimmed === "null" || trimmed === "undefined") return false;
+  return SESSION_ID_RE.test(trimmed);
+}
+
 /**
  * Resolve the caller from a request. Authenticated sessions take
- * precedence; otherwise the caller must provide a `sessionId` query
- * param (GET) or `sessionId` body field (POST/DELETE).
+ * precedence; otherwise the caller must provide a valid `sessionId`
+ * query param (GET/DELETE) or `sessionId` body field (POST/DELETE) or
+ * `x-session-id` header.
  */
 export async function resolveCaller(
   req: NextRequest,
@@ -35,12 +51,14 @@ export async function resolveCaller(
     return { userId: session.userId, sessionId: null, authenticated: true };
   }
   const url = new URL(req.url);
-  const sessionId =
+  const candidate =
     safeString(body?.sessionId as string | undefined) ||
-    safeString(url.searchParams.get("sessionId"));
+    safeString(url.searchParams.get("sessionId")) ||
+    safeString(req.headers.get("x-session-id"));
+  const validSessionId = isValidAnonymousSessionId(candidate) ? candidate : null;
   return {
     userId: null,
-    sessionId: sessionId || null,
+    sessionId: validSessionId,
     authenticated: false,
   };
 }
@@ -48,10 +66,12 @@ export async function resolveCaller(
 /**
  * Returns the Prisma where-clause fragment identifying a caller's
  * personal list items. Returns `null` if the caller provided neither
- * a userId nor a sessionId (must reject).
+ * a userId nor a valid sessionId (must reject).
  */
-export function callerWhere(ctx: CallerContext): Record<string, string> | null {
+export function callerWhere(
+  ctx: CallerContext,
+): { userId: string } | { sessionId: string; userId: null } | null {
   if (ctx.userId) return { userId: ctx.userId };
-  if (ctx.sessionId) return { sessionId: ctx.sessionId };
+  if (ctx.sessionId) return { sessionId: ctx.sessionId, userId: null };
   return null;
 }

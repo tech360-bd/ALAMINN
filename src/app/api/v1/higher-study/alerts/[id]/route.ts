@@ -12,6 +12,7 @@ import {
   jsonResponse,
   safeString,
   hashIp,
+  resolveHigherStudyIpSalt,
 } from "@/lib/higher-study/api-helpers";
 import { rateLimit } from "@/lib/higher-study/rate-limit";
 import { resolveCaller, callerWhere } from "../../_lib/caller";
@@ -26,7 +27,7 @@ export async function DELETE(
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||
       "unknown",
-    process.env.HIGHER_STUDY_REFERRAL_SECRET ?? "alaminn-hs",
+    resolveHigherStudyIpSalt(),
   );
   if (rateLimit(ip, 30)) {
     return jsonResponse(
@@ -46,7 +47,11 @@ export async function DELETE(
       return jsonResponse(false, "ID is required.", null, {}, ["id_required"], 400);
     }
 
-    const ctx = await resolveCaller(req);
+    const body = await req.json().catch(() => null);
+    const ctx = await resolveCaller(
+      req,
+      body && typeof body === "object" ? (body as Record<string, unknown>) : null,
+    );
     const where = callerWhere(ctx);
     if (!where) {
       return jsonResponse(

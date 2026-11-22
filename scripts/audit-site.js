@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
     }
   });
 
-  const baseUrl = 'https://alaminn.info';
+  const baseUrl = process.env.AUDIT_BASE_URL || 'http://127.0.0.1:3000';
   const visited = new Set();
   const queue = ['/', '/higher-study/course-finder', '/contact', '/higher-study/universities'];
   

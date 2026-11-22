@@ -6,12 +6,15 @@
  *   only if hub.verify_token matches WHATSAPP_WEBHOOK_VERIFY_TOKEN.
  *
  * POST /api/v1/whatsapp/webhook
- *   Meta delivers inbound messages here. We parse, classify, retrieve
- *   knowledge, generate a response, and send it back via the Cloud API.
- *   All steps are logged to AuditLog for observability.
+ *   Meta delivers inbound messages here. Requires a valid HMAC-SHA256
+ *   signature in `X-Hub-Signature-256` computed over the raw request body
+ *   using `WHATSAPP_APP_SECRET` (or `META_APP_SECRET`). Fails closed (503)
+ *   when no secret is configured, rejects invalid/missing signatures (401),
+ *   and enforces replay + messageId idempotency protection.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyMetaSignature } from "@/lib/social/classifier";
 import {
   whatsappConfig,
   parseInboundWebhook,
@@ -22,6 +25,35 @@ import {
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+/** Maximum allowed age/skew for webhook message timestamps (15 minutes). */
+const MAX_WEBHOOK_AGE_MS = 15 * 60 * 1000;
+
+/** In-memory deduplication map for recently processed message IDs. */
+const processedMessageIds = new Map<string, number>();
+
+function isDuplicateInMemory(messageId: string, now: number): boolean {
+  for (const [id, expiresAt] of processedMessageIds) {
+    if (expiresAt <= now) processedMessageIds.delete(id);
+  }
+  const exp = processedMessageIds.get(messageId);
+  return typeof exp === "number" && exp > now;
+}
+
+function markProcessedInMemory(messageId: string, now: number): void {
+  processedMessageIds.set(messageId, now + MAX_WEBHOOK_AGE_MS);
+}
+
+/** Resolve the Meta/WhatsApp app secret used to verify X-Hub-Signature-256. */
+export function resolveWhatsappWebhookSecret(): string | null {
+  const secret = (
+    process.env.WHATSAPP_WEBHOOK_SECRET ||
+    process.env.WHATSAPP_APP_SECRET ||
+    process.env.META_APP_SECRET ||
+    ""
+  ).trim();
+  return secret.length > 0 ? secret : null;
+}
 
 // ─── GET: Webhook verification ─────────────────────────────────────────
 
@@ -47,17 +79,98 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const start = Date.now();
+
+  // 1. Fail closed when webhook secret is not configured.
+  const secret = resolveWhatsappWebhookSecret();
+  if (!secret) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "webhook_not_configured",
+        message: "WHATSAPP_WEBHOOK_SECRET, WHATSAPP_APP_SECRET, or META_APP_SECRET not configured — webhook disabled.",
+        errors: ["webhook_secret_not_configured"],
+      },
+      { status: 503 }
+    );
+  }
+
+  // 2. Read raw body and verify HMAC-SHA256 signature before parsing or side effects.
+  const rawBody = await req.text();
+  const signature = req.headers.get("x-hub-signature-256");
+  if (!verifyMetaSignature(rawBody, signature, secret)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "invalid_signature",
+        message: "Missing or invalid X-Hub-Signature-256 header.",
+      },
+      { status: 401 }
+    );
+  }
+
   let payload: unknown;
   try {
-    payload = await req.json();
+    payload = JSON.parse(rawBody);
   } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+    return NextResponse.json({ success: false, error: "invalid_json" }, { status: 400 });
   }
 
   const inbound = parseInboundWebhook(payload);
   if (!inbound || !inbound.text) {
     // Not a text message (could be a status update or system event) — ack only
     return NextResponse.json({ success: true, message: "ignored" });
+  }
+
+  // 3. Replay protection: validate message timestamp if numeric epoch seconds/ms.
+  const rawTs = Number(inbound.timestamp);
+  if (Number.isFinite(rawTs) && rawTs > 0) {
+    const eventTimeMs = rawTs < 1e12 ? rawTs * 1000 : rawTs;
+    if (Math.abs(start - eventTimeMs) > MAX_WEBHOOK_AGE_MS) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "stale_webhook_event",
+          message: "Webhook event timestamp is outside the allowed replay window.",
+          errors: ["stale_timestamp"],
+        },
+        { status: 409 }
+      );
+    }
+  }
+
+  // 4. Idempotency: prevent duplicate processing of the same Meta messageId.
+  if (inbound.messageId) {
+    if (isDuplicateInMemory(inbound.messageId, start)) {
+      return NextResponse.json({
+        success: true,
+        message: "duplicate_ignored",
+        data: {
+          duplicate: true,
+          messageId: inbound.messageId,
+          repliesSent: 0,
+          duplicatesSkipped: 1,
+        },
+      });
+    }
+    const existingAudit = await db.auditLog
+      .findFirst({
+        where: {
+          action: "whatsapp_message_received",
+          resource: "WhatsApp",
+          resourceId: inbound.messageId,
+        },
+        select: { id: true },
+      })
+      .catch(() => null);
+    if (existingAudit) {
+      markProcessedInMemory(inbound.messageId, start);
+      return NextResponse.json({
+        success: true,
+        message: "duplicate_ignored",
+        data: { duplicate: true, messageId: inbound.messageId },
+      });
+    }
+    markProcessedInMemory(inbound.messageId, start);
   }
 
   // Log inbound message (safe — no PII beyond the number hash)
@@ -177,6 +290,8 @@ export async function POST(req: NextRequest) {
       intent: response.intent,
       status: sendResult.status,
       actuallySent: sendResult.actuallySent,
+      repliesSent: 1,
+      duplicatesSkipped: 0,
       elapsedMs: Date.now() - start,
     },
   });
@@ -193,7 +308,7 @@ async function safeAudit(
   try {
     await db.auditLog.create({
       data: {
-        actorId: "system",
+        actorId: null,
         action,
         resource,
         resourceId: resourceId || null,
@@ -207,9 +322,6 @@ async function safeAudit(
 
 async function loadHistory(from: string): Promise<AgentMessage[]> {
   try {
-    // Store conversation turns in a Note linked to a synthetic contact.
-    // For simplicity, we look up the last 10 audit logs with action
-    // whatsapp_message_received/sent for this user suffix.
     const logs = await db.auditLog.findMany({
       where: {
         action: { in: ["whatsapp_message_received", "whatsapp_message_sent"] },
@@ -219,10 +331,9 @@ async function loadHistory(from: string): Promise<AgentMessage[]> {
       take: 20,
       select: { action: true, meta: true, createdAt: true },
     });
-    // Reverse to chronological order
     return logs.reverse().map((log) => ({
       role: log.action === "whatsapp_message_received" ? "user" : "assistant",
-      content: "", // We don't store message content in audit logs (privacy)
+      content: "",
       timestamp: log.createdAt.toISOString(),
     }));
   } catch {
@@ -238,6 +349,4 @@ async function storeConversationTurn(
 ) {
   // Intentionally NOT storing message content in the DB for privacy.
   // Only metadata (intent, timestamp, status) is logged via safeAudit above.
-  // If a future requirement needs full conversation history, a dedicated
-  // WhatsAppConversation model with encryption-at-rest should be added.
 }

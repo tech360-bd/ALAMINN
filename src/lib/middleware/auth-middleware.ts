@@ -1,39 +1,59 @@
 /**
- * Authentication Middleware for Express API Gateway
+ * Authentication Middleware for AI API Gateway
  * ====================================================
- * Adapts the HMAC-signed session cookie auth from Next.js to Express.
+ * Verifies HMAC-signed session tokens (`userId.role.expiresAt.sig`)
+ * using `resolveAuthSecret()` and enforces role-based permissions.
  */
 
-import { Request, Response, NextFunction } from "express";
-
+import { createHmac as nodeCreateHmac, timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
+import type { Request, Response, NextFunction } from "express";
+import { resolveAuthSecret } from "@/lib/auth/secret";
 
 export interface AuthMiddlewareOptions {
   skipPaths?: string[];
   requireAuth?: boolean;
 }
 
-/**
- * HMAC-signed session cookie authentication middleware.
- */
 export class AuthMiddleware {
   private static readonly COOKIE_NAME = "alaminn_session";
 
   /**
+   * Sign a gateway session token (`userId.role.expiresAt.sig`).
+   */
+  public static signSessionToken(
+    userId: string,
+    role: string,
+    expiresAtSec: number = Math.floor(Date.now() / 1000) + 3600,
+    authSecret: string = resolveAuthSecret(),
+  ): string {
+    const payload = `${userId}.${role}.${expiresAtSec}`;
+    const sig = nodeCreateHmac("sha256", authSecret)
+      .update(payload)
+      .digest("hex");
+    return `${payload}.${sig}`;
+  }
+
+  /**
    * Verify a signed session token.
    */
-  private static verifyToken(token: string, authSecret: string): { valid: boolean; payload?: string } {
+  private static verifyToken(
+    token: string,
+    authSecret: string,
+  ): { valid: boolean; payload?: string } {
     const lastDot = token.lastIndexOf(".");
     if (lastDot < 0) return { valid: false };
 
     const payload = token.slice(0, lastDot);
     const sig = token.slice(lastDot + 1);
-    const expected = createHmac("sha256", authSecret).update(payload).digest("hex");
+    const expected = nodeCreateHmac("sha256", authSecret)
+      .update(payload)
+      .digest("hex");
 
     try {
       const a = Buffer.from(sig, "hex");
       const b = Buffer.from(expected, "hex");
       if (a.length !== b.length) return { valid: false };
-      if (!timingSafeEqual(a, b)) return { valid: false };
+      if (!nodeTimingSafeEqual(a, b)) return { valid: false };
       return { valid: true, payload };
     } catch {
       return { valid: false };
@@ -44,20 +64,18 @@ export class AuthMiddleware {
    * Extract session from request headers or cookie.
    */
   private static extractSession(req: Request): string | null {
-    // Try Authorization header first (Bearer token)
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       return authHeader.slice(7);
     }
 
-    // Try cookie
     const cookieHeader = req.headers.cookie;
     if (cookieHeader) {
-      const cookies = cookieHeader.split(";").map(c => c.trim());
+      const cookies = cookieHeader.split(";").map((c) => c.trim());
       for (const cookie of cookies) {
         const [name, value] = cookie.split("=");
         if (name === this.COOKIE_NAME) {
-          return value;
+          return value ?? null;
         }
       }
     }
@@ -66,16 +84,17 @@ export class AuthMiddleware {
   }
 
   /**
-   * Create Express middleware for authentication.
+   * Create middleware for authentication.
    */
-  static authenticate(options: AuthMiddlewareOptions = {}): (req: Request, res: Response, next: NextFunction) => void {
+  static authenticate(
+    options: AuthMiddlewareOptions = {},
+  ): (req: Request, res: Response, next: NextFunction) => void {
     return (req: Request, res: Response, next: NextFunction) => {
-      const authSecret = process.env.AUTH_SECRET || "dev-secret-fallback";
+      const authSecret = resolveAuthSecret();
 
-      // Skip authentication for specific paths
       if (options.skipPaths && options.skipPaths.length > 0) {
         const path = req.path || req.url || "";
-        if (options.skipPaths.some(p => path === p || path.startsWith(p))) {
+        if (options.skipPaths.some((p) => path === p || path.startsWith(p))) {
           return next();
         }
       }
@@ -83,14 +102,24 @@ export class AuthMiddleware {
       const token = this.extractSession(req);
 
       if (!token) {
-        // Allow unauthenticated requests for public endpoints
+        if (options.requireAuth) {
+          res.status(401).json({
+            success: false,
+            error: {
+              code: "UNAUTHENTICATED",
+              message: "Authentication required",
+            },
+            requestId: req.headers["x-request-id"] || "unknown",
+          });
+          return;
+        }
         return next();
       }
 
       const result = this.verifyToken(token, authSecret);
 
       if (!result.valid || !result.payload) {
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           error: {
             code: "UNAUTHENTICATED",
@@ -98,12 +127,12 @@ export class AuthMiddleware {
           },
           requestId: req.headers["x-request-id"] || "unknown",
         });
+        return;
       }
 
-      // Parse session payload: userId.role.expiresAt
       const parts = result.payload.split(".");
       if (parts.length !== 3) {
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           error: {
             code: "INVALID_SESSION",
@@ -111,14 +140,14 @@ export class AuthMiddleware {
           },
           requestId: req.headers["x-request-id"] || "unknown",
         });
+        return;
       }
 
       const [userId, role, expiresAtStr] = parts;
       const expiresAt = parseInt(expiresAtStr, 10);
 
-      // Check expiration
       if (isNaN(expiresAt) || expiresAt < Math.floor(Date.now() / 1000)) {
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           error: {
             code: "SESSION_EXPIRED",
@@ -126,9 +155,9 @@ export class AuthMiddleware {
           },
           requestId: req.headers["x-request-id"] || "unknown",
         });
+        return;
       }
 
-      // Attach to request
       req.userId = userId;
       req.role = role;
       req.permissions = this.getRolePermissions(role as string);
@@ -138,12 +167,17 @@ export class AuthMiddleware {
   }
 
   /**
-   * Require specific permission for the route.
+   * Require specific permission(s) for the route.
+   * Wildcard `*` permissions are never accepted so a spoofed or overly broad
+   * permission token cannot grant unintended access; administrative roles
+   * receive an explicit enumerated permission set.
    */
-  static requiresPermission(...permissions: string[]): (req: Request, res: Response, next: NextFunction) => void {
+  static requiresPermission(
+    ...permissions: string[]
+  ): (req: Request, res: Response, next: NextFunction) => void {
     return (req: Request, res: Response, next: NextFunction) => {
       if (!req.userId) {
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           error: {
             code: "UNAUTHENTICATED",
@@ -151,34 +185,61 @@ export class AuthMiddleware {
           },
           requestId: req.headers["x-request-id"] || "unknown",
         });
+        return;
       }
 
-      const userPermissions = req.permissions || [];
-      const hasPermission = permissions.every(p => userPermissions.includes(p));
+      const rawPermissions = Array.isArray(req.permissions)
+        ? req.permissions.filter((p) => typeof p === "string" && p !== "*")
+        : [];
+      const hasPermission =
+        permissions.length > 0 &&
+        permissions.every((p) => p !== "*" && rawPermissions.includes(p));
 
       if (!hasPermission) {
-        return res.status(403).json({
+        res.status(403).json({
           success: false,
           error: {
             code: "FORBIDDEN",
             message: "Insufficient permissions",
-            details: { required: permissions, userPermissions },
+            details: { required: permissions, userPermissions: rawPermissions },
           },
           requestId: req.headers["x-request-id"] || "unknown",
         });
+        return;
       }
 
       next();
     };
   }
 
-  /**
-   * Get permissions for a role (simplified - in production this would come from RBAC).
-   */
+  private static readonly ALL_EXPLICIT_PERMISSIONS: readonly string[] = [
+    "ai_tasks.create",
+    "ai_tasks.read",
+    "ai_approvals.read",
+    "knowledge.retrieve",
+    "knowledge.ingest",
+    "inference.execute",
+    "models.read",
+    "models.manage",
+    "documents.read",
+    "contacts.read",
+    "opportunities.read",
+    "partnerships.read",
+    "articles.create",
+    "articles.read",
+    "resources.read",
+    "newsletters.create",
+    "analytics.read",
+    "projects.create",
+    "projects.read",
+    "tasks.read",
+    "audit_logs.read",
+  ];
+
   private static getRolePermissions(role: string): string[] {
     const rolePerms: Record<string, string[]> = {
-      SUPER_ADMIN: ["*"],
-      OWNER: ["*"],
+      SUPER_ADMIN: [...this.ALL_EXPLICIT_PERMISSIONS],
+      OWNER: [...this.ALL_EXPLICIT_PERMISSIONS],
       EXECUTIVE_ASSISTANT: [
         "ai_tasks.create",
         "ai_tasks.read",
@@ -223,25 +284,9 @@ export class AuthMiddleware {
         "ai_tasks.read",
         "knowledge.retrieve",
       ],
-      VIEWER: [
-        "knowledge.retrieve",
-      ],
+      VIEWER: ["knowledge.retrieve"],
     };
 
-    return rolePerms[role] || rolePerms["VIEWER"] || [];
+    return rolePerms[role] ? [...rolePerms[role]] : [];
   }
-}
-
-// HMAC utilities (inline to avoid dependency on external module)
-function createHmac(algorithm: string, key: string): {
-  update(data: string): { digest(encoding: string): string };
-} {
-  const crypto = require("crypto");
-  return crypto.createHmac(algorithm, key);
-}
-
-function timingSafeEqual(a: Buffer, b: Buffer): boolean {
-  if (a.length !== b.length) return false;
-  const crypto = require("crypto");
-  return crypto.timingSafeEqual(a, b);
 }

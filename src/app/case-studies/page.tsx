@@ -9,6 +9,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Clock, ShieldCheck, Sparkles } from "lucide-react";
 import { db } from "@/lib/db";
+import { safeJsonLdStringify } from "@/lib/json-ld";
 import { PublicPage } from "@/components/site/public-chrome";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -59,7 +60,7 @@ export default async function CaseStudiesListingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: safeJsonLdStringify({
             "@context": "https://schema.org",
             "@type": "CollectionPage",
             name: "Case Studies — Al Aminn",

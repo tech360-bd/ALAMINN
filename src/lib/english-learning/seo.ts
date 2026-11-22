@@ -226,13 +226,10 @@ export function buildOrganizationJsonLd(): Record<string, unknown> {
 
 // ─── Convenience: render JSON-LD as a script tag string ─────────────
 
+import { serializeJsonLd as safeSerializeJsonLd } from "@/lib/json-ld";
+
 export function serializeJsonLd(
   objects: Record<string, unknown> | Record<string, unknown>[],
 ): string {
-  const arr = Array.isArray(objects) ? objects : [objects];
-  if (arr.length === 1) return JSON.stringify(arr[0]);
-  return JSON.stringify({
-    "@context": "https://schema.org",
-    "@graph": arr,
-  });
+  return safeSerializeJsonLd(objects);
 }

@@ -94,18 +94,24 @@ function buildOverview(row: UniversityRow): string {
 }
 
 /** Resolve the JSON file location. Allow override via env, otherwise
- *  fall back to the standard scripts/extracted-universities.json path. */
-function resolveJsonPath(): string {
+ *  check candidate paths relative to the repository root. */
+async function resolveJsonPath(): Promise<string> {
   if (process.env.VERIFIED_UNIS_JSON) {
-    return process.env.VERIFIED_UNIS_JSON;
+    return path.resolve(process.env.VERIFIED_UNIS_JSON);
   }
-  // Look in a few sensible locations relative to the repo root.
   const candidates = [
     path.resolve(process.cwd(), "scripts/extracted-universities.json"),
     path.resolve(process.cwd(), "../scripts/extracted-universities.json"),
-    "/home/z/my-project/scripts/extracted-universities.json",
   ];
-  return candidates[0] || candidates[1];
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // continue to next candidate
+    }
+  }
+  return candidates[0];
 }
 
 /**
@@ -115,7 +121,7 @@ function resolveJsonPath(): string {
 export async function seedVerifiedUniversities(prisma?: PrismaClient) {
   if (prisma) db = prisma;
 
-  const jsonPath = resolveJsonPath();
+  const jsonPath = await resolveJsonPath();
   let raw: string;
   try {
     raw = await fs.readFile(jsonPath, "utf-8");
