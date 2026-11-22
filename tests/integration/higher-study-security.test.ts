@@ -1,5 +1,18 @@
+import { rmSync } from "node:fs";
+import { dirname } from "node:path";
 import { NextRequest } from "next/server";
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const { isolatedDbPath } = vi.hoisted(() => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { execFileSync } = require("node:child_process") as typeof import("node:child_process");
+  const file = execFileSync(process.execPath, ["tests/fixtures/init-sqlite.mjs"], {
+    encoding: "utf8",
+  }).trim();
+  process.env.DATABASE_URL = `file:${file}`;
+  return { isolatedDbPath: file };
+});
+
 import { db } from "@/lib/db";
 import { createToken, AUTH_COOKIE } from "@/lib/auth/jwt";
 import { signReferralCallback } from "@/lib/higher-study/api-helpers";
@@ -60,6 +73,8 @@ describe("Task 03 — Higher Study Referral Callback Auth & Saved/Alert Ownershi
         where: { id: { in: createdUserIds } },
       });
     }
+    await db.$disconnect();
+    rmSync(dirname(isolatedDbPath), { recursive: true, force: true });
   });
 
   it("prevents confirming a referral with the browser-facing referralToken and requires server-to-server HMAC over raw body", async () => {

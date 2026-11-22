@@ -1,6 +1,19 @@
 import { randomUUID } from "node:crypto";
+import { rmSync } from "node:fs";
+import { dirname } from "node:path";
 import { NextRequest } from "next/server";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+const { isolatedDbPath } = vi.hoisted(() => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { execFileSync } = require("node:child_process") as typeof import("node:child_process");
+  const file = execFileSync(process.execPath, ["tests/fixtures/init-sqlite.mjs"], {
+    encoding: "utf8",
+  }).trim();
+  process.env.DATABASE_URL = `file:${file}`;
+  return { isolatedDbPath: file };
+});
+
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { createToken, AUTH_COOKIE } from "@/lib/auth/jwt";
@@ -67,6 +80,8 @@ describe("Task 12 — Critical Route Families Integration Coverage Matrix", () =
         where: { id: { in: createdUserIds } },
       });
     }
+    await db.$disconnect();
+    rmSync(dirname(isolatedDbPath), { recursive: true, force: true });
   });
 
   it("authenticates Command Center Users via /api/v1/auth/login, validates /api/v1/auth/session, and never logs reset tokens in /api/v1/auth/forgot-password", async () => {

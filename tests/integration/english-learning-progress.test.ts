@@ -1,5 +1,18 @@
+import { rmSync } from "node:fs";
+import { dirname } from "node:path";
 import { NextRequest } from "next/server";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
+
+const { isolatedDbPath } = vi.hoisted(() => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { execFileSync } = require("node:child_process") as typeof import("node:child_process");
+  const file = execFileSync(process.execPath, ["tests/fixtures/init-sqlite.mjs"], {
+    encoding: "utf8",
+  }).trim();
+  process.env.DATABASE_URL = `file:${file}`;
+  return { isolatedDbPath: file };
+});
+
 import { db } from "@/lib/db";
 import { POST as enrollPost } from "@/app/api/v1/english-learning/enroll/route";
 import {
@@ -34,6 +47,8 @@ describe("Task 09 — English Learning Enrollment & Progress Ownership and State
         where: { id: { in: courseIds } },
       });
     }
+    await db.$disconnect();
+    rmSync(dirname(isolatedDbPath), { recursive: true, force: true });
   });
 
   it("enforces sessionId ownership on progress updates, validates course lesson membership and test completion scores, and prevents completed status regression", async () => {

@@ -1,5 +1,18 @@
+import { rmSync } from "node:fs";
+import { dirname } from "node:path";
 import { NextRequest } from "next/server";
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const { isolatedDbPath } = vi.hoisted(() => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { execFileSync } = require("node:child_process") as typeof import("node:child_process");
+  const file = execFileSync(process.execPath, ["tests/fixtures/init-sqlite.mjs"], {
+    encoding: "utf8",
+  }).trim();
+  process.env.DATABASE_URL = `file:${file}`;
+  return { isolatedDbPath: file };
+});
+
 import { db } from "@/lib/db";
 import { GET as sessionCleanupGet } from "@/app/api/cron/session-cleanup/route";
 
@@ -42,6 +55,8 @@ describe("Task 06 — Cron Session & Password-Reset Cleanup", () => {
         where: { id: { in: userIds } },
       });
     }
+    await db.$disconnect();
+    rmSync(dirname(isolatedDbPath), { recursive: true, force: true });
   });
 
   it("rejects unauthorized requests with 401 and fails closed with 503 when CRON_SECRET is unset", async () => {
