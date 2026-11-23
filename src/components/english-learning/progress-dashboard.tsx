@@ -76,7 +76,7 @@ function getSessionId(): string {
   const KEY = "alaminn-el-session";
   let id = window.localStorage.getItem(KEY);
   if (!id) {
-    id = `el-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    id = `el-${window.crypto.randomUUID()}`;
     window.localStorage.setItem(KEY, id);
   }
   return id;

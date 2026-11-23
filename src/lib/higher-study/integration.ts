@@ -32,6 +32,7 @@ import {
 } from "@/lib/higher-study/constants";
 import {
   generateReferralCode,
+  resolveHigherStudyReferralSecret,
   signReferralToken,
 } from "@/lib/higher-study/api-helpers";
 import type {
@@ -221,22 +222,28 @@ export async function createReferralRecord(
     opts.source ||
     REFERRAL_SOURCE_MAP.ALAMINN_HIGHER_STUDY.value;
 
-  // Build the ALO Education target URL.
-  const referralCode = generateReferralCode();
-  const targetUrl = buildAloEducationReferralUrl({
-    referralType: opts.referralType,
-    referralCode,
-    source,
-    context: ctx,
-    campaignCode: opts.campaignCode,
-  });
-
   // Sign the referral token now — both sides verify with the shared secret.
-  const secret = process.env.HIGHER_STUDY_REFERRAL_SECRET || "alaminn-hs-dev";
+  const secret = resolveHigherStudyReferralSecret();
+  if (!secret) {
+    throw new Error(
+      "HIGHER_STUDY_REFERRAL_SECRET is not configured in production.",
+    );
+  }
+  const referralCode = generateReferralCode();
   const referralToken = signReferralToken(
     { referralCode, referralType: opts.referralType },
     secret,
   );
+
+  // Build the ALO Education target URL.
+  const targetUrl = buildAloEducationReferralUrl({
+    referralType: opts.referralType,
+    referralCode,
+    referralToken,
+    source,
+    context: ctx,
+    campaignCode: opts.campaignCode,
+  });
 
   const now = new Date();
   const expiresAt = new Date(now.getTime() + REFERRAL_TOKEN_TTL_MS);

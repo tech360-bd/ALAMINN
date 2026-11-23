@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import {
   buildHigherStudyMetadata,
   buildBreadcrumbJsonLd,
+  serializeJsonLd,
   HIGHER_STUDY_BASE_URL,
 } from "@/lib/higher-study/seo";
 import { HigherStudyBreadcrumb } from "@/components/higher-study/breadcrumb";
@@ -226,7 +227,7 @@ export default async function UniversityResearchPage({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbLd) }}
       />
     </>
   );

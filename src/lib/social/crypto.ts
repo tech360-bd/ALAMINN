@@ -1,6 +1,14 @@
-/** Token encryption at rest — AES-256-GCM, key derived from AUTH_SECRET. Server-only. */
+/** Token encryption at rest — AES-256-GCM, key derived from AUTH_SECRET / JWT_SECRET. Server-only. */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
-function key(): Buffer { return createHash("sha256").update(process.env.AUTH_SECRET || "dev-fallback-secret-please-set-AUTH_SECRET").digest(); }
+import { resolveAuthSecret } from "@/lib/auth/secret";
+
+function key(): Buffer {
+  const secret = process.env.AUTH_SECRET || resolveAuthSecret();
+  if (process.env.NODE_ENV === "production" && Buffer.byteLength(secret) < 32) {
+    throw new Error("A production encryption secret of at least 32 bytes is required");
+  }
+  return createHash("sha256").update(secret).digest();
+}
 export function encryptToken(plain: string): string {
   const iv = randomBytes(12); const c = createCipheriv("aes-256-gcm", key(), iv);
   const enc = Buffer.concat([c.update(plain, "utf8"), c.final()]);

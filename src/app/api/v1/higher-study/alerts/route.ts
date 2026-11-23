@@ -21,21 +21,72 @@ import {
   jsonResponse,
   safeString,
   hashIp,
+  resolveHigherStudyIpSalt,
 } from "@/lib/higher-study/api-helpers";
 import { rateLimit } from "@/lib/higher-study/rate-limit";
-import { resolveCaller } from "../_lib/caller";
+import { resolveCaller, callerWhere } from "../_lib/caller";
 
 export const dynamic = "force-dynamic";
 
 const VALID_ENTITY_TYPES = new Set(["scholarship", "research", "course", "event"]);
 const VALID_CHANNELS = new Set(["email", "in-app", "whatsapp"]);
 
+export async function GET(req: NextRequest) {
+  const ip = hashIp(
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown",
+    resolveHigherStudyIpSalt(),
+  );
+  if (rateLimit(ip, 60)) {
+    return jsonResponse(
+      false,
+      "Too many requests. Please slow down.",
+      null,
+      {},
+      ["rate_limited"],
+      429,
+    );
+  }
+
+  try {
+    const ctx = await resolveCaller(req);
+    const where = callerWhere(ctx);
+    if (!where) {
+      return jsonResponse(
+        false,
+        "Either an authenticated session or a valid sessionId query param is required.",
+        null,
+        {},
+        ["caller_required"],
+        400,
+      );
+    }
+
+    const alerts = await db.higherStudyAlert.findMany({
+      where: { ...where, status: { not: "cancelled" } },
+      orderBy: { deadlineDate: "asc" },
+      take: 200,
+    });
+
+    return jsonResponse(
+      true,
+      "Alerts retrieved.",
+      { alerts },
+      { total: alerts.length, authenticated: ctx.authenticated },
+    );
+  } catch (err) {
+    console.error("[higher-study/alerts GET] error", err);
+    return jsonResponse(false, "Internal server error.", null, {}, ["internal"], 500);
+  }
+}
+
 export async function POST(req: NextRequest) {
   const ip = hashIp(
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||
       "unknown",
-    process.env.HIGHER_STUDY_REFERRAL_SECRET ?? "alaminn-hs",
+    resolveHigherStudyIpSalt(),
   );
   if (rateLimit(ip, 10)) {
     return jsonResponse(

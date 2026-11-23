@@ -28,6 +28,8 @@ import {
   safeString,
   hashIp,
   getDeviceCategory,
+  resolveHigherStudyIpSalt,
+  resolveHigherStudyReferralSecret,
 } from "@/lib/higher-study/api-helpers";
 import { rateLimit } from "@/lib/higher-study/rate-limit";
 import { createReferralRecord } from "@/lib/higher-study/integration";
@@ -45,7 +47,7 @@ export async function POST(req: NextRequest) {
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||
       "unknown",
-    process.env.HIGHER_STUDY_REFERRAL_SECRET ?? "alaminn-hs",
+    resolveHigherStudyIpSalt(),
   );
   if (rateLimit(ip, 20)) {
     return jsonResponse(
@@ -55,6 +57,17 @@ export async function POST(req: NextRequest) {
       {},
       ["rate_limited"],
       429,
+    );
+  }
+
+  if (!resolveHigherStudyReferralSecret()) {
+    return jsonResponse(
+      false,
+      "Referral service is not configured.",
+      null,
+      {},
+      ["referral_secret_not_configured"],
+      503,
     );
   }
 

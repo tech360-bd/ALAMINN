@@ -88,20 +88,8 @@ export async function POST(req: NextRequest) {
       // Reset link (the admin reset-password page reads ?token=…)
       const resetUrl = `${env().siteUrl}/admin/reset-password?token=${token}`;
 
-      // Always log the token to console so it can be retrieved in dev
-      // (no SMTP configured in this environment).
-      console.log(
-        `\n┌─── 🔑 PASSWORD RESET TOKEN ───────────────────────────────\n` +
-          `│ Email: ${user.email}\n` +
-          `│ Token: ${token}\n` +
-          `│ Reset URL: ${resetUrl}\n` +
-          `│ Expires: ${expiresAt.toISOString()}\n` +
-          `└──────────────────────────────────────────────────────────\n`
-      );
-
       // Best-effort: if an email transport IS configured, send the
-      // real password-reset email. Never let failure here crash the
-      // request — the console log above already gives us a usable link.
+      // real password-reset email. Never log raw reset tokens or URLs to stdout.
       if (env().emailConfigured) {
         try {
           const { sendTransactional } = await import("@/lib/email");

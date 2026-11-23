@@ -20,6 +20,7 @@ import {
   jsonResponse,
   safeString,
   hashIp,
+  resolveHigherStudyIpSalt,
 } from "@/lib/higher-study/api-helpers";
 import { rateLimit } from "@/lib/higher-study/rate-limit";
 import { resolveCaller, callerWhere } from "../_lib/caller";
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||
       "unknown",
-    process.env.HIGHER_STUDY_REFERRAL_SECRET ?? "alaminn-hs",
+    resolveHigherStudyIpSalt(),
   );
   if (rateLimit(ip, 60)) {
     return jsonResponse(
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||
       "unknown",
-    process.env.HIGHER_STUDY_REFERRAL_SECRET ?? "alaminn-hs",
+    resolveHigherStudyIpSalt(),
   );
   if (rateLimit(ip, 30)) {
     return jsonResponse(

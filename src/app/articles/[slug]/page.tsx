@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PublicPage } from "@/components/site/public-chrome";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { ArrowLeft, Clock, Calendar, User } from "lucide-react";
 
 type Params = { params: Promise<{ slug: string }> };
@@ -26,6 +27,20 @@ export default async function ArticleDetailPage({ params }: Params) {
 
   return (
     <PublicPage>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: article.title,
+            description: article.summary,
+            author: { "@type": "Person", name: article.author },
+            datePublished: new Date(article.publishedAt).toISOString(),
+            url: `https://alaminn.info/articles/${article.slug}`,
+          }),
+        }}
+      />
       <article className="container mx-auto max-w-3xl px-4 py-16 sm:py-20">
         <Link href="/articles" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="h-3 w-3" /> All articles
