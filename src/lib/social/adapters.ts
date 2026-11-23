@@ -1,6 +1,6 @@
 /** Platform adapter interface — official APIs only. Dev mode = no real send when token missing. */
 import { decryptToken } from "./crypto";
-import { sendWhatsappMessage } from "@/lib/whatsapp/sender";
+import { sendWhatsappAccountMessage } from "@/lib/whatsapp/sender";
 export type SendOut = { status: "sent" | "failed" | "dev_pending"; providerId: string | null; error: string | null; actuallySent: boolean };
 export interface PlatformAdapter {
   platform: string;
@@ -21,10 +21,30 @@ const facebook: PlatformAdapter = {
   async health(a) { const t = decryptToken(a.tokenEncrypted); if (!t) return { ok: false, error: "no_token" }; try { const r = await fetch(`https://graph.facebook.com/v21.0/${a.externalId}?fields=id,name`, { headers: { Authorization: `Bearer ${t}` } }); return { ok: r.ok, error: r.ok ? null : `Graph ${r.status}` }; } catch (e) { return { ok: false, error: String(e) }; } },
 };
 const whatsapp: PlatformAdapter = {
-  platform: "whatsapp", capabilities: ["inbox"],
-  async sendReply(_a, to, text) { const r = await sendWhatsappMessage(to, text); return { status: r.status === "FAILED" ? "failed" : r.actuallySent ? "sent" : "dev_pending", providerId: r.messageId, error: r.error, actuallySent: r.actuallySent }; },
+  platform: "whatsapp", capabilities: ["inbox", "send"],
+  async sendReply(a, to, text) {
+    const result = await sendWhatsappAccountMessage(a, to, text);
+    return {
+      status: result.actuallySent ? "sent" : "failed",
+      providerId: result.messageId,
+      error: result.error,
+      actuallySent: result.actuallySent,
+    };
+  },
   async publish() { return { status: "failed", providerId: null, error: "WhatsApp does not support feed publishing", actuallySent: false }; },
-  async health(a) { return { ok: !!decryptToken(a.tokenEncrypted) || !!process.env.WHATSAPP_API_TOKEN, error: null }; },
+  async health(a) {
+    const token = decryptToken(a.tokenEncrypted);
+    if (!token || !a.externalId.trim()) return { ok: false, error: "account_credentials_missing" };
+    try {
+      const response = await fetch(`https://graph.facebook.com/v18.0/${encodeURIComponent(a.externalId)}?fields=id,display_phone_number`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      return { ok: response.ok, error: response.ok ? null : `WhatsApp Cloud API health check failed (HTTP ${response.status}).` };
+    } catch {
+      return { ok: false, error: "WhatsApp Cloud API health check failed." };
+    }
+  },
 };
 const instagram: PlatformAdapter = {
   platform: "instagram", capabilities: ["publish", "comments"],
