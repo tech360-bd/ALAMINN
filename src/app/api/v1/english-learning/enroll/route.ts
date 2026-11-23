@@ -7,9 +7,8 @@
  *
  * Body:
  *   {
- *     "sessionId":  "anon-...",         // required (server-generated on client)
- *     "courseSlug": "ielts-reading-bootcamp", // required
- *     "userId"?:    "..."               // optional, if authenticated
+ *     "sessionId":  "anon-...",         // required (or x-session-id header)
+ *     "courseSlug": "ielts-reading-bootcamp" // required
  *   }
  *
  * Side effects:
@@ -20,21 +19,25 @@
  */
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { getSessionFromRequest } from "@/lib/auth";
 import {
   jsonResponse,
   safeString,
   hashIp,
+  resolveEnglishLearningIpSalt,
 } from "@/lib/english-learning/api-helpers";
 import { rateLimit } from "@/lib/english-learning/rate-limit";
 
 export const dynamic = "force-dynamic";
+
+const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,128}$/;
 
 export async function POST(req: NextRequest) {
   const ip = hashIp(
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||
       "unknown",
-    process.env.ENGLISH_LEARNING_REFERRAL_SECRET ?? "alaminn-el",
+    resolveEnglishLearningIpSalt(),
   );
   if (rateLimit(ip, 20)) {
     return jsonResponse(
@@ -60,18 +63,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const sessionId = safeString(
-      (body as Record<string, unknown>).sessionId as string,
-    );
+    const sessionId =
+      safeString((body as Record<string, unknown>).sessionId as string) ||
+      safeString(req.headers.get("x-session-id"));
     const courseSlug = safeString(
       (body as Record<string, unknown>).courseSlug as string,
     );
-    const userId = safeString(
-      (body as Record<string, unknown>).userId as string,
-    );
 
     const errors: string[] = [];
-    if (!sessionId) errors.push("sessionId_required");
+    if (!sessionId) {
+      errors.push("sessionId_required");
+    } else if (!SESSION_ID_RE.test(sessionId)) {
+      errors.push("invalid_sessionId");
+    }
     if (!courseSlug) errors.push("courseSlug_required");
     if (errors.length > 0) {
       return jsonResponse(false, "Validation failed.", null, {}, errors, 400);
@@ -92,52 +96,78 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Idempotent upsert on (sessionId, courseId).
+    const currentSession = await getSessionFromRequest(req);
+    const currentUserId = currentSession?.userId ?? null;
+
+    // Check if an enrollment for (sessionId, courseId) already exists
+    // and ensure a user-owned enrollment cannot be hijacked by an anonymous session.
+    const existing = await db.englishLearningEnrollment.findUnique({
+      where: {
+        sessionId_courseId: { sessionId, courseId: course.id },
+      },
+      select: { id: true, userId: true },
+    });
+    if (
+      existing &&
+      existing.userId &&
+      existing.userId !== currentUserId
+    ) {
+      return jsonResponse(
+        false,
+        "Forbidden: enrollment belongs to another user.",
+        null,
+        {},
+        ["forbidden_enrollment_ownership"],
+        403,
+      );
+    }
+
     const enrollment = await db.englishLearningEnrollment.upsert({
       where: {
         sessionId_courseId: { sessionId, courseId: course.id },
       },
       update: {
-        // If the user re-enrolls, bump status back to "enrolled" if abandoned.
-        status: "enrolled",
         lastAccessedAt: new Date(),
-        ...(userId ? { userId } : {}),
+        ...(currentUserId ? { userId: currentUserId } : {}),
       },
       create: {
         sessionId,
         courseId: course.id,
-        userId: userId || null,
+        userId: currentUserId,
         status: "enrolled",
+        progressPercent: 0,
         lastAccessedAt: new Date(),
       },
       select: {
         id: true,
         sessionId: true,
         courseId: true,
-        userId: true,
         status: true,
         progressPercent: true,
-        lastAccessedAt: true,
         createdAt: true,
-        updatedAt: true,
+        lastAccessedAt: true,
       },
     });
 
-    // Increment course.enrollmentCount (best-effort).
-    await db.englishLearningCourse
-      .update({
-        where: { id: course.id },
-        data: { enrollmentCount: { increment: 1 } },
-      })
-      .catch(() => null);
+    if (!existing) {
+      await db.englishLearningCourse
+        .update({
+          where: { id: course.id },
+          data: { enrollmentCount: { increment: 1 } },
+        })
+        .catch(() => null);
+    }
 
     return jsonResponse(
       true,
-      "Enrollment created.",
+      "Enrolled successfully.",
       {
-        ...enrollment,
+        enrollment,
         course: { id: course.id, slug: course.slug, title: course.title },
       },
+      {},
+      [],
+      201,
     );
   } catch (err) {
     console.error("[english-learning/enroll POST] error", err);

@@ -8,6 +8,7 @@ coverage check. Every value is captured verbatim (raw); parsed values are added
 only where the pattern is unambiguous. Unknown stays unknown.
 """
 import json, re, os, datetime
+from pathlib import Path
 from openpyxl import load_workbook
 
 def _fmt_cell(v):
@@ -19,8 +20,9 @@ def _fmt_cell(v):
         return f"{v.day}/{v.month}"  # e.g. 2025-06-07 -> '7/6' (overall 7 / minimum 6)
     return v
 
-UP = "/home/z/my-project/upload"
-OUTDIR = "/home/z/my-project/scripts/audit"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+UP = os.environ.get("ALO_UPLOAD_DIR", str(REPO_ROOT / "upload"))
+OUTDIR = os.environ.get("ALO_AUDIT_OUT_DIR", str(REPO_ROOT / "scripts" / "audit"))
 os.makedirs(OUTDIR, exist_ok=True)
 
 F_PRODUCT = os.path.join(UP, "Product List_Bangladesh.xlsx")

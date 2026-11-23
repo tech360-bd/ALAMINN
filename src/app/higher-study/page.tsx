@@ -326,7 +326,7 @@ export default function HigherStudyHomePage() {
           <SearchSurfaceCard
             href="/higher-study/research"
             icon={FlaskConical}
-            title="PhD &amp; research projects"
+            title="PhD & research projects"
             description="Open PhD studentships, postdocs and research fellowships. Filter by funding status, supervisor and research area."
             badge="Funding-status filter"
           />
@@ -491,7 +491,7 @@ export default function HigherStudyHomePage() {
       {/* ─── Section 13: MRes and MPhil ──────────────────────────── */}
       <HomeSection
         eyebrow="Research master's"
-        title="MRes &amp; MPhil programmes"
+        title="MRes & MPhil programmes"
         description="Research-led master's degrees — ideal preparation for a PhD or a research career in industry."
         viewAllHref="/higher-study/courses?level=mres"
         viewAllLabel="View all research master's"
@@ -503,7 +503,7 @@ export default function HigherStudyHomePage() {
 
       {/* ─── Section 14: Featured PhD ────────────────────────────── */}
       <HomeSection
-        eyebrow="PhD &amp; research"
+        eyebrow="PhD & research"
         title="Featured PhD opportunities"
         description="Open PhD studentships, postdoctoral positions and research fellowships across all research areas."
         viewAllHref="/higher-study/research"
@@ -531,7 +531,7 @@ export default function HigherStudyHomePage() {
       {/* ─── Section 16: Research funding ────────────────────────── */}
       <HomeSection
         eyebrow="Research funding"
-        title="Research funding &amp; studentships"
+        title="Research funding & studentships"
         description="PhD studentships, research assistantships and funded postdoctoral positions — searchable by funding status."
         viewAllHref="/higher-study/research?status=fully-funded"
         viewAllLabel="View funded research"
@@ -891,7 +891,7 @@ export default function HigherStudyHomePage() {
       {/* ─── Section 28: Latest study resources ─────────────────── */}
       <HomeSection
         eyebrow="Resources"
-        title="Latest study resources &amp; guides"
+        title="Latest study resources & guides"
         description="Long-form guides on SOPs, personal statements, CVs, proposal writing, supervisor outreach, visa preparation and pre-departure planning."
         viewAllHref="/higher-study/resources"
         viewAllLabel="Browse all resources"
@@ -903,9 +903,9 @@ export default function HigherStudyHomePage() {
 
       {/* ─── Section 29: Events & webinars ──────────────────────── */}
       <HomeSection
-        eyebrow="Events &amp; webinars"
+        eyebrow="Events & webinars"
         title="Upcoming Higher Study events"
-        description="Live application workshops, university spotlight sessions and Q&amp;A panels with current students and supervisors."
+        description="Live application workshops, university spotlight sessions and Q&A panels with current students and supervisors."
         viewAllHref="/higher-study/resources"
         viewAllLabel="View all events"
         tinted
@@ -1280,13 +1280,12 @@ function HomeSection({
           <div>
             <div className="eyebrow text-orange-600">{eyebrow}</div>
             <h2 className="mt-2 font-display text-3xl font-extrabold text-ink-900 sm:text-4xl">
-              <span dangerouslySetInnerHTML={{ __html: title }} />
+              <span>{title}</span>
             </h2>
             {description && (
-              <p
-                className="mt-2 max-w-2xl text-sm text-ink-600"
-                dangerouslySetInnerHTML={{ __html: description }}
-              />
+              <p className="mt-2 max-w-2xl text-sm text-ink-600">
+                {description}
+              </p>
             )}
           </div>
           {viewAllHref && (

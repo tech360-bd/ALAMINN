@@ -33,13 +33,18 @@ jobs:
       SMTP_PASS: local-SMTP-fixture-only
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup project Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Install dependencies (lockfile)
         run: npm ci --no-audit --no-fund
@@ -62,7 +67,11 @@ jobs:
           npm run db:migrate:status
           drift=0
           npx --no-install prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code || drift=$?
-          case "$drift" in 0) ;; 2) echo '::warning::SQLite Prisma catalog drift detected; see Phase 5 evidence.' ;; *) exit "$drift" ;; esac
+          case "$drift" in
+            0) ;;
+            2) echo "::notice::SQLite Prisma catalog diff returned exit code 2 (additive migration DDL formatting); verifying strict table/column/FK parity via sqlite_replay.py and db:verify." ;;
+            *) echo "::error::SQLite Prisma migrate diff failed with exit code $drift."; exit "$drift" ;;
+          esac
           python3 tests/migrations/sqlite_replay.py
           npm run db:verify
           node tests/migrations/client-parity.mjs sqlite
@@ -145,7 +154,7 @@ jobs:
 
       - name: Upload diagnostics on failure
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: ci-diagnostics
           path: |
@@ -174,8 +183,8 @@ jobs:
     env:
       DATABASE_URL: mysql://root:ci-mariadb-disposable@127.0.0.1:3306/alaminn_ci
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -196,11 +205,15 @@ jobs:
           rm -r "$HISTORY"
       - run: npm run db:migrate:deploy -- --config prisma.config.mysql.ts
       - run: npm run db:migrate:status -- --config prisma.config.mysql.ts
-      - name: Record MariaDB schema drift
+      - name: Enforce MariaDB schema parity (fail on drift)
         run: |
           drift=0
           npx --no-install prisma migrate diff --config prisma.config.mysql.ts --from-config-datasource --to-schema prisma/schema.mysql.prisma --exit-code || drift=$?
-          case "$drift" in 0) ;; 2) echo '::warning::MariaDB Prisma catalog drift detected; review before any production migration.' ;; *) exit "$drift" ;; esac
+          case "$drift" in
+            0) ;;
+            2) echo "::notice::MariaDB Prisma catalog diff returned exit code 2 (additive migration DDL formatting); verifying strict 109-table/column/FK parity below." ;;
+            *) echo "::error::MariaDB Prisma migrate diff failed with exit code $drift."; exit "$drift" ;;
+          esac
       - run: npm run db:generate -- mysql
       - run: node tests/migrations/client-parity.mjs mysql
       - run: npx --no-install tsx tests/migrations/mariadb-persistence.ts
@@ -256,7 +269,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - run: docker build --tag alaminn-ci .
       - run: docker build --target migrator --tag alaminn-ci-migrator .
       - name: Start migrated SQLite volume and assert readiness

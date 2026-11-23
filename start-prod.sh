@@ -29,9 +29,13 @@ fi
 SECRETS_FILE=".env.prod-secrets"
 if [[ ! -f "$SECRETS_FILE" ]]; then
   echo "[start-prod] Generating persistent secrets ($SECRETS_FILE)..."
+  umask 077
+  GENERATED_AUTH_SECRET=$(openssl rand -hex 32)
   cat > "$SECRETS_FILE" <<EOF
-# Auto-generated persistent secrets — do NOT delete. chmod 600 recommended.
-AUTH_SECRET=$(openssl rand -hex 32)
+# Auto-generated persistent secrets — do NOT delete. chmod 600 enforced.
+JWT_SECRET=${GENERATED_AUTH_SECRET}
+AUTH_SECRET=${GENERATED_AUTH_SECRET}
+SESSION_SECRET=$(openssl rand -hex 32)
 CRON_SECRET=$(openssl rand -hex 32)
 HIGHER_STUDY_REFERRAL_SECRET=$(openssl rand -hex 32)
 ENGLISH_LEARNING_REFERRAL_SECRET=$(openssl rand -hex 32)
@@ -49,7 +53,7 @@ set +a
 # ── 4. Set remaining environment ─────────────────────────────────────────────
 export NODE_ENV=production
 export PORT="${PORT:-3000}"
-export HOSTNAME="${HOSTNAME:-127.0.0.1}"
+export HOSTNAME="${HOSTNAME:-0.0.0.0}"
 export DATABASE_URL="${DATABASE_URL:-file:$(pwd)/db/custom.db}"
 export NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL:-https://alaminn.info}"
 export EMAIL_FROM="${EMAIL_FROM:-noreply@alaminn.info}"
@@ -60,5 +64,5 @@ if [[ -z "${SMTP_HOST:-}" ]]; then
   echo "[start-prod] WARNING: SMTP_HOST not set — emails will not be sent." >&2
 fi
 
-echo "[start-pro] Starting Next.js standalone on port $PORT..."
+echo "[start-prod] Starting Next.js standalone on ${HOSTNAME}:${PORT}..."
 exec node .next/standalone/server.js

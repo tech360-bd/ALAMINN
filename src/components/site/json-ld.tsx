@@ -327,6 +327,8 @@ function itemListSchema(
 
 // ---------------------------------------------------------------------------
 // Component — renders all schemas as <script type="application/ld+json">
+import { safeJsonLdStringify } from "@/lib/json-ld";
+
 // ---------------------------------------------------------------------------
 
 export function JsonLd({ articles, projects, resources }: JsonLdProps) {
@@ -348,7 +350,7 @@ export function JsonLd({ articles, projects, resources }: JsonLdProps) {
         <script
           key={idx}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(schema) }}
         />
       ))}
     </>

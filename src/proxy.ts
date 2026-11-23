@@ -90,11 +90,27 @@ async function staffGate(req: NextRequest): Promise<NextResponse | null> {
 const PUBLIC_ADMIN_PAGES = new Set(["/admin/login", "/admin/forgot-password", "/admin/reset-password"]);
 
 /**
+ * Command Center Admin API prefixes gated by the `auth_token` JWT at the
+ * proxy layer (in addition to per-route `requirePermission` checks).
+ */
+const ADMIN_API_PREFIXES = [
+  "/api/v1/admin",
+  "/api/v1/higher-study/admin",
+  "/api/v1/english-learning/admin",
+  "/api/v1/meetings/admin",
+  "/api/v1/whatsapp/admin",
+] as const;
+
+function matchesPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(prefix + "/");
+}
+
+/**
  * JWT gate for the Command Center (Rule 1c).
  *
- *   - /api/v1/admin/*  → 401 JSON when the `auth_token` JWT is missing/invalid
- *   - /admin, /admin/* → redirect to /admin/login?next=… (except the public
- *     auth pages above)
+ *   - Admin API prefixes → 401 JSON when the `auth_token` JWT is missing/invalid
+ *   - /admin, /admin/*   → redirect to /admin/login?next=… (except the public
+ *     auth pages above and /admin/uci which is governed by `staffGate`)
  *
  * Returns null when the request should continue down the normal path.
  */
@@ -102,7 +118,7 @@ async function adminGate(req: NextRequest): Promise<NextResponse | null> {
   const { pathname } = req.nextUrl;
   if (pathname === "/admin/uci" || pathname.startsWith("/admin/uci/")) return null;
   const isAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
-  const isAdminApi = pathname === "/api/v1/admin" || pathname.startsWith("/api/v1/admin/");
+  const isAdminApi = ADMIN_API_PREFIXES.some((prefix) => matchesPrefix(pathname, prefix));
   if (!isAdminPage && !isAdminApi) return null;
 
   // Let CORS preflight through; the route decides how to answer it.
@@ -172,30 +188,44 @@ const SECURITY_HEADERS: Record<string, string> = {
   ].join("; "),
 };
 
+function applySecurityHeaders(response: NextResponse): NextResponse {
+  if (process.env.NODE_ENV !== "production") {
+    const headers = { ...SECURITY_HEADERS };
+    headers["X-Frame-Options"] = "SAMEORIGIN";
+    headers["Content-Security-Policy"] = headers["Content-Security-Policy"]
+      .replace(
+        "frame-ancestors 'none'",
+        "frame-ancestors 'self' https://*.e2b.app https://*.space-z.ai"
+      )
+      .replace("; upgrade-insecure-requests", "");
+    for (const [key, value] of Object.entries(headers)) {
+      response.headers.set(key, value);
+    }
+    return response;
+  }
+
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(key, value);
+  }
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=63072000; includeSubDomains; preload"
+  );
+  return response;
+}
+
 export async function proxy(req: NextRequest) {
-  // ── Command Center JWT gate (/admin, /api/v1/admin/*) ───────────────
+  // ── Command Center JWT gate (/admin, /api/v1/*/admin/*) ─────────────
   const adminDenied = await adminGate(req);
   if (adminDenied) {
-    // Gated responses (401 JSON / login redirects) must still carry the
-    // standard security headers.
-    for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
-      if (!adminDenied.headers.has(key)) adminDenied.headers.set(key, value);
-    }
-    if (process.env.NODE_ENV !== "production") {
-      adminDenied.headers.set("X-Frame-Options", "SAMEORIGIN");
-      adminDenied.headers.set(
-        "Content-Security-Policy",
-        (SECURITY_HEADERS["Content-Security-Policy"] ?? "")
-          .replace("frame-ancestors 'none'", "frame-ancestors 'self' https://*.e2b.app https://*.space-z.ai")
-          .replace("; upgrade-insecure-requests", "")
-      );
-    }
-    return adminDenied;
+    return applySecurityHeaders(adminDenied);
   }
 
   // ── Staff RBAC gate (ALO Education dashboards, UCI/UMC APIs) ────────
   const gated = await staffGate(req);
-  if (gated) return gated;
+  if (gated) {
+    return applySecurityHeaders(gated);
+  }
 
   // ── Request counter (read by /api/health/deep) ─────────────────────
   incrementRequestCount();
@@ -217,35 +247,7 @@ export async function proxy(req: NextRequest) {
   // ── Echo the request ID back on the response ───────────────────────
   response.headers.set("x-request-id", requestId);
 
-  // Arena's preview is embedded by the user's browser on a different origin.
-  // Keep production clickjacking protection, but allow the preview proxy in dev.
-  // Modern browsers honor CSP frame-ancestors over X-Frame-Options, so the
-  // relaxed frame-ancestors below still governs embedding; we keep a
-  // SAMEORIGIN X-Frame-Options for legacy clients and for parity with the
-  // automated security suite (scripts/security-tests.ts test 8), which
-  // expects all three headers on every environment including dev.
-  if (process.env.NODE_ENV !== "production") {
-    const headers = { ...SECURITY_HEADERS };
-    headers["X-Frame-Options"] = "SAMEORIGIN";
-    headers["Content-Security-Policy"] = headers["Content-Security-Policy"].replace("frame-ancestors 'none'", "frame-ancestors 'self' https://*.e2b.app https://*.space-z.ai").replace("; upgrade-insecure-requests", "");
-    for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
-    return response;
-  }
-  // ── Security headers ───────────────────────────────────────────────
-  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
-    response.headers.set(key, value);
-  }
-
-  // HSTS is HTTPS-only. Emitting it on dev (HTTP localhost) would cause
-  // browsers to refuse subsequent plain-HTTP requests.
-  if (process.env.NODE_ENV === "production") {
-    response.headers.set(
-      "Strict-Transport-Security",
-      "max-age=63072000; includeSubDomains; preload"
-    );
-  }
-
-  return response;
+  return applySecurityHeaders(response);
 }
 
 export const config = {

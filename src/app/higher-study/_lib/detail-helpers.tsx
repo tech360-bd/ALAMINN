@@ -833,16 +833,14 @@ export function detailBreadcrumbs(
  * Render a `<script type="application/ld+json">` tag with the given
  * JSON-LD object (or array of objects, wrapped in a @graph).
  */
+import { serializeJsonLd } from "@/lib/json-ld";
+
 export function JsonLdScript({
   data,
 }: {
   data: Record<string, unknown> | Record<string, unknown>[];
 }) {
-  const html = Array.isArray(data)
-    ? data.length === 1
-      ? JSON.stringify(data[0])
-      : JSON.stringify({ "@context": "https://schema.org", "@graph": data })
-    : JSON.stringify(data);
+  const html = serializeJsonLd(data);
   return (
     <script
       type="application/ld+json"

@@ -10,6 +10,7 @@
 import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { safeJsonLdStringify } from "@/lib/json-ld";
 
 export interface BreadcrumbItem {
   label: string;
@@ -85,7 +86,7 @@ export function HigherStudyBreadcrumb({
       </ol>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
       />
     </nav>
   );

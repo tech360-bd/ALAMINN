@@ -9,10 +9,12 @@ No value is invented: cells are captured verbatim as `raw` plus a best-effort
 parsed form when the pattern is unambiguous (e.g. "6/5.5" -> overall 6.0, min 5.5).
 """
 import json, re, os
+from pathlib import Path
 from openpyxl import load_workbook
 
-UP = "/home/z/my-project/upload"
-OUT = "/home/z/my-project/scripts/audit/alo_audit.json"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+UP = os.environ.get("ALO_UPLOAD_DIR", str(REPO_ROOT / "upload"))
+OUT = os.environ.get("ALO_AUDIT_OUT_FILE", str(REPO_ROOT / "scripts" / "audit" / "alo_audit.json"))
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
 FILES = {

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PublicPage } from "@/components/site/public-chrome";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { ArrowLeft, ArrowUpRight, CheckCircle2 } from "lucide-react";
 
 type Params = { params: Promise<{ slug: string }> };
@@ -24,6 +25,18 @@ export default async function ProjectDetailPage({ params }: Params) {
 
   return (
     <PublicPage>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd({
+            "@context": "https://schema.org",
+            "@type": "CreativeWork",
+            name: project.name,
+            description: project.shortDescription,
+            url: `https://alaminn.info/projects/${project.slug}`,
+          }),
+        }}
+      />
       <article className="container mx-auto max-w-4xl px-4 py-16 sm:py-20">
         <Link href="/projects" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="h-3 w-3" /> All projects

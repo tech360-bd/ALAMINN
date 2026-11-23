@@ -1,12 +1,19 @@
+import path from "node:path";
+import { readFileSync } from "node:fs";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { readFileSync } from "fs";
 import { getSessionUser } from "@/lib/auth/session";
 import { can } from "@/lib/auth/rbac";
 
 export const dynamic = "force-dynamic";
 
-const DATASET = "/home/z/my-project/scripts/audit/alo_dataset.json";
+function resolveDatasetPath(): string {
+  const override = process.env.ALO_AUDIT_DATASET_PATH?.trim();
+  if (override) {
+    return path.resolve(override);
+  }
+  return path.resolve(process.cwd(), "scripts/audit/alo_dataset.json");
+}
 
 /**
  * GET /api/uci/audit — audit log + the Phase-1 existing-data audit summary
@@ -23,7 +30,10 @@ export async function GET() {
   ]);
   let phase1: unknown = null;
   try {
-    const data = JSON.parse(readFileSync(DATASET, "utf-8"));
+    const datasetPath = resolveDatasetPath();
+    const data = JSON.parse(
+      readFileSync(/*turbopackIgnore: true*/ datasetPath, "utf-8"),
+    );
     phase1 = {
       extracted_at: data.extracted_at,
       source_files: data.source_files,
