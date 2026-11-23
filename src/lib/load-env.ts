@@ -34,10 +34,10 @@ export function loadEnvConfig(dir: string = process.cwd()): void {
 
   const files = [".env.config.local", ".env.config"];
   for (const file of files) {
-    const full = path.join(dir, file);
+    const full = path.join(/*turbopackIgnore: true*/ dir, file);
     try {
-      if (!fs.existsSync(full)) continue;
-      const parsed = parse(fs.readFileSync(full));
+      if (!fs.existsSync(/*turbopackIgnore: true*/ full)) continue;
+      const parsed = parse(fs.readFileSync(/*turbopackIgnore: true*/ full));
       for (const [key, value] of Object.entries(parsed)) {
         if (process.env[key] === undefined) process.env[key] = value;
       }

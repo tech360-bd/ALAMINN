@@ -141,10 +141,9 @@ export function numParam(v: string | null): number | undefined {
 
 export function generateReferralCode(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I, O, 0, 1
-  const bytes = crypto.randomBytes(REFERRAL_CODE_LENGTH);
   let out = "";
   for (let i = 0; i < REFERRAL_CODE_LENGTH; i++) {
-    out += alphabet[bytes[i] % alphabet.length];
+    out += alphabet[crypto.randomInt(0, alphabet.length)];
   }
   return out;
 }
@@ -225,6 +224,33 @@ export function hashIp(ip: string | null | undefined, secret = ""): string {
     .update(`${clean}:${secret}`)
     .digest("hex")
     .slice(0, 16);
+}
+
+const DEV_ENGLISH_LEARNING_SECRET =
+  "dev-only-english-learning-referral-secret-32b";
+
+export function resolveEnglishLearningReferralSecret(): string | null {
+  const candidate = (
+    process.env.ENGLISH_LEARNING_REFERRAL_SECRET ||
+    process.env.AUTH_SECRET ||
+    process.env.JWT_SECRET ||
+    ""
+  ).trim();
+  const minBytes = process.env.NODE_ENV === "production" ? 32 : 8;
+  if (candidate && Buffer.byteLength(candidate) >= minBytes) {
+    return candidate;
+  }
+  if (process.env.NODE_ENV !== "production" && !candidate) {
+    return DEV_ENGLISH_LEARNING_SECRET;
+  }
+  return null;
+}
+
+export function resolveEnglishLearningIpSalt(): string {
+  return (
+    resolveEnglishLearningReferralSecret() ||
+    "english-learning-ip-rate-limit-salt"
+  );
 }
 
 // ─── Public Prisma select objects ────────────────────────────────────

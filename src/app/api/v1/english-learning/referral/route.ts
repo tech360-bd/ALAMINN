@@ -28,6 +28,7 @@ import {
   safeString,
   hashIp,
   getDeviceCategory,
+  resolveEnglishLearningIpSalt,
 } from "@/lib/english-learning/api-helpers";
 import { rateLimit } from "@/lib/english-learning/rate-limit";
 import { createReferralRecord } from "@/lib/english-learning/integration";
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||
       "unknown",
-    process.env.ENGLISH_LEARNING_REFERRAL_SECRET ?? "alaminn-el",
+    resolveEnglishLearningIpSalt(),
   );
   if (rateLimit(ip, 20)) {
     return jsonResponse(

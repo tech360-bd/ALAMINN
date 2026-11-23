@@ -41,6 +41,9 @@ export function can(role: string, permission: Permission): boolean {
 export const PATH_ROLE_GATE: { prefix: string; roles: StaffRole[] }[] = [
   { prefix: "/admin/uci", roles: ["ADMIN", "EDITOR"] },
   { prefix: "/api/uci/admin", roles: ["ADMIN", "EDITOR"] },
+  { prefix: "/api/uci/audit", roles: ["ADMIN", "EDITOR"] },
+  { prefix: "/api/uci/import", roles: ["ADMIN", "EDITOR"] },
+  { prefix: "/api/uci/export", roles: ["ADMIN", "EDITOR"] },
   { prefix: "/api/staff", roles: ["ADMIN"] },
   { prefix: "/api/settings", roles: ["ADMIN", "EDITOR", "AGENT", "VIEWER"] },
   { prefix: "/console", roles: ["ADMIN", "AGENT"] },

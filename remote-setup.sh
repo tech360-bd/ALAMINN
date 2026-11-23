@@ -1,152 +1,114 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+# ============================================================================
+# remote-setup.sh — Production environment & database setup script
+# ----------------------------------------------------------------------------
+# Security & operational invariants:
+#   - Never contains hardcoded database credentials or bootstrap passwords.
+#   - Requires DATABASE_URL and ADMIN_BOOTSTRAP_PASSWORD from the environment
+#     (or an existing chmod-600 .env file).
+#   - Never prints secret values or cats .env to stdout/logs.
+#   - Never mutates tracked Prisma schema files or runs `prisma db push`.
+#   - Uses `prisma/schema.mysql.prisma` + `prisma.config.mysql.ts` for MySQL /
+#     MariaDB and `prisma/schema.prisma` + `prisma.config.ts` for SQLite.
+# ============================================================================
+set -euo pipefail
 
-echo "=== Complete Alaminn.info Setup Script ==="
-echo "Running on remote server: /home/aloedu/alaminn.info_new"
+APP_DIR="${ALAMINN_APP_DIR:-$(pwd)}"
+cd "$APP_DIR"
 
-cd /home/aloedu/alaminn.info_new
+echo "[remote-setup] Starting Alaminn.info setup in $APP_DIR"
 
-# ==========================================
-# STEP 1: Create .env file
-# ==========================================
-echo ""
-echo "--- Step 1: Creating .env file ---"
+# ── 1. Load existing .env if present (without printing values) ──────────────
+if [[ -f .env ]]; then
+  chmod 600 .env
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
 
-cat > .env << 'ENVEOF'
-NODE_ENV=production
-PORT=3018
-DATABASE_URL="mysql://user_alaminn:Alo_Info_2026!@127.0.0.1:3306/db_alaminn"
-NEXTAUTH_URL="https://alaminn.info"
-NEXT_PUBLIC_SITE_URL="https://alaminn.info"
-EMAIL_FROM="noreply@alaminn.info"
-EMAIL_REPLY_TO="engr.alaminn@gmail.com"
-LOG_LEVEL=error
-WHATSAPP_NUMBER="01716609554"
-WHATSAPP_INTERNATIONAL_NUMBER="8801716609554"
-WHATSAPP_DISPLAY_NUMBER="01716 609 554"
-WHATSAPP_BUSINESS_NAME="Al Aminn"
-ADMIN_BOOTSTRAP_EMAIL="admin@alaminn.info"
-ADMIN_BOOTSTRAP_PASSWORD="Password@123456"
-ENVEOF
+# ── 2. Validate required injected secrets ───────────────────────────────────
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  echo "[remote-setup] ERROR: DATABASE_URL must be provided via environment or existing .env." >&2
+  exit 1
+fi
 
-# Generate secure random secrets
-AUTH_SECRET=$(openssl rand -hex 32)
-CRON_SECRET=$(openssl rand -hex 32)
-HS_SECRET=$(openssl rand -hex 32)
-EL_SECRET=$(openssl rand -hex 32)
+if [[ -z "${ADMIN_BOOTSTRAP_PASSWORD:-}" ]]; then
+  echo "[remote-setup] ERROR: ADMIN_BOOTSTRAP_PASSWORD must be provided via environment or existing .env." >&2
+  exit 1
+fi
 
-# Append secrets to .env
-echo "AUTH_SECRET=\"$AUTH_SECRET\"" >> .env
-echo "CRON_SECRET=\"$CRON_SECRET\"" >> .env
-echo "HIGHER_STUDY_REFERRAL_SECRET=\"$HS_SECRET\"" >> .env
-echo "ENGLISH_LEARNING_REFERRAL_SECRET=\"$EL_SECRET\"" >> .env
+if [[ "${#ADMIN_BOOTSTRAP_PASSWORD}" -lt 12 ]]; then
+  echo "[remote-setup] ERROR: ADMIN_BOOTSTRAP_PASSWORD must be at least 12 characters." >&2
+  exit 1
+fi
 
-echo ".env created successfully"
-cat .env
+# ── 3. Generate random cryptographic secrets only when not already set ──────
+JWT_SECRET="${JWT_SECRET:-${AUTH_SECRET:-$(openssl rand -hex 32)}}"
+AUTH_SECRET="${AUTH_SECRET:-$JWT_SECRET}"
+SESSION_SECRET="${SESSION_SECRET:-$(openssl rand -hex 32)}"
+CRON_SECRET="${CRON_SECRET:-$(openssl rand -hex 32)}"
+HIGHER_STUDY_REFERRAL_SECRET="${HIGHER_STUDY_REFERRAL_SECRET:-$(openssl rand -hex 32)}"
+ENGLISH_LEARNING_REFERRAL_SECRET="${ENGLISH_LEARNING_REFERRAL_SECRET:-$(openssl rand -hex 32)}"
 
-# ==========================================
-# STEP 2: Fix Prisma schema for MySQL
-# ==========================================
-echo ""
-echo "--- Step 2: Fixing Prisma schema for MySQL ---"
+NODE_ENV="${NODE_ENV:-production}"
+PORT="${PORT:-3056}"
+NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL:-https://alaminn.info}"
+NEXTAUTH_URL="${NEXTAUTH_URL:-$NEXT_PUBLIC_SITE_URL}"
+EMAIL_FROM="${EMAIL_FROM:-noreply@alaminn.info}"
+EMAIL_REPLY_TO="${EMAIL_REPLY_TO:-hello@alaminn.info}"
+LOG_LEVEL="${LOG_LEVEL:-error}"
+WHATSAPP_NUMBER="${WHATSAPP_NUMBER:-01716609554}"
+WHATSAPP_INTERNATIONAL_NUMBER="${WHATSAPP_INTERNATIONAL_NUMBER:-8801716609554}"
+WHATSAPP_DISPLAY_NUMBER="${WHATSAPP_DISPLAY_NUMBER:-01716 609 554}"
+WHATSAPP_BUSINESS_NAME="${WHATSAPP_BUSINESS_NAME:-Al Aminn}"
+ADMIN_BOOTSTRAP_EMAIL="${ADMIN_BOOTSTRAP_EMAIL:-admin@alaminn.info}"
 
-# Restore original schema from git
-git checkout prisma/schema.prisma
+umask 077
+cat > .env <<EOF
+NODE_ENV=${NODE_ENV}
+PORT=${PORT}
+DATABASE_URL="${DATABASE_URL}"
+NEXTAUTH_URL="${NEXTAUTH_URL}"
+NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL}"
+EMAIL_FROM="${EMAIL_FROM}"
+EMAIL_REPLY_TO="${EMAIL_REPLY_TO}"
+LOG_LEVEL=${LOG_LEVEL}
+WHATSAPP_NUMBER="${WHATSAPP_NUMBER}"
+WHATSAPP_INTERNATIONAL_NUMBER="${WHATSAPP_INTERNATIONAL_NUMBER}"
+WHATSAPP_DISPLAY_NUMBER="${WHATSAPP_DISPLAY_NUMBER}"
+WHATSAPP_BUSINESS_NAME="${WHATSAPP_BUSINESS_NAME}"
+ADMIN_BOOTSTRAP_EMAIL="${ADMIN_BOOTSTRAP_EMAIL}"
+ADMIN_BOOTSTRAP_PASSWORD="${ADMIN_BOOTSTRAP_PASSWORD}"
+JWT_SECRET="${JWT_SECRET}"
+AUTH_SECRET="${AUTH_SECRET}"
+SESSION_SECRET="${SESSION_SECRET}"
+CRON_SECRET="${CRON_SECRET}"
+HIGHER_STUDY_REFERRAL_SECRET="${HIGHER_STUDY_REFERRAL_SECRET}"
+ENGLISH_LEARNING_REFERRAL_SECRET="${ENGLISH_LEARNING_REFERRAL_SECRET}"
+EOF
+chmod 600 .env
 
-# Change provider from sqlite to mysql
-sed -i 's/provider = "sqlite"/provider = "mysql"/' prisma/schema.prisma
+echo "[remote-setup] .env written with mode 0600 (configured keys: NODE_ENV, PORT, DATABASE_URL, NEXT_PUBLIC_SITE_URL, EMAIL_FROM, ADMIN_BOOTSTRAP_EMAIL, JWT_SECRET, AUTH_SECRET, SESSION_SECRET, CRON_SECRET, HIGHER_STUDY_REFERRAL_SECRET, ENGLISH_LEARNING_REFERRAL_SECRET)."
 
-# Use Python to properly add @db.Text annotations without merging lines
-python3 << 'PYEOF'
-import re
+# ── 4. Validate schema, generate client, and deploy migrations safely ───────
+if [[ "$DATABASE_URL" == mysql://* || "$DATABASE_URL" == mariadb://* ]]; then
+  echo "[remote-setup] Detected MySQL/MariaDB DATABASE_URL — using prisma/schema.mysql.prisma and prisma.config.mysql.ts"
+  npm run db:validate -- mysql
+  npm run db:generate -- mysql
+  if [[ "${SKIP_MIGRATE_DEPLOY:-0}" != "1" ]]; then
+    npm run db:migrate:deploy -- --config prisma.config.mysql.ts
+  fi
+elif [[ "$DATABASE_URL" == file:* ]]; then
+  echo "[remote-setup] Detected SQLite DATABASE_URL — using prisma/schema.prisma"
+  npm run db:validate
+  npm run db:generate
+  if [[ "${SKIP_MIGRATE_DEPLOY:-0}" != "1" ]]; then
+    node scripts/apply-sqlite-migrations.mjs "${DATABASE_URL#file:}"
+  fi
+else
+  echo "[remote-setup] ERROR: Unsupported DATABASE_URL scheme (expected mysql://, mariadb://, or file:)." >&2
+  exit 1
+fi
 
-with open('prisma/schema.prisma', 'r') as f:
-    content = f.read()
-
-# Fields that need @db.Text for MySQL (long text fields)
-long_text_fields = [
-    'fullDescription', 'shortDescription', 'body', 'summary', 'description',
-    'content', 'message', 'notes', 'topic', 'meta', 'value', 'category',
-    'tags', 'testType', 'level', 'resourceType', 'htmlContent', 'ipHash'
-]
-
-# Process line by line to avoid merging issues
-lines = content.split('\n')
-new_lines = []
-
-for line in lines:
-    modified = False
-    for field in long_text_fields:
-        # Pattern: optional String? -> add @db.Text at end of line
-        # Must not already have @db.Text
-        if re.match(rf'^(\s+{field}\s+String\?)', line) and '@db.Text' not in line:
-            # Add @db.Text before any trailing whitespace or comments
-            line = re.sub(r'^(\s+' + field + r'\s+String\?)(\s*)(\s*.*)$', r'\1 @db.Text\3', line)
-            modified = True
-            break
-
-        # Pattern: non-optional String -> add @db.Text at end of line
-        elif re.match(rf'^(\s+{field}\s+String)(\s*)$', line) and '@db.Text' not in line and '?' not in line.split('String')[0]:
-            line = re.sub(r'^(\s+' + field + r'\s+String)(\s*)$', r'\1 @db.Text', line)
-            modified = True
-            break
-
-    new_lines.append(line)
-
-with open('prisma/schema.prisma', 'w') as f:
-    f.write('\n'.join(new_lines))
-
-print("Schema processed successfully")
-
-# Verify the fix
-print("\n=== @db.Text fields found ===")
-with open('prisma/schema.prisma', 'r') as f:
-    schema_content = f.read()
-for i, line in enumerate(schema_content.split('\n'), 1):
-    if '@db.Text' in line:
-        print(f"Line {i}: {line.strip()}")
-
-PYEOF
-
-# ==========================================
-# STEP 3: Generate and push schema to MySQL
-# ==========================================
-echo ""
-echo "--- Step 3: Generating Prisma client and pushing to MySQL ---"
-
-npx prisma generate
-
-npx prisma db push
-
-echo "Schema pushed to MySQL successfully"
-
-# ==========================================
-# STEP 4: Fix sharp module build issue
-# ==========================================
-echo ""
-echo "--- Step 4: Fixing sharp module build ---"
-
-# Install with optional dependencies included
-npm install --include=optional 2>&1 | tail -5
-
-# Try installing sharp with platform-specific flags
-npm install --platform=linux --arch=x64 sharp 2>&1 | tail -5 || true
-
-# Install system dependency for sharp (libvips)
-apt-get update && apt-get install -y libvips-dev 2>&1 | tail -3 || true
-
-# Rebuild sharp native module
-npm rebuild sharp 2>&1 | tail -5 || true
-
-echo "=== Setup Complete ==="
-echo ""
-echo "Summary of what was done:"
-echo "1. .env created with MySQL DATABASE_URL and random secrets"
-echo "2. Prisma schema migrated from SQLite to MySQL with @db.Text annotations"
-echo "3. Prisma client generated and pushed to MySQL database"
-echo "4. Sharp module build attempted with platform-specific flags"
-echo ""
-echo "Next steps:"
-echo "- Run: npm run build to test the build"
-echo "- Check: npm audit to review vulnerabilities"
-echo "- If sharp still fails, consider using an alternative image library"
+echo "[remote-setup] Setup completed successfully."

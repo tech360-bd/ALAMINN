@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { SectionHeading, SectionWrap } from "./section-primitives";
 import { cn } from "@/lib/utils";
 import { CLAIM_REGISTRY, type ClaimStatus } from "@/lib/site-data";
+import { safeJsonLdStringify } from "@/lib/json-ld";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Status metadata — colour + icon + label per verification status.
@@ -230,7 +231,7 @@ export function Verification() {
           stays co-located with the rendered registry it describes. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(itemListSchema) }}
       />
 
       <SectionHeading
