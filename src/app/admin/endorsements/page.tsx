@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ExternalLink,
   Info,
-  Linkedin,
   Loader2,
   Plus,
   Save,
@@ -21,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader, ErrorState } from "@/components/admin/page-primitives";
 import { adminFetch } from "@/components/admin/lib";
+import { LinkedInIcon } from "@/components/site/brand-icons";
 import type { LinkedInEndorsement } from "@/lib/endorsements";
 
 type Payload = {
@@ -204,7 +204,7 @@ export default function AdminEndorsementsPage() {
         <Card>
           <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0A66C2]/10 text-[#0A66C2]">
-              <Linkedin className="h-6 w-6" />
+              <LinkedInIcon className="h-6 w-6" />
             </span>
             <p className="text-sm font-medium">No recommendations yet</p>
             <p className="max-w-md text-sm text-muted-foreground">

@@ -23,17 +23,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/components/admin/lib";
 
+type WhatsappAccountOption = { id: string; platform: string; displayName: string; externalId: string; status: string; hasToken: boolean };
+
 type StatusData = {
   status: string;
   statusLabel: string;
   statusColor: string;
   aiMode: string;
   aiModeLabel: string;
-  apiConfigured: boolean;
-  apiPhoneNumberId: string | null;
   webhookVerifyToken: string | null;
-  displayNumber: string;
-  callNumber: string;
   metrics: {
     messagesToday: number | null;
     leadsCreated: number | null;
@@ -84,6 +82,9 @@ export default function WhatsappAiPage() {
   const [hoursBack, setHoursBack] = useState(24);
   const [sendTo, setSendTo] = useState("");
   const [sendText, setSendText] = useState("");
+  const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsappAccountOption[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
+  const [sendAccountId, setSendAccountId] = useState("");
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
 
@@ -104,20 +105,32 @@ export default function WhatsappAiPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    adminFetch<WhatsappAccountOption[]>("/api/v1/admin/social/accounts")
+      .then((result) => {
+        const accounts = result.data.filter((account) => account.platform === "whatsapp");
+        setWhatsappAccounts(accounts);
+        setAccountsLoaded(true);
+        const firstReady = accounts.find((account) => account.status === "connected" && account.hasToken);
+        if (firstReady) setSendAccountId((current) => current || firstReady.id);
+      })
+      .catch(() => { setWhatsappAccounts([]); setAccountsLoaded(false); });
+  }, []);
+
   const handleSend = async () => {
-    if (!sendTo.trim() || !sendText.trim()) return;
+    if (!sendAccountId || !sendTo.trim() || !sendText.trim()) return;
     setSending(true);
     setSendResult(null);
     try {
-      const json = await adminFetch<{ messageId: string | null; status: string; actuallySent: boolean }>(
+      const json = await adminFetch<{ messageId: string | null; status: string; actuallySent: boolean; accountLabel: string }>(
         "/api/v1/whatsapp/send",
         {
           method: "POST",
-          body: JSON.stringify({ to: sendTo, text: sendText }),
+          body: JSON.stringify({ accountId: sendAccountId, to: sendTo, text: sendText }),
         }
       );
       setSendResult(
-        `✅ ${json.message} (Status: ${json.data.status}, ID: ${json.data.messageId || "n/a"})`
+        `✅ ${json.message} (Account: ${json.data.accountLabel}, status: ${json.data.status}, ID: ${json.data.messageId || "n/a"})`
       );
       setSendTo("");
       setSendText("");
@@ -138,7 +151,7 @@ export default function WhatsappAiPage() {
             WhatsApp AI Agent
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Official number: <strong>01716 609 554</strong> · International: +880 1716 609 554
+            Account-scoped WhatsApp Business messaging. Choose the exact connected sender for every manual message.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -191,12 +204,12 @@ export default function WhatsappAiPage() {
           </div>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">API Configured</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Connected WhatsApp Accounts</div>
               <div className="flex items-center gap-1 font-medium">
-                {data?.apiConfigured ? (
-                  <><CheckCircle2 className="h-4 w-4 text-emerald-500" /> Yes</>
+                {accountsLoaded ? (
+                  <><CheckCircle2 className="h-4 w-4 text-emerald-500" /> {whatsappAccounts.filter((account) => account.status === "connected" && account.hasToken).length}</>
                 ) : (
-                  <><XCircle className="h-4 w-4 text-amber-500" /> Dev mode</>
+                  <><XCircle className="h-4 w-4 text-amber-500" /> Unavailable</>
                 )}
               </div>
             </div>
@@ -284,6 +297,26 @@ export default function WhatsappAiPage() {
           </h3>
           <div className="space-y-3">
             <div>
+              <label htmlFor="send-account" className="mb-1 block text-xs font-medium text-muted-foreground">
+                Sending WhatsApp Business Account
+              </label>
+              <select
+                id="send-account"
+                value={sendAccountId}
+                onChange={(e) => setSendAccountId(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                required
+              >
+                <option value="">Select a sending account…</option>
+                {whatsappAccounts.map((account) => (
+                  <option key={account.id} value={account.id} disabled={account.status !== "connected" || !account.hasToken}>
+                    {account.displayName} — {account.status === "connected" && account.hasToken ? "connected" : "not connected"}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">The selected number is the only number this send can use. WhatsApp consent, template, and customer-service-window rules still apply.</p>
+            </div>
+            <div>
               <label htmlFor="send-to" className="mb-1 block text-xs font-medium text-muted-foreground">
                 Recipient WhatsApp Number
               </label>
@@ -312,7 +345,7 @@ export default function WhatsappAiPage() {
             </div>
             <Button
               onClick={handleSend}
-              disabled={!sendTo.trim() || !sendText.trim() || sending}
+              disabled={!sendAccountId || !sendTo.trim() || !sendText.trim() || sending}
               className="w-full bg-[#25D366] hover:bg-[#1da851]"
             >
               {sending ? (
@@ -388,31 +421,28 @@ export default function WhatsappAiPage() {
       {/* Configuration info */}
       <Card className="p-6">
         <h3 className="mb-3 text-base font-semibold">Configuration</h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
-          <div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Display Number</div>
-            <div className="font-medium">{data?.displayNumber || "01716 609 554"}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Call Number</div>
-            <div className="font-medium">{data?.callNumber || "01716609554"}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">AI Mode</div>
-            <div className="font-medium">{data?.aiMode || "ACTIVE"}</div>
-          </div>
+        <div className="space-y-2 text-sm">
+          {!accountsLoaded ? (
+            <p className="text-muted-foreground">WhatsApp account status is unavailable.</p>
+          ) : whatsappAccounts.length === 0 ? (
+            <p className="text-muted-foreground">No WhatsApp Business accounts have been added.</p>
+          ) : whatsappAccounts.map((account) => (
+            <div key={account.id} className="flex flex-wrap items-center gap-2 rounded border p-3">
+              <strong>{account.displayName}</strong>
+              <span className="text-muted-foreground">{account.externalId}</span>
+              <Badge variant="outline">{account.status}</Badge>
+              <span className="text-muted-foreground">Credentials: {account.hasToken ? "stored encrypted" : "missing"}</span>
+            </div>
+          ))}
         </div>
         <div className="mt-4 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
           <p>
             <strong>Webhook URL:</strong> <code>POST /api/v1/whatsapp/webhook</code>
             <br />
-            Configure this URL in your Meta WhatsApp Business Manager → Configuration → Webhook.
-            The verify token is set via <code>WHATSAPP_WEBHOOK_VERIFY_TOKEN</code> in .env.
+            Configure the callback and verify token in Meta WhatsApp Business Manager. The server validates webhook HMAC signatures and routes each inbound message using its phone_number_id.
           </p>
           <p className="mt-2">
-            <strong>To enable real sending:</strong> Set <code>WHATSAPP_API_PHONE_NUMBER_ID</code> and{" "}
-            <code>WHATSAPP_API_TOKEN</code> in .env. Without these, the agent runs in dev mode
-            (responses are generated but not actually sent via WhatsApp).
+            Add each phone_number_id and its own access token under Connected Accounts, then use Test to verify the official API connection. Tokens stay encrypted server-side. The selected account is mandatory for manual sending; free-form messages outside the 24-hour customer-service window are blocked because approved-template sending is not yet implemented.
           </p>
         </div>
       </Card>

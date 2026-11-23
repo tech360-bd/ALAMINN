@@ -8,20 +8,15 @@ import {
   BadgeCheck,
   Briefcase,
   Globe2,
-  Linkedin,
-  Twitter,
-  Facebook,
-  Instagram,
-  Youtube,
-  Mail,
   ArrowUpRight,
   ExternalLink,
   CheckCircle2,
-  type LucideIcon,
 } from "lucide-react";
+import type { ComponentType, SVGProps } from "react";
 import { SectionHeading, SectionWrap } from "./section-primitives";
 import { PROFILE, LEADERSHIP_PRINCIPLES, SOCIAL_LINKS, FACEBOOK_URL } from "@/lib/site-data";
 import { PORTRAIT_BLUR, PORTRAIT_LIFESTYLE_BLUR } from "@/lib/blur-placeholders";
+import { FacebookIcon, BRAND_ICONS } from "@/components/site/brand-icons";
 import { useRef } from "react";
 import { SkillsRadar } from "./skills-radar";
 
@@ -40,16 +35,8 @@ const TIMELINE = [
   { period: "Ongoing", title: "AI Automation & CRM Architecture", org: "ALO Labs · TECH360" },
 ];
 
-// Icon resolver — maps the string icon key from SOCIAL_LINKS to a lucide component
-const ICON_MAP: Record<string, LucideIcon> = {
-  facebook: Facebook,
-  linkedin: Linkedin,
-  instagram: Instagram,
-  twitter: Twitter,
-  youtube: Youtube,
-  mail: Mail,
-  globe: Globe2,
-};
+// Use the shared brand SVGs for social networks; lucide intentionally omits brand marks.
+const ICON_MAP: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = BRAND_ICONS;
 
 export function Profile() {
   const portraitRef = useRef<HTMLDivElement>(null);
@@ -126,7 +113,7 @@ export function Profile() {
                   className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 text-[11px] font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20"
                   aria-label="View Al Aminn on Facebook (opens in new tab)"
                 >
-                  <Facebook className="h-3.5 w-3.5" />
+                  <FacebookIcon className="h-3.5 w-3.5" />
                   Follow
                   <ArrowUpRight className="h-3 w-3" />
                 </a>
@@ -174,7 +161,7 @@ export function Profile() {
                 rel="noopener noreferrer"
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 btn-sheen"
               >
-                <Facebook className="h-4 w-4" />
+                <FacebookIcon className="h-4 w-4" />
                 Connect
               </a>
             </div>
@@ -255,7 +242,7 @@ export function Profile() {
                 rel="noopener noreferrer"
                 className="hidden shrink-0 items-center gap-1.5 rounded-xl bg-[#1877F2] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0E5FC9] sm:inline-flex"
               >
-                <Facebook className="h-4 w-4" />
+                <FacebookIcon className="h-4 w-4" />
                 Open Facebook
                 <ExternalLink className="h-3.5 w-3.5 opacity-80" />
               </a>

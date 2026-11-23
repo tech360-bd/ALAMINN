@@ -155,12 +155,15 @@ describe("Task 02 — WhatsApp & Social Webhook HMAC Signature, Fail-Closed & Re
 
   it("accepts a valid signed Meta webhook payload and deduplicates replayed messageIds", async () => {
     const uniqueMsgId = `wamid.test.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
+    const phoneNumberId = `phone-number-test-${Date.now()}`;
+    await db.socialAccount.create({ data: { platform: "whatsapp", externalId: phoneNumberId, displayName: "Test WhatsApp", status: "connected", responseMode: "approval", automationEnabled: false } });
     const payload = JSON.stringify({
       entry: [
         {
           changes: [
             {
               value: {
+                metadata: { phone_number_id: phoneNumberId },
                 messages: [
                   {
                     id: uniqueMsgId,
@@ -191,7 +194,11 @@ describe("Task 02 — WhatsApp & Social Webhook HMAC Signature, Fail-Closed & Re
     expect(firstRes.status).toBe(200);
     const firstJson = await firstRes.json();
     expect(firstJson.success).toBe(true);
-    expect(firstJson.data.repliesSent).toBe(1);
+    expect(firstJson.data.outcomes).toHaveLength(1);
+    expect(firstJson.data.outcomes[0]).toMatchObject({ messageId: uniqueMsgId, account: phoneNumberId });
+    expect(firstJson.data.outcomes[0].outcome).toBe("held_for_approval");
+    const savedMessage = await db.socialMessage.findFirst({ where: { providerMessageId: uniqueMsgId } });
+    expect(savedMessage).toMatchObject({ direction: "inbound", body: "Hi, I want information about UK universities" });
 
     // Second delivery with identical messageId -> deduplicated
     const replayReq = new NextRequest("http://localhost/api/v1/whatsapp/webhook", {
@@ -206,8 +213,35 @@ describe("Task 02 — WhatsApp & Social Webhook HMAC Signature, Fail-Closed & Re
     expect(replayRes.status).toBe(200);
     const replayJson = await replayRes.json();
     expect(replayJson.success).toBe(true);
-    expect(replayJson.data.repliesSent).toBe(0);
-    expect(replayJson.data.duplicatesSkipped).toBe(1);
+    expect(replayJson.data.outcomes).toEqual([{ messageId: uniqueMsgId, account: phoneNumberId, outcome: "duplicate_suppressed" }]);
+  });
+
+  it("persists messages from every phone-number account in the unified inbox", async () => {
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const phoneIds = [`multi-phone-a-${suffix}`, `multi-phone-b-${suffix}`];
+    for (const [index, phoneNumberId] of phoneIds.entries()) {
+      await db.socialAccount.create({ data: { platform: "whatsapp", externalId: phoneNumberId, displayName: `WhatsApp ${index + 1}`, status: "connected", responseMode: "approval", automationEnabled: false } });
+    }
+    const payload = JSON.stringify({ entry: [
+      { changes: [{ value: { metadata: { phone_number_id: phoneIds[0] }, messages: [
+        { id: `wamid.multi.a.${suffix}`, from: "8801711000001", timestamp: String(Math.floor(Date.now() / 1000)), type: "text", text: { body: "Account one message" } },
+        { id: `wamid.multi.a2.${suffix}`, from: "8801711000002", timestamp: String(Math.floor(Date.now() / 1000)), type: "text", text: { body: "Second message on account one" } },
+      ] } }] },
+      { changes: [{ value: { metadata: { phone_number_id: phoneIds[1] }, messages: [
+        { id: `wamid.multi.b.${suffix}`, from: "8801711000003", timestamp: String(Math.floor(Date.now() / 1000)), type: "text", text: { body: "Account two message" } },
+      ] } }] },
+    ] });
+    const req = new NextRequest("http://localhost/api/v1/whatsapp/webhook", {
+      method: "POST", headers: { "content-type": "application/json", "x-hub-signature-256": signBody(payload) }, body: payload,
+    });
+    const res = await whatsappWebhookPost(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data.outcomes).toHaveLength(3);
+    const messages = await db.socialMessage.findMany({ where: { providerMessageId: { in: [`wamid.multi.a.${suffix}`, `wamid.multi.a2.${suffix}`, `wamid.multi.b.${suffix}`] } }, include: { conversation: true } });
+    expect(messages).toHaveLength(3);
+    expect(messages.find((message) => message.providerMessageId === `wamid.multi.a.${suffix}`)?.conversation.accountId).not.toBe(messages.find((message) => message.providerMessageId === `wamid.multi.b.${suffix}`)?.conversation.accountId);
+    expect(messages.find((message) => message.providerMessageId === `wamid.multi.a.${suffix}`)?.conversation.accountId).toBe((await db.socialAccount.findUnique({ where: { platform_externalId: { platform: "whatsapp", externalId: phoneIds[0] } } }))?.id);
   });
 
   it("verifies GET hub.verify_token challenge and rejects mismatched tokens", async () => {

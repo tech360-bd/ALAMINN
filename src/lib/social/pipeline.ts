@@ -11,8 +11,12 @@ import { assertAutomationAllowedNow } from "./policy-server";
 import { getAdapter } from "./adapters";
 
 export type InboundEvent = { platform: string; providerEventId: string; accountExternalId: string; participantId: string; participantName?: string; text: string; kind?: string; isOwn?: boolean };
+export type InboundDraft = { text: string; modelUsed: string; forceEscalate?: boolean };
 
-export async function processSocialEvent(ev: InboundEvent): Promise<{ outcome: string; decisionId?: string }> {
+export async function processSocialEvent(
+  ev: InboundEvent,
+  options: { draftFactory?: () => Promise<InboundDraft> } = {},
+): Promise<{ outcome: string; decisionId?: string }> {
   const payloadHash = createHash("sha256").update(JSON.stringify(ev)).digest("hex").slice(0, 32);
   // 1) Dedup — unique (provider, providerEventId); duplicate returns immediately.
   const existing = await db.socialWebhookEvent.findUnique({ where: { provider_providerEventId: { provider: ev.platform, providerEventId: ev.providerEventId } } }).catch(() => null);
@@ -32,16 +36,20 @@ export async function processSocialEvent(ev: InboundEvent): Promise<{ outcome: s
   if (!msg) return { outcome: "duplicate_suppressed" }; // unique providerMessageId race
 
   const cls = classifyMessage(ev.text);
-  const knowledge = cls.category === "spam" ? [] : await retrieveApprovedKnowledge(ev.text);
-  const profile = await getProfileForAccount(account.id);
-  const { text: draft, modelUsed } = cls.category === "spam"
+  const knowledge = cls.category === "spam" || options.draftFactory ? [] : await retrieveApprovedKnowledge(ev.text);
+  let generated: InboundDraft = cls.category === "spam"
     ? { text: "", modelUsed: "spam-filter" }
-    : await generateSocialReply({ profile, platform: ev.platform, message: ev.text, knowledge });
+    : options.draftFactory
+      ? await options.draftFactory()
+      : await generateSocialReply({ profile: await getProfileForAccount(account.id), platform: ev.platform, message: ev.text, knowledge });
+  let category = cls.category;
+  let risk = cls.risk;
+  if (generated.forceEscalate) { category = "human-required"; risk = "high"; }
 
-  const { verdict, version } = await assertAutomationAllowedNow({ accountId: account.id, category: cls.category, confidence: cls.confidence, risk: cls.risk });
+  const { verdict, version } = await assertAutomationAllowedNow({ accountId: account.id, category, confidence: cls.confidence, risk });
   const decision = await db.socialReplyDecision.create({ data: {
-    conversationId: conv.id, messageId: msg.id, category: cls.category, language: cls.language,
-    confidence: cls.confidence, risk: cls.risk, draft, modelUsed,
+    conversationId: conv.id, messageId: msg.id, category, language: cls.language,
+    confidence: cls.confidence, risk, draft: generated.text, modelUsed: generated.modelUsed,
     decision: verdict.route === "ignore" ? "rejected" : verdict.route === "escalate" ? "escalated" : verdict.allowAutoSend ? "held" : "held",
     reason: verdict.reason, knowledgeRefs: JSON.stringify(knowledge.map((k) => k.id)), automationVersion: version,
   }});
@@ -56,7 +64,7 @@ export async function processSocialEvent(ev: InboundEvent): Promise<{ outcome: s
     await db.socialConversation.update({ where: { id: conv.id }, data: { status: "pending" } });
     return { outcome: "held_for_approval", decisionId: decision.id };
   }
-  return deliverAutoReply({ account, conv, decisionId: decision.id, draft, category: cls.category, confidence: cls.confidence, risk: cls.risk });
+  return deliverAutoReply({ account, conv, decisionId: decision.id, draft: generated.text, category, confidence: cls.confidence, risk });
 }
 
 /** Single send boundary for automated replies — rechecks policy IMMEDIATELY before send (spec §5.4). */

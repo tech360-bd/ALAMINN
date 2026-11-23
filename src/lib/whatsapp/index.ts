@@ -61,7 +61,11 @@ export {
 
 export {
   sendWhatsappMessage,
+  sendWhatsappAccountMessage,
   parseInboundWebhook,
+  parseInboundWebhookEvents,
+  parseWhatsappDeliveryUpdates,
   type SendResult,
   type InboundMessage,
+  type WhatsappDeliveryUpdate,
 } from "./sender";

@@ -11,14 +11,13 @@ import {
   ShieldCheck,
   Globe2,
   ArrowUp,
-  Facebook,
   CalendarRange,
   CheckCircle2,
   Loader2,
 } from "lucide-react";
 import { LegalModals } from "./legal-modals";
 import { SOCIAL_LINKS, FACEBOOK_URL, whatsappLink, WHATSAPP_NUMBER } from "@/lib/site-data";
-import { BRAND_ICONS, WhatsAppIcon } from "@/components/site/brand-icons";
+import { BRAND_ICONS, FacebookIcon, WhatsAppIcon } from "@/components/site/brand-icons";
 
 const FOOTER_NAV = {
   Platform: [
@@ -433,7 +432,7 @@ export function Footer() {
           <div className="flex flex-col gap-5 rounded-2xl border border-white/10 bg-gradient-to-r from-[#1877F2]/10 via-white/[0.02] to-orange-600/10 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <div className="flex items-start gap-4">
               <span className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1877F2] text-white shadow-lg shadow-[#1877F2]/30">
-                <Facebook className="h-6 w-6" />
+                <FacebookIcon className="h-6 w-6" />
                 <span className="absolute -right-1 -top-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-ink-950">
                   <CheckCircle2 className="h-3 w-3 text-white" />
                 </span>
@@ -462,7 +461,7 @@ export function Footer() {
                 data-cta="footer-facebook"
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#1877F2] px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0E5FC9]"
               >
-                <Facebook className="h-4 w-4" />
+                <FacebookIcon className="h-4 w-4" />
                 Open Facebook
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
