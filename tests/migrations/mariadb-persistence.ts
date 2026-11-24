@@ -1,7 +1,22 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { PrismaClient } from '@prisma/client';
 import { createDriverAdapter } from '../../src/lib/prisma-adapter';
+
+const require = createRequire(import.meta.url);
+const { getDMMF } = require('@prisma/internals');
+
+/** Expected table count is derived from the schema, never a stale magic number. */
+async function expectedTableCount(): Promise<number> {
+  const source = readFileSync('prisma/schema.mysql.prisma', 'utf8');
+  const dmmf = await getDMMF({ datamodel: source });
+  // Guard against accidental schema shrinkage: this platform has carried more
+  // than 100 models throughout its audited history.
+  assert(dmmf.datamodel.models.length >= 100, 'MySQL schema lost too many models');
+  return dmmf.datamodel.models.length;
+}
 
 async function main() {
   const url = new URL(process.env.DATABASE_URL ?? '');
@@ -10,8 +25,9 @@ async function main() {
   const id = `ci-${randomUUID()}`;
   const rollback = new Error('intentional rollback');
   try {
+    const expected = await expectedTableCount();
     const rows = await db.$queryRaw<{ count: bigint }[]>`SELECT COUNT(*) AS count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name <> '_prisma_migrations'`;
-    assert.equal(Number(rows[0].count), 109);
+    assert.equal(Number(rows[0].count), expected, `MariaDB table count must match ${expected} schema models`);
     if (url.pathname === '/alaminn_ci') {
       const sentinel = await db.staffAccount.findUniqueOrThrow({ where: { id: 'ci-upgrade-keeper' } });
       assert.equal(sentinel.name, 'Upgrade sentinel');

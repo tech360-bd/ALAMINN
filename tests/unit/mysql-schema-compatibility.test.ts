@@ -93,7 +93,7 @@ describe("mysql schema compatibility", () => {
   it("defines the same model set in both dialects (parity, no drift)", () => {
     const sqliteModels = modelNames(sqlite);
     const mysqlModels = modelNames(mysql);
-    // Sanity floor: the platform carries 109 models today; a large drop
+    // Sanity floor: the platform carries over 100 models today; a large drop
     // in either schema is always a mistake.
     expect(sqliteModels.length).toBeGreaterThanOrEqual(100);
     expect(mysqlModels.length).toBeGreaterThanOrEqual(100);
