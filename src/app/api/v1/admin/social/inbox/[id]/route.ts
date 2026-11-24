@@ -4,6 +4,10 @@ import { ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 import { db } from "@/lib/db";
 export const dynamic = "force-dynamic"; export const runtime = "nodejs";
 import { getAdapter } from "@/lib/social/adapters";
+import {
+  SEND_THROUGH_PLATFORM_KEY,
+  parseSendThroughPlatform,
+} from "@/lib/social/communication-controls";
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) { const g = await requirePermission(req, "social.view"); if (g.denied) return g.response; const { id } = await ctx.params;
   const conv = await db.socialConversation.findUnique({ where: { id }, include: { account: true, messages: { orderBy: { createdAt: "asc" }, take: 100 } } }); if (!conv) return fail("Not found", ["not_found"], 404);
   const decisions = await db.socialReplyDecision.findMany({ where: { conversationId: id }, orderBy: { createdAt: "desc" }, take: 10 });
@@ -14,10 +18,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const conv = await db.socialConversation.findUnique({ where: { id }, include: { account: true } }); if (!conv) return fail("Not found", ["not_found"], 404);
   if (b?.action === "assign" || b?.action === "status") { const u = await db.socialConversation.update({ where: { id }, data: { assignedUserId: b.assignedUserId ?? conv.assignedUserId, status: b.status ?? conv.status } }); return ok(u); }
   if (!b?.text?.trim()) return fail("text required", ["text_required"], 400);
-  const out = await db.socialMessage.create({ data: { conversationId: id, direction: "outbound", body: b.text.slice(0, 8000), isOwn: true, deliveryStatus: "sending" } });
+  const sendSetting = await db.setting.findUnique({ where: { key: SEND_THROUGH_PLATFORM_KEY } });
+  const sendThroughPlatform = parseSendThroughPlatform(sendSetting?.value);
+  const out = await db.socialMessage.create({ data: { conversationId: id, direction: "outbound", body: b.text.slice(0, 8000), isOwn: true, deliveryStatus: sendThroughPlatform ? "sending" : "suppressed" } });
+  await db.socialConversation.update({ where: { id }, data: { unreadCount: 0, lastMessageAt: new Date() } });
+
+  if (!sendThroughPlatform) {
+    await db.socialReplyDecision.create({ data: { conversationId: id, category: "general", confidence: 1, risk: "low", finalText: b.text, decision: "internal_note", reason: "platform_send_disabled" } });
+    await writeAudit(g.session, "social_reply_saved_as_note", "SocialConversation", id, { actuallySent: false, status: "internal_note" });
+    return ok({ sent: false, status: "internal_note", error: null, messageId: out.id });
+  }
+
   const res = await getAdapter(conv.platform).sendReply(conv.account, conv.participantId, b.text);
   await db.socialMessage.update({ where: { id: out.id }, data: { deliveryStatus: res.status === "sent" ? "sent" : res.status === "dev_pending" ? "queued" : "failed", providerMessageId: res.providerId } });
-  await db.socialConversation.update({ where: { id }, data: { unreadCount: 0, lastMessageAt: new Date() } });
   await db.socialReplyDecision.create({ data: { conversationId: id, category: "general", confidence: 1, risk: "low", finalText: b.text, decision: "manual_sent", reason: "manual_reply_automation_switch_not_applicable" } });
   await writeAudit(g.session, "social_manual_reply", "SocialConversation", id, { actuallySent: res.actuallySent, status: res.status });
   return ok({ sent: res.actuallySent, status: res.status, error: res.error }); }

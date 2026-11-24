@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader, ErrorState } from "@/components/admin/page-primitives";
 import { adminFetch, fmtDate } from "@/components/admin/lib";
 import { FeatureKitLaunchpad } from "@/components/admin/kits/launchpad";
+import { CommandCenterOverview } from "@/components/admin/command-center-overview";
 import {
   Users, CheckSquare, Newspaper, TrendingUp, Mail,
   ArrowUpRight, Activity,
@@ -130,6 +131,7 @@ export default function AdminDashboardPage() {
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
         <Skeleton className="h-64" />
+        <CommandCenterOverview />
       </div>
     );
   }
@@ -159,6 +161,8 @@ export default function AdminDashboardPage() {
           </Button>
         }
       />
+
+      <CommandCenterOverview />
 
       {/* KPI cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
