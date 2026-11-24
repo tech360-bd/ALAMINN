@@ -168,14 +168,14 @@ const SECURITY_HEADERS: Record<string, string> = {
   // Format: feature=(allowlist) — empty allowlist = disabled.
   "Permissions-Policy":
     "camera=(), microphone=(self), geolocation=()",
-  // Content-Security-Policy — restricts resource loading to prevent XSS,
-  // data exfiltration, and clickjacking. Next.js requires 'unsafe-inline'
-  // for styles and 'unsafe-eval' for some dev tooling; in production the
-  // inline styles come from Next's styled-jsx / RSC payloads. For a stricter
-  // policy, migrate to nonce-based CSP (advanced, future work).
+  // Content-Security-Policy — baseline restriction against XSS/data exfiltration.
+  // Staged hardening (Finding 3): production removes 'unsafe-eval'. 'unsafe-inline'
+  // remains for Next.js inline scripts/styles until nonce/hash CSP is rolled out.
+  // Remaining exception: script-src/style-src 'unsafe-inline' — removal requires
+  // nonce propagation through Next.js rendering pipeline; track as follow-up.
   "Content-Security-Policy": [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
+    "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self' data:",
@@ -193,6 +193,10 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
     const headers = { ...SECURITY_HEADERS };
     headers["X-Frame-Options"] = "SAMEORIGIN";
     headers["Content-Security-Policy"] = headers["Content-Security-Policy"]
+      .replace(
+        "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com"
+      )
       .replace(
         "frame-ancestors 'none'",
         "frame-ancestors 'self' https://*.e2b.app https://*.space-z.ai"

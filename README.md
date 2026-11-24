@@ -39,7 +39,7 @@ The platform intentionally separates executive Command Center administration fro
 
 ## Required Environment Variables
 
-Copy `.env.example` to `.env` for local development. Never commit real secrets.
+Copy `.env.example` to `.env.config` for local development (canonical). Legacy `.env` is fallback-only. Never commit real secrets.
 
 | Variable | Purpose | Production Requirement |
 | --- | --- | --- |
