@@ -1,5 +1,10 @@
 import { db } from "@/lib/db";
 import { evaluatePolicy, type PolicyVerdict } from "./policy";
+import {
+  COMMUNICATION_MODE_KEY,
+  globalModeVerdict,
+  parseCommunicationMode,
+} from "./communication-controls";
 export async function getGlobalState() {
   try { return await db.socialAutomationState.upsert({ where: { id: "global" }, create: { id: "global" }, update: {} }); }
   catch { return null; }
@@ -12,6 +17,17 @@ export async function assertAutomationAllowedNow(opts: { accountId: string; cate
     db.socialAutomationRule.findFirst({ where: { enabled: true, OR: [{ accountId: opts.accountId }, { accountId: null }] }, orderBy: { createdAt: "asc" } }).catch(() => null),
   ]);
   if (!account) return { verdict: { allowAutoSend: false, route: "approval", reason: "account_missing" }, version: state?.version ?? null };
+
+  // Global communication mode is checked BEFORE account/rule policy so the
+  // pause switch and human/assisted modes cannot be overridden downstream.
+  const modeSetting = await db.setting
+    .findUnique({ where: { key: COMMUNICATION_MODE_KEY } })
+    .catch(() => null);
+  const globalVerdict = globalModeVerdict(parseCommunicationMode(modeSetting?.value));
+  if (globalVerdict) {
+    return { verdict: globalVerdict, version: state?.version ?? null };
+  }
+
   const verdict = evaluatePolicy({
     globalEngagementEnabled: state ? state.engagementEnabled : null,
     accountAutomationEnabled: account.automationEnabled, accountStatus: account.status,

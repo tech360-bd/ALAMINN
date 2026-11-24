@@ -109,3 +109,4 @@ npm run build                      # Production Next.js build (standalone output
 - **[`DEPLOYMENT-GUIDE.md`](./DEPLOYMENT-GUIDE.md)** & **[`DEPLOYMENT-CHECKLIST.md`](./DEPLOYMENT-CHECKLIST.md)** — Production deployment and release runbooks.
 - **[`SECURITY-CHECKLIST.md`](./SECURITY-CHECKLIST.md)** — Security controls, secret hygiene, and verification checklist.
 - **[`docs/README.md`](./docs/README.md)** — Structured index of architecture, database, API, and archived historical reports (`docs/archive/`).
+- **[`docs/MASTER_IMPLEMENTATION_BASELINE.md`](./docs/MASTER_IMPLEMENTATION_BASELINE.md)** & **[`docs/MASTER_IMPLEMENTATION_STATUS.md`](./docs/MASTER_IMPLEMENTATION_STATUS.md)** — Baseline and honest stage-by-stage status for the AI-command-center implementation program.

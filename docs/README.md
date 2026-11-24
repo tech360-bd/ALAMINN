@@ -25,6 +25,10 @@ This directory contains the architecture, database, deployment, security, and op
 - [`../DEPLOYMENT-GUIDE.md`](../DEPLOYMENT-GUIDE.md) & [`../DEPLOYMENT-CHECKLIST.md`](../DEPLOYMENT-CHECKLIST.md) — Production deployment procedures (`remote-setup.sh`, `start-prod.sh`, Docker, and GitHub Actions CI/CD).
 - [`../SECURITY-CHECKLIST.md`](../SECURITY-CHECKLIST.md) — Security controls, webhook HMAC verification, secret management, and audit gates.
 - [`../worklog.md`](../worklog.md) — Current engineering remediation summary.
+- [`MASTER_IMPLEMENTATION_BASELINE.md`](./MASTER_IMPLEMENTATION_BASELINE.md) — Repository baseline recorded before the master implementation tranche.
+- [`MASTER_IMPLEMENTATION_STATUS.md`](./MASTER_IMPLEMENTATION_STATUS.md) — Truthful, per-stage status register for the master implementation, including blockers.
+- [`STAGE_INBOX_CMS_CHAT_PLAN.md`](./STAGE_INBOX_CMS_CHAT_PLAN.md) — Concise implementation plan for the unified inbox, CMS and persistent AI chat stage.
+- [`STAGE_INBOX_CMS_CHAT_STATUS.md`](./STAGE_INBOX_CMS_CHAT_STATUS.md) — Nine-section stage report with verification evidence and honest completion percentage.
 
 ### `docs/` Reference Documents
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — System architecture and module boundaries.

@@ -2289,3 +2289,149 @@ model PasswordResetCode {
   @@index([accountId])
 }
 
+
+// ─── Stage: Unified Inbox, CMS, AI Chat ────────────────────────────
+// Channel-agnostic inbox. No FKs to legacy channel tables so migrations are
+// purely additive and reversible. Identifiers are validated in application code.
+model InboxContact {
+  id          String   @id @default(cuid())
+  displayName String
+  email       String?
+  phone       String?
+  externalRef String?  @unique
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([email])
+  @@index([phone])
+}
+
+model InboxConversation {
+  id               String   @id @default(cuid())
+  channel          String // email | whatsapp | messenger | instagram | website_chat | social
+  accountId        String
+  externalThreadId String
+  contactId        String?
+  subject          String?
+  status           String   @default("unread") // unread | open | pending | resolved | escalated | closed
+  priority         String   @default("normal") // low | normal | high | urgent
+  assignedUserId   String?
+  unreadCount      Int      @default(0)
+  tags             String   @default("[]") // JSON string[]
+  lastMessageAt    DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([channel, accountId, externalThreadId])
+  @@index([status, lastMessageAt])
+  @@index([assignedUserId])
+  @@index([contactId])
+}
+
+model InboxMessage {
+  id                String   @id @default(cuid())
+  conversationId    String
+  providerMessageId String?
+  idempotencyKey    String?  @unique
+  direction         String // inbound | outbound | internal_note
+  kind              String   @default("text") // text | attachment | system
+  body              String   @default("")
+  attachments       String   @default("[]") // JSON metadata only: {name,url,mimeType,size}
+  senderType        String   @default("contact") // contact | agent | ai | system
+  deliveryStatus    String   @default("received") // received | queued | sending | sent | delivered | failed | suppressed
+  error             String?
+  createdAt         DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([deliveryStatus])
+}
+
+model InboxAudit {
+  id             String   @id @default(cuid())
+  conversationId String?
+  action         String
+  actorId        String?
+  meta           String?
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model CmsEntry {
+  id             String    @id @default(cuid())
+  slug           String    @unique
+  type           String    @default("page") // page | article | post
+  title          String
+  summary        String    @default("")
+  body           String    @default("")
+  category       String    @default("")
+  tags           String    @default("[]") // JSON string[]
+  seoTitle       String?
+  seoDescription String?
+  status         String    @default("draft") // draft | review | approved | published | archived
+  authorId       String?
+  reviewerId     String?
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, type])
+  @@index([category])
+}
+
+model CmsRevision {
+  id             String   @id @default(cuid())
+  entryId        String
+  revisionNumber Int
+  title          String
+  summary        String   @default("")
+  body           String   @default("")
+  seoTitle       String?
+  seoDescription String?
+  status         String
+  authorId       String?
+  createdAt      DateTime @default(now())
+
+  @@unique([entryId, revisionNumber])
+  @@index([entryId, createdAt])
+}
+
+model AiChatConversation {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String   @default("New conversation")
+  provider    String   @default("auto")
+  model       String   @default("")
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+model AiChatMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String // user | assistant
+  content        String
+  provider       String?
+  model          String?
+  error          String?
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+/// Private, authenticated attachment storage for unified inbox messages.
+model InboxAttachment {
+  id             String   @id @default(cuid())
+  conversationId String
+  filename       String
+  storageKey     String   @unique
+  mimeType       String
+  size           Int
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+}

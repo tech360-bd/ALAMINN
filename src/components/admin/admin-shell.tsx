@@ -74,6 +74,7 @@ const NAV_GROUPS: {
     label: "Content",
     items: [
       { href: "/admin/articles", label: "Articles", icon: Newspaper },
+      { href: "/admin/cms", label: "Website CMS", icon: FileText },
       { href: "/admin/projects", label: "Projects", icon: FolderKanban },
       { href: "/admin/case-studies", label: "Case Studies", icon: FileText },
       { href: "/admin/endorsements", label: "Endorsements", icon: Quote },
@@ -117,6 +118,8 @@ const NAV_GROUPS: {
     items: [
       { href: "/admin/ai-agents", label: "Free AI Agents", icon: Sparkles },
       { href: "/admin/ai-assistant", label: "AI Assistant", icon: Bot },
+      { href: "/admin/ai-providers", label: "AI Providers", icon: Plug },
+      { href: "/admin/ai-chat", label: "AI Chat", icon: Bot },
       { href: "/admin/whatsapp-ai", label: "WhatsApp AI", icon: MessageCircle },
       { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck },
       { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -128,10 +131,12 @@ const NAV_GROUPS: {
       { href: "/admin/social", label: "Social Overview", icon: Share2 },
       { href: "/admin/social/accounts", label: "Connected Accounts", icon: Users },
       { href: "/admin/social/inbox", label: "Unified Inbox", icon: Inbox },
+      { href: "/admin/inbox", label: "Cross-Channel Inbox", icon: MessagesSquare },
       { href: "/admin/social/approvals", label: "Approval Queue", icon: ShieldCheck },
       { href: "/admin/social/personality", label: "AI Personality", icon: UserRound },
       { href: "/admin/social/content", label: "Content & Calendar", icon: CalIcon },
       { href: "/admin/social/rules", label: "Automation Rules", icon: ListChecks },
+      { href: "/admin/communication-controls", label: "AI Communication Controls", icon: Activity },
     ],
   },
   {

@@ -13,6 +13,7 @@ import {
   Globe2,
   Library,
   Columns3,
+  Sparkles,
   Menu,
   X,
   Send,
@@ -49,6 +50,7 @@ const HS_NAV: HsNavItem[] = [
   { label: "Destinations", href: "/higher-study/destinations", icon: Globe2 },
   { label: "Resources", href: "/higher-study/study-resources", icon: Library },
   { label: "Compare", href: "/higher-study/compare", icon: Columns3 },
+  { label: "AI Services", href: "/higher-study/ai-services", icon: Sparkles },
 ];
 
 function isActive(pathname: string | null, href: string): boolean {
