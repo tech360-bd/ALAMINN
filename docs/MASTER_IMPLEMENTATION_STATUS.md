@@ -182,6 +182,12 @@ All commands were executed locally on 2026-11-24 (UTC):
 | `npx vitest run tests/lib/higher-study-ai-services.test.ts tests/lib/command-center-metrics.test.ts` | PASS — 8/8 tests |
 | `npx vitest run tests/lib tests/unit tests/components tests/integration` | PASS — 58 files / 648 tests (includes Tranche 3) |
 | `npm run test:disposable -- --security` | PASS — 7 API test files / 41 tests; security suite 22/22 |
+| `node tests/migrations/client-parity.mjs mysql` | PASS — 118 models / 0 enums |
+| `node tests/migrations/client-parity-mysql.mjs` | PASS — 118 models in both SQLite and MySQL schemas |
+
+MariaDB persistence verification derives the expected table count from the MySQL schema (118
+after this tranche) instead of a stale hardcoded 109, so additive migrations no longer fail CI
+while the check still fails on any table-count drift.
 | `npm run build` (with generated secrets + migrated temporary SQLite DB) | PASS — new Tranche 1–3 routes present in the build manifest; no production DB or config accessed |
 
 Build prerequisite note: `npm run build` requires `DATABASE_URL` and a migrated database because
