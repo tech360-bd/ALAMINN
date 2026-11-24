@@ -75,6 +75,56 @@ export async function sendWhatsappAccountMessage(
   }
 }
 
+export type WhatsappTemplateComponent = {
+  type: "header" | "body" | "button";
+  sub_type?: "quick_reply" | "url";
+  index?: string | number;
+  parameters?: Array<{ type: "text" | "image" | "document" | "video"; text?: string; image?: { link: string }; document?: { link: string; filename?: string }; video?: { link: string } }>;
+};
+
+/** Send an approved WhatsApp template through explicitly selected account credentials. */
+export async function sendWhatsappAccountTemplate(
+  account: { externalId: string; tokenEncrypted: string | null },
+  to: string,
+  template: { name: string; language: string; components?: WhatsappTemplateComponent[] }
+): Promise<SendResult> {
+  const phoneNumberId = account.externalId.trim();
+  const token = decryptToken(account.tokenEncrypted);
+  const normalized = normalizeWhatsappNumber(to);
+  if (!phoneNumberId || !token) {
+    return { status: "FAILED", messageId: null, error: "Selected WhatsApp account is missing valid credentials.", actuallySent: false };
+  }
+  if (!normalized) return { status: "FAILED", messageId: null, error: "Invalid recipient number.", actuallySent: false };
+  const name = String(template.name || "").trim();
+  const language = String(template.language || "").trim();
+  if (!name || !language) return { status: "FAILED", messageId: null, error: "Template name and language are required.", actuallySent: false };
+  try {
+    const response = await fetch(`https://graph.facebook.com/v18.0/${encodeURIComponent(phoneNumberId)}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: normalized,
+        type: "template",
+        template: {
+          name,
+          language: { code: language },
+          ...(Array.isArray(template.components) && template.components.length > 0 ? { components: template.components } : {}),
+        },
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) return { status: "FAILED", messageId: null, error: `WhatsApp Cloud API rejected the template send (HTTP ${response.status}).`, actuallySent: false };
+    const data = await response.json() as { messages?: { id?: string }[] };
+    const messageId = data.messages?.[0]?.id ?? null;
+    if (!messageId) return { status: "FAILED", messageId: null, error: "WhatsApp Cloud API did not confirm a message ID.", actuallySent: false };
+    return { status: "SENT", messageId, error: null, actuallySent: true };
+  } catch {
+    return { status: "FAILED", messageId: null, error: "WhatsApp Cloud API request failed.", actuallySent: false };
+  }
+}
+
 export type InboundMessage = {
   from: string;
   text: string;

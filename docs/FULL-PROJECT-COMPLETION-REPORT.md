@@ -70,9 +70,9 @@
 | `npm run typecheck` | PASS (exit 0) |
 | `npm run lint` | PASS (0 errors, 61 warnings baseline) |
 | `npm run build` | PASS (disposable migrated SQLite DB) |
-| `npm test` (full) | 61 passed / 8 failed files; 663 passed / 1 failed / 41 skipped. 7 failures env-gated disposable-target outside disposable runner; 1 staff-bootstrap flake passed on rerun alone; hardened retries. |
-| `npm run test:disposable` integration | 7 files passed, 41 tests passed |
-| `npm run test:disposable` security | 22 passed, 0 failed |
+| `npm test` (full, plain vitest) | **PARTIAL/FAIL as command result**: 62 passed / 7 failed files; 664 passed / 0 failed tests / 41 skipped. The 7 failed files are env-gated disposable-target suites that error outside disposable runner; 41 skipped tests belong to those suites. Not a clean pass. |
+| `npm run test:disposable` integration | **PASS** (when run through required disposable runner): 7 files passed, 41 tests passed |
+| `npm run test:disposable` security | **PASS**: 22 passed, 0 failed |
 | New targeted tests | 16 passed (auth reset/session, bounded rate limit, load-env, proxy CSP) |
 | `npm audit` | 0 vulnerabilities |
 
@@ -109,6 +109,12 @@
 - DB: before any production migration, take verified backup and test restore on disposable DB. No destructive migration run.
 - Runtime: keep previous container/image/release available; health/readiness checks before cutover; rollback to prior image/release on failure.
 - Docs: `docs/PRODUCTION-HARDENING-REPAIR-REPORT.md`, `docs/DB-MIGRATION-NOTES-2026-11-24.md`, `docs/PRODUCTION-VERIFICATION-GUIDE.md`, `docs/RUNTIME-ENTRYPOINT.md`.
+
+## Post-resume implementation (this turn)
+
+- **Corrected test status:** plain `npm test` is **PARTIAL/FAIL** (7 env-gated suite failures, 41 skipped in that mode). Disposable-runner suites pass (41/41 integration, 22/22 security).
+- **WhatsApp template sending:** added `sendWhatsappAccountTemplate` in `src/lib/whatsapp/sender.ts`, extended `src/app/api/v1/whatsapp/send/route.ts` to accept approved template payloads outside 24h window, updated admin copy, added `tests/lib/whatsapp-template-send.test.ts` (2 passed). Typecheck PASS.
+- **Misleading "coming soon" copy fixed:** `src/app/english-learning/resources/[slug]/page.tsx` (fallback description), `src/app/higher-study/saved/page.tsx` (device-only storage note).
 
 ## Final Acceptance
 

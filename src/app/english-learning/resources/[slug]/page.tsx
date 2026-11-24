@@ -130,8 +130,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
             </article>
           ) : (
             <Card className="border-dashed bg-ink-50/50 p-8 text-center text-sm text-ink-600">
-              Full description coming soon. Click the link below to view the
-              resource directly.
+              No detailed description is available for this resource yet. Use the link below to open the resource directly.
             </Card>
           )}
 
