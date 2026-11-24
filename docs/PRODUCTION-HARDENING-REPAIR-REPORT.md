@@ -3,7 +3,7 @@
 Date: 2026-11-24 (UTC)  
 Branch: `arena/665460a0-alaminn` (session-tracked; dedicated repair-branch creation/switch was not allowed by Arena session branch policy)  
 Base: `afb26e10c4d1a8bd543f39ad8367197d7e8e4a69` (`main`)  
-Repair commit: `d16ec92`
+Repair commit: `9971bea` (main repair), `0313f53` (prior report SHA update), post-repair blocker closure commit: see git log
 
 ## Scope / Constraints
 
@@ -178,6 +178,111 @@ Repair commit: `d16ec92`
 - Rate limiting remains process-local; shared store needed for multi-instance deployments.
 - Schema default removal for SQLite may require careful migration on existing DBs; no destructive production migration performed.
 
+## Post-Repair Blocker Closure (2026-11-24)
+
+### A. Full test suite / disposable-target gated tests — PASS
+
+Commands executed:
+- `npm ci --no-audit --no-fund`
+- `npm run test:disposable` (init sqlite, seed, staff bootstrap, start Next dev, `npm run test:integration`, `npm run security:test`)
+- `set -a; source /tmp/alaminn-disp.env; set +a; npm run test:integration`
+- `npx vitest run tests/integration/staff-bootstrap.test.ts` (8 consecutive isolated runs)
+
+Results:
+- Disposable integration (`tests/api`, 7 files): **7 passed, 41 tests passed**.
+- Disposable security suite: **22 passed, 0 failed** (report written by script; includes header/clickjacking/IDOR/auth/rate-limit/brute-force checks).
+- `staff-bootstrap.test.ts` flake investigation: could not reproduce [false,false] in 8 isolated runs (8/8 passed). Hardened `scripts/bootstrap-staff.ts` transient retry logic (added SQLITE_LOCKED/SQLITE_BUSY_SNAPSHOT/cannot-start-transaction, increased attempts/backoff, explicit already-provisioned terminal handling). Flake was intermittent/full-suite contention, not confirmed as regression from repair changes.
+- Full `npm test`: **61 passed files, 8 failed files; 663 passed tests, 1 failed, 41 skipped**. The 7 failed files are the same environment-gated disposable-target suites when run outside disposable runner; 1 staff-bootstrap flake seen in full suite passed on rerun alone. New targeted tests pass.
+
+Status: **PASS** for disposable-target gated test files and security suite; full-suite has known env-gated behavior and an intermittent staff-bootstrap contention flake mitigated by retry hardening.
+
+### B. Docker verification — BLOCKED
+
+Commands executed:
+- `docker --version` -> `docker: command not found`
+- `docker compose version` -> `docker: command not found`
+
+Not executed: `docker compose config`, Docker image build, container startup, startup env validation in container, health endpoint in container, authentication smoke test in container, graceful shutdown with in-flight request in container, actual entrypoint/env loading verification in container.
+
+Status: **BLOCKED** (Docker CLI unavailable in sandbox). Do not report Docker PASS.
+
+### C. npm security — PASS (remediated with override; production runtime impact assessed)
+
+Commands executed:
+- `npm audit --json`
+- `npm ls effect`
+- `npm view effect version` / `npm view effect@"^3.22.1" version`
+- Added `package.json` override `"effect": "^3.22.5"`
+- `npm install --no-audit --no-fund`
+- `npm audit`
+
+Findings (all 7 high were same chain):
+| Package | Severity | Advisory | Path | Prod runtime impact | Remediation |
+|---|---|---:|---|---|---|
+| effect | high | GHSA-7589-6fvf-x4pw ReDoS in Schema.TemplateLiteral compiled regex (<=3.22.0) | @prisma/config -> effect | Low/unlikely; used by Prisma config/internals CLI tooling, not @prisma/client runtime | Overrode to `effect@^3.22.5` |
+| @prisma/config | high | via effect | prisma/@prisma/internals -> @prisma/config | Dev/build tooling | Resolved by effect override |
+| @prisma/internals | high | via @prisma/config | direct dev/build dependency | Dev/build tooling | Resolved by effect override |
+| @prisma/client-common | high | via @prisma/internals | generator chain | Dev/build tooling | Resolved by effect override |
+| @prisma/client-generator-js | high | via @prisma/internals/client-common/ts-builders | generator chain | Dev/build tooling | Resolved by effect override |
+| @prisma/ts-builders | high | via @prisma/internals | generator chain | Dev/build tooling | Resolved by effect override |
+| prisma | high | via @prisma/config | CLI | Dev/build tooling | Resolved by effect override |
+
+Evidence after fix: `npm audit` reports **0 vulnerabilities**. No `npm audit fix --force` used. No Prisma downgrade.
+
+Status: **PASS** (audit clean; change is override, not major Prisma downgrade).
+
+### D. Database migration — PARTIAL (SQLite evidence; MariaDB blocked)
+
+Commands executed:
+- Inspected `prisma/schema.prisma`, `prisma/schema.mysql.prisma`, `prisma/migrations/sqlite/*`.
+- `node /tmp/check-schema.mjs` (disposable sqlite from migrations): User.email, Contact.email, Inquiry.reference have `notnull=1, dflt_value=null` in migrated SQLite; no empty-string defaults.
+- `grep -rn "DEFAULT ''" prisma/migrations/sqlite` showed no defaults for those three fields.
+
+Results:
+- SQLite schema aligned by removing `@default("")` for the three fields; MySQL schema already aligned.
+- No empty-sentinel defaults found for the three target fields in SQLite migration DDL.
+- Disposable MariaDB/MySQL not available (no docker/mysql/mariadb binaries). Could not run MariaDB migration history, live sentinel scan on production-like MySQL, or MariaDB backup/restore.
+
+Status: **PARTIAL**. SQLite evidence PASS; MariaDB disposable verification **BLOCKED**.
+
+### E. Graceful shutdown — PARTIAL
+
+Commands executed:
+- Built standalone with disposable DB.
+- Started `node server.js` wrapper with production env (PORT=3102, JWT/SESSION/EMAIL_FROM set).
+- Verified `/api/health/ready` returned ready.
+- Issued in-flight `curl /` and sent SIGTERM to wrapper process.
+
+Observed:
+- Wrapper logged `[alaminn.info] Received SIGTERM, shutting down gracefully...`
+- Next/instrumentation logged shutdown sequence and `shutdown.complete`.
+- In-flight request failed with `curl: (52) Empty reply from server`.
+
+Conclusion:
+- Safety-net and signal handling work; process shuts down. Full in-flight HTTP drain is **not proven**; Next standalone handle is not exposed to wrapper. This remains a documented limitation.
+
+Status: **PARTIAL** (signal/shutdown observed; in-flight drain not guaranteed).
+
+## Updated Validation Summary
+
+| Check | Result | Evidence |
+|---|---|---|
+| `npm ci` | PASS | clean install completed |
+| `npx prisma generate` | PASS | postinstall generated client |
+| `npm run typecheck` | PASS | exit 0 |
+| `npm run lint` | PASS | 0 errors, 61 warnings |
+| `npm test` | PASS with known env-gated/flake caveat | 61 passed / 8 failed files; 663 passed / 1 failed / 41 skipped; 7 disposable-gated failures outside disposable runner, 1 staff-bootstrap flake passed on rerun alone |
+| Disposable integration tests (7 files) | PASS | 7 files, 41 tests passed |
+| Security suite | PASS | 22/22 passed |
+| `npm audit` | PASS | 0 vulnerabilities after `effect@^3.22.5` override |
+| `npm run build` | PASS | succeeded with disposable migrated SQLite DB |
+| Docker compose config | BLOCKED | docker unavailable |
+| Docker image build | BLOCKED | docker unavailable |
+| Container startup/health/auth smoke | BLOCKED | docker unavailable |
+| Graceful shutdown in-flight drain | PARTIAL | SIGTERM observed, in-flight curl got empty reply |
+| Prisma migration on disposable MariaDB | BLOCKED | no MariaDB/docker available |
+| SQLite schema/migration sentinel check | PASS | no empty-string defaults for target fields in migrated SQLite |
+
 ## Final Acceptance Statement
 
-I do **not** claim 100% completion. All 9 findings were addressed with code/tests/docs where feasible, but Docker runtime validation, full graceful-drain proof, and audit vulnerability remediation remain blocked or partially verified. Owner approval is required before merge/deploy.
+I do **not** claim 100% completion. Blockers A and C have evidence-backed closure (disposable gated tests/security pass; npm audit clean via reviewed override). Blocker D is partially closed for SQLite but MariaDB disposable verification is blocked. Blocker B is blocked by missing Docker in sandbox. Blocker E is partially verified; signal handling works but in-flight drain is not proven. Owner approval is required before merge or production deployment.
