@@ -1,0 +1,4777 @@
+{
+  "total": 1193,
+  "files": [
+    {
+      "path": "dockerignore",
+      "type": "deploy"
+    },
+    {
+      "path": "env.config.example",
+      "type": "other"
+    },
+    {
+      "path": "env.example",
+      "type": "other"
+    },
+    {
+      "path": "env.production.example",
+      "type": "other"
+    },
+    {
+      "path": "github/CODEOWNERS",
+      "type": "other"
+    },
+    {
+      "path": "github/SECURITY.md",
+      "type": "other"
+    },
+    {
+      "path": "github/dependabot.yml",
+      "type": "other"
+    },
+    {
+      "path": "github/workflows/ci.yml",
+      "type": "other"
+    },
+    {
+      "path": "github/workflows/codeql.yml",
+      "type": "other"
+    },
+    {
+      "path": "github/workflows/deploy.yml",
+      "type": "other"
+    },
+    {
+      "path": "github/workflows/supply-chain.yml",
+      "type": "other"
+    },
+    {
+      "path": "github/workflows/versioned-release.yml",
+      "type": "other"
+    },
+    {
+      "path": "gitignore",
+      "type": "other"
+    },
+    {
+      "path": "gitleaks.toml",
+      "type": "other"
+    },
+    {
+      "path": "nvmrc",
+      "type": "other"
+    },
+    {
+      "path": "Caddyfile",
+      "type": "other"
+    },
+    {
+      "path": "DEPLOYMENT-CHECKLIST.md",
+      "type": "other"
+    },
+    {
+      "path": "DEPLOYMENT-GUIDE.md",
+      "type": "other"
+    },
+    {
+      "path": "DEVELOPMENT.md",
+      "type": "other"
+    },
+    {
+      "path": "Dockerfile",
+      "type": "deploy"
+    },
+    {
+      "path": "INSTALL.md",
+      "type": "other"
+    },
+    {
+      "path": "MASTER-SPECIFICATION.md",
+      "type": "other"
+    },
+    {
+      "path": "README.md",
+      "type": "other"
+    },
+    {
+      "path": "SECURITY-CHECKLIST.md",
+      "type": "other"
+    },
+    {
+      "path": "SERVER-SPEC.md",
+      "type": "other"
+    },
+    {
+      "path": "automation-stack/README.md",
+      "type": "other"
+    },
+    {
+      "path": "components.json",
+      "type": "other"
+    },
+    {
+      "path": "config/domains.json",
+      "type": "other"
+    },
+    {
+      "path": "db/.htaccess",
+      "type": "other"
+    },
+    {
+      "path": "deploy/alaminn-info.service",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/alaminn-umc.service",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/backup-sqlite.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/cpanel/redeploy.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/cpanel/setup-cpanel.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/deploy-release.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/deploy.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/ecosystem.pm2.cjs",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/healthcheck.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/install.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/mariadb-init.sql",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/nginx-alaminn-info.conf",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/ols-vhost.conf",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/restore-sqlite.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/rollback.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/tailscale-test.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "deploy/verify-backup.sh",
+      "type": "deploy"
+    },
+    {
+      "path": "docker-compose.yml",
+      "type": "deploy"
+    },
+    {
+      "path": "docs/.htaccess",
+      "type": "docs"
+    },
+    {
+      "path": "docs/AGENTOS_PHASE2_FOUNDATION.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/AGENT_SYSTEM.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_BASELINE_AUDIT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_DATABASE_CHANGELOG.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_DEPENDENCY_MATRIX.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_DEPLOYMENT_RUNBOOK.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_DIGITAL_COMMAND_CENTRE_AUDIT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_IMPLEMENTATION_PROGRESS.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_INTEGRATION_PLAN.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_REPOSITORY_AUDIT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_SECURITY_ARCHITECTURE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_TARGET_ARCHITECTURE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ALAMINN_TEST_REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/AUTONOMOUS_SOFTWARE_FACTORY.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/BRAND-DESIGN-SYSTEM.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/CI-RUN-REVIEW.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/CLAIM_REGISTER.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/CREATOR-COMMAND-CENTER.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/CURRENT-STATE-AUDIT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/DATABASE-MIGRATION-GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/DB-MIGRATION-NOTES-2026-11-24.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/DEPLOY.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/DEPLOYMENT-ARCHITECTURE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/DEPLOYMENT-STATE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/DEPLOYMENT_RUNBOOK.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/FEATURE-INVENTORY.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/FINAL-IMPLEMENTATION-REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/HIGHER-STUDY-GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/HTACCESS_EXPLAINER.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/IMPLEMENTATION-PLAN.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/IMPLEMENTATION_ROADMAP.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/INFRASTRUCTURE_PLAN.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/INTEGRATED-KITS.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/INTEGRATION-HUB.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/LICENSE_COMPLIANCE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/MASTER_ARCHITECTURE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/MASTER_IMPLEMENTATION_BASELINE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/MASTER_IMPLEMENTATION_STATUS.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/MEMORY_ARCHITECTURE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/N8N-WORKFLOW-GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/PHASE-1-FOUNDATION.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/PHASE-5-DATABASE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/PHASE-5-EVIDENCE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/PRODUCTION-HARDENING-REPAIR-REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/PRODUCTION-VERIFICATION-GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/PRODUCTION-VERIFICATION.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/PROTECTED-SERVICES.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/QA_AND_TESTING.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/README.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/RELEASE-SAFETY.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/RESOURCE_AUDIT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/RESOURCE_COMPATIBILITY_MATRIX.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/REVERSE_ENGINEERING_LAB.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/RISK_REGISTER.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ROLLBACK-GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/ROUTE-INVENTORY.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/RUNTIME-ENTRYPOINT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/SECURITY-CSP-AUTH-RATELIMIT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/SECURITY_ARCHITECTURE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/SOCIAL-MEDIA-INTEGRATIONS.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/STAGE_INBOX_CMS_CHAT_PLAN.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/STAGE_INBOX_CMS_CHAT_STATUS.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/TELEGRAM-INTEGRATION.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/api.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/DEVELOPMENT-GUIDELINE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/FINAL-AUDIT-REPORT-v2.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/FINAL-AUDIT-REPORT-v3.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/FINAL-AUDIT-REPORT-v4.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/FINAL-AUDIT-REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/FINAL-DELIVERY-REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/FULL-PROJECT-GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/GO-LIVE-GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/HOW-TO-RUN-AND-EDIT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/MOBILE-RUN-GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/PATH-CHANGE-GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/PRODUCTION_README.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/README-CLOUD-DEPLOYMENT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/README-CPANEL-NODE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/archive/worklog-history.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/audit/DATABASE_AND_MIGRATION_REVIEW.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/audit/EXISTING_FEATURE_MATRIX.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/audit/PRODUCTION_DEPENDENCY_MAP.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/audit/SECURITY_AND_BACKUP_STATUS.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/audit/SYSTEM_INVENTORY.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/audit/agentos-phase0/evidence-manifest.json",
+      "type": "docs"
+    },
+    {
+      "path": "docs/audit/agentos-phase0/preservation-check.json",
+      "type": "docs"
+    },
+    {
+      "path": "docs/audit/agentos-phase0/resource-assessments.json",
+      "type": "docs"
+    },
+    {
+      "path": "docs/backup-restore.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/browser-console-troubleshooting.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/catalogue-templates/courses.csv",
+      "type": "docs"
+    },
+    {
+      "path": "docs/catalogue-templates/scholarships.csv",
+      "type": "docs"
+    },
+    {
+      "path": "docs/catalogue-templates/universities.csv",
+      "type": "docs"
+    },
+    {
+      "path": "docs/database.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/ADDED_FILE_REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/ALO_EDUCATION_INTEGRATION.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/API_INVENTORY.json",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/BACKUP_RESTORE_GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/BUILD_REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/CPANEL_CONFIGURATION.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/CPANEL_DEPLOYMENT_GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/CRON_SETUP.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/DATABASE_SCHEMA_REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/DATABASE_SETUP.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/ENGLISH_PLATFORM_INTEGRATION.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/ENVIRONMENT_VARIABLES.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/ERROR_FILE_REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/LIVE_DEPLOYMENT_REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/MISSING_FILE_REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/MODIFIED_FILE_REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/REMOVED_FILE_REPORT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/ROLLBACK_GUIDE.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/ROUTE_INVENTORY.json",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/SECURITY_AUDIT.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/SMTP_SETUP.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deliverables/TEST_RESULTS.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deploy/operations-guide.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/deployment.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/disaster-recovery.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/environment.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study-catalogue-baseline.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/acceptance-test-results.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/alaminn-info-portal-specification.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/application-crm-workflow.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/architecture-and-platform-ownership.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/bangladesh-study-pathway.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/global-english-test-requirements.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/global-university-source-register.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/human-review-and-secure-delivery.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/priority-27-universities.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/proposal-builder.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/security-and-privacy.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/sop-builder.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/source-verification-workflow.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/supervisor-discovery.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/higher-study/uk-mphil-phd-discovery.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/screenshots/01-home.png",
+      "type": "docs"
+    },
+    {
+      "path": "docs/screenshots/02-higher-study.png",
+      "type": "docs"
+    },
+    {
+      "path": "docs/screenshots/03-oxford.png",
+      "type": "docs"
+    },
+    {
+      "path": "docs/screenshots/04-english-learning.png",
+      "type": "docs"
+    },
+    {
+      "path": "docs/screenshots/05-el-course.png",
+      "type": "docs"
+    },
+    {
+      "path": "docs/screenshots/06-chevening.png",
+      "type": "docs"
+    },
+    {
+      "path": "docs/screenshots/07-el-tutors.png",
+      "type": "docs"
+    },
+    {
+      "path": "docs/security-report.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/security.md",
+      "type": "docs"
+    },
+    {
+      "path": "docs/social-command-center.md",
+      "type": "docs"
+    },
+    {
+      "path": "ecosystem.config.cjs",
+      "type": "other"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "type": "other"
+    },
+    {
+      "path": "examples/websocket/frontend.tsx",
+      "type": "other"
+    },
+    {
+      "path": "examples/websocket/server.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/.gitkeep",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/_shared/bun-shim.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/_shared/db-shim.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/ai-worker/index.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/ai-worker/package.json",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/audit-worker/README.md",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/audit-worker/index.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/audit-worker/package.json",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/email-worker/README.md",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/email-worker/index.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/email-worker/package.json",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/health-monitor/README.md",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/health-monitor/index.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/health-monitor/package.json",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/README.md",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/bun.lock",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/index.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/package.json",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/adapters/builtin-messaging.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/adapters/console-socket.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/adapters/moderation-basic.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/adapters/registry.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/adapters/telephony-none.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/adapters/types.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/config.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/db.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/lib/access.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/lib/ai-agent.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/lib/compliance.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/lib/engine.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/lib/mentions.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/lib/realtime.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/lib/routes.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/lib/scheduler.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/messaging-channel/src/lib/translate.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/notification-service/README.md",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/notification-service/index.ts",
+      "type": "other"
+    },
+    {
+      "path": "mini-services/notification-service/package.json",
+      "type": "other"
+    },
+    {
+      "path": "next-env.d.ts",
+      "type": "other"
+    },
+    {
+      "path": "next.config.ts",
+      "type": "other"
+    },
+    {
+      "path": "package-lock.json",
+      "type": "other"
+    },
+    {
+      "path": "package.json",
+      "type": "other"
+    },
+    {
+      "path": "postcss.config.mjs",
+      "type": "other"
+    },
+    {
+      "path": "prisma.config.mysql.ts",
+      "type": "other"
+    },
+    {
+      "path": "prisma.config.ts",
+      "type": "other"
+    },
+    {
+      "path": "prisma.release.config.mjs",
+      "type": "other"
+    },
+    {
+      "path": "prisma/migrations/00000000000000_mysql_initial/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/README.md",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/mysql/00000000000000_initial/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/mysql/20261102000000_integrated_feature_kits/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/mysql/20261102020000_agentos_foundation/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/mysql/20261111120000_uci_staff_messaging_uc/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/mysql/20261119020000_uci_review_version/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/mysql/20261119030000_staff_reset_attempts/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/mysql/20261124000000_inbox_cms_chat/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/mysql/migration_lock.toml",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/00000000000000_initial/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/20261019000000_social_command_center/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/20261020000000_higher_study_monitoring/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/20261102000000_integrated_feature_kits/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/20261102010000_schema_alignment/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/20261102020000_agentos_foundation/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/20261119010000_uci_staff_messaging_uc/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/20261119020000_uci_review_version/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/20261119030000_staff_reset_attempts/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/20261124000000_inbox_cms_chat/migration.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/migrations/sqlite/migration_lock.toml",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/rls/postgres-rls.sql",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/schema.mysql.prisma",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/seed-countries-extra.ts",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/seed-english-learning.ts",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/seed-higher-study-more.ts",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/seed-higher-study.ts",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/seed-verified-universities.ts",
+      "type": "prisma"
+    },
+    {
+      "path": "prisma/seed.ts",
+      "type": "prisma"
+    },
+    {
+      "path": "public/.htaccess",
+      "type": "public"
+    },
+    {
+      "path": "public/brand/portrait-lifestyle.avif",
+      "type": "public"
+    },
+    {
+      "path": "public/brand/portrait-lifestyle.jpg",
+      "type": "public"
+    },
+    {
+      "path": "public/brand/portrait-lifestyle.webp",
+      "type": "public"
+    },
+    {
+      "path": "public/brand/portrait.avif",
+      "type": "public"
+    },
+    {
+      "path": "public/brand/portrait.jpg",
+      "type": "public"
+    },
+    {
+      "path": "public/brand/portrait.png",
+      "type": "public"
+    },
+    {
+      "path": "public/brand/portrait.webp",
+      "type": "public"
+    },
+    {
+      "path": "public/favicon.svg",
+      "type": "public"
+    },
+    {
+      "path": "public/gallery/campus-hero.jpg",
+      "type": "public"
+    },
+    {
+      "path": "public/gallery/dashboard.png",
+      "type": "public"
+    },
+    {
+      "path": "public/gallery/event-photo.jpg",
+      "type": "public"
+    },
+    {
+      "path": "public/gallery/professional-lifestyle.jpg",
+      "type": "public"
+    },
+    {
+      "path": "public/gallery/professional-portrait.jpg",
+      "type": "public"
+    },
+    {
+      "path": "public/gallery/workspace-desk.jpg",
+      "type": "public"
+    },
+    {
+      "path": "public/gallery/workspace-meeting.jpg",
+      "type": "public"
+    },
+    {
+      "path": "public/logo.svg",
+      "type": "public"
+    },
+    {
+      "path": "public/sw.js",
+      "type": "public"
+    },
+    {
+      "path": "remote-setup.sh",
+      "type": "other"
+    },
+    {
+      "path": "scripts/agentos-discovery.mjs",
+      "type": "script"
+    },
+    {
+      "path": "scripts/agentos-worker.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/apply-sqlite-migrations.mjs",
+      "type": "script"
+    },
+    {
+      "path": "scripts/approve-uci-source.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/audit-site.js",
+      "type": "script"
+    },
+    {
+      "path": "scripts/audit/alo_audit.json",
+      "type": "script"
+    },
+    {
+      "path": "scripts/audit/alo_dataset.json",
+      "type": "script"
+    },
+    {
+      "path": "scripts/audit_existing_data.py",
+      "type": "script"
+    },
+    {
+      "path": "scripts/backup-retention.mjs",
+      "type": "script"
+    },
+    {
+      "path": "scripts/backup-sqlite.mjs",
+      "type": "script"
+    },
+    {
+      "path": "scripts/backup.sh",
+      "type": "script"
+    },
+    {
+      "path": "scripts/bootstrap-staff.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/check-env.mjs",
+      "type": "script"
+    },
+    {
+      "path": "scripts/database-catalog.mjs",
+      "type": "script"
+    },
+    {
+      "path": "scripts/deploy-cyberpanel.sh",
+      "type": "script"
+    },
+    {
+      "path": "scripts/extract_alo_dataset.py",
+      "type": "script"
+    },
+    {
+      "path": "scripts/generate-blur-placeholders.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/generate-modern-images.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/install-server.sh",
+      "type": "script"
+    },
+    {
+      "path": "scripts/link-messaging-staff.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/prisma-generate.mjs",
+      "type": "script"
+    },
+    {
+      "path": "scripts/release-backup.mjs",
+      "type": "script"
+    },
+    {
+      "path": "scripts/reset_test_auth.py",
+      "type": "script"
+    },
+    {
+      "path": "scripts/restore-db.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/restore.sh",
+      "type": "script"
+    },
+    {
+      "path": "scripts/security-tests.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/seed-admin.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/seed-higher-study-run.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/seed_uci.ts",
+      "type": "script"
+    },
+    {
+      "path": "scripts/verify-backup.sh",
+      "type": "script"
+    },
+    {
+      "path": "scripts/verify-production.sh",
+      "type": "script"
+    },
+    {
+      "path": "server-ai-service.ts",
+      "type": "other"
+    },
+    {
+      "path": "server.js",
+      "type": "other"
+    },
+    {
+      "path": "src/app/about/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/ai-agents/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/ai-assistant/humanizer/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/ai-assistant/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/ai-chat/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/ai-providers/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/analytics-dashboard/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/analytics/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/approvals/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/articles/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/audit-logs/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/case-studies/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/cms/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/communication-controls/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/companies/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/contacts/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/crm/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/diagrams/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/documents/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/email-builder/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/email/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/endorsements/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/english-learning/courses/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/english-learning/lessons/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/english-learning/practice-tests/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/english-learning/questions/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/english-learning/resources/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/english-learning/tutors/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/error.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/admin/forgot-password/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/cities/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/countries/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/courses/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/events/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/intakes/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/monitoring/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/research-areas/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/research-projects/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/resources/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/scholarships/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/student-stories/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/subjects/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/supervisors/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/higher-study/universities/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/inbox/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/inquiries/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/integrations/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/layout.tsx",
+      "type": "layout"
+    },
+    {
+      "path": "src/app/admin/live-chat/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/loading.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/admin/login/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/marketing/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/media/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/meetings/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/newsletter/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/notes/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/notifications/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/opportunities/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/projects/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/reset-password/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/roles/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/seo-dashboard/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/seo/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/settings/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/sms/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/social-scheduler/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/social/accounts/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/social/approvals/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/social/content/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/social/inbox/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/social/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/social/personality/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/social/rules/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/tasks/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/uci/layout.tsx",
+      "type": "layout"
+    },
+    {
+      "path": "src/app/admin/uci/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/users/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/video-studio/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/admin/whatsapp-ai/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/api/auth/login/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/auth/logout/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/auth/me/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/auth/password-reset/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/auth/register/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/audit-log-prune/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/backup/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/data-verification/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/email-queue/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/health-monitor/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/higher-study-monitor/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/notification-queue/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/phd-deadlines/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/referral-retry/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/scholarship-deadlines/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/session-cleanup/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/sitemap-generate/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/social-publish/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/cron/temp-cleanup/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/health/deep/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/health/ready/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/health/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/readiness/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/settings/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/staff/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/staff/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/admin/action/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/admin/quality/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/admin/queue/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/audit/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/export/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/import/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/institutions/name/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/institutions/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/jobs/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/programmes/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/sources/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/uci/stats/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/umc/[...path]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-agent/chat/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-agent/providers/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-agent/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-agent/tools/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-chat/conversations/[id]/messages/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-chat/conversations/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-chat/conversations/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-provider/ollama-cloud/agent-model/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-provider/ollama-cloud/health/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-provider/ollama-cloud/models/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-provider/ollama-cloud/usage/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-tasks/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/ai-tasks/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/analytics-dashboard/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/analytics/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/approvals/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/approvals/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/articles/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/articles/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/audit-logs/export/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/audit-logs/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/case-studies/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/case-studies/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/cms/entries/[id]/preview/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/cms/entries/[id]/revisions/[revisionId]/restore/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/cms/entries/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/cms/entries/[id]/status/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/cms/entries/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/command-center/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/communication-controls/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/companies/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/companies/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/contacts/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/contacts/export/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/contacts/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/crm/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/crm/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/dashboard/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/documents/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/documents/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/email-builder/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/email-builder/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/endorsements/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/inbox/attachments/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/inbox/attachments/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/inbox/conversations/[id]/messages/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/inbox/conversations/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/inbox/conversations/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/inquiries/export/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/inquiries/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/integrations/[id]/test/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/integrations/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/kits/documents/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/kits/documents/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/kits/generate/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/live-chat/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/live-chat/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/marketing/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/marketing/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/media/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/media/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/meetings/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/meetings/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/newsletter/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/newsletter/export/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/newsletter/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/notes/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/notes/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/notifications/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/notifications/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/opportunities/export/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/opportunities/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/projects/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/projects/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/seo-dashboard/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/seo/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/settings/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/settings/test-email/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social-scheduler/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social-scheduler/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/accounts/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/accounts/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/approvals/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/approvals/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/automation/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/content/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/content/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/inbox/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/inbox/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/knowledge/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/personality/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/personality/test/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/publishing/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/social/rules/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/tasks/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/tasks/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/uploads/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/users/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/admin/users/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/ai/approvals/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/ai/tasks/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/analytics/track/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/auth/forgot-password/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/auth/login/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/auth/logout/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/auth/reset-password/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/auth/session/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/email/send/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/_configs.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/audit-logs/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/courses/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/courses/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/dashboard/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/lessons/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/lessons/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/practice-tests/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/practice-tests/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/questions/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/questions/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/referrals/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/resources/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/resources/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/tutors/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/admin/tutors/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/courses/[slug]/lessons/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/courses/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/courses/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/enroll/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/health/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/lessons/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/practice-tests/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/practice-tests/[slug]/submit/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/practice-tests/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/progress/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/referral/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/resources/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/resources/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/tutors/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/english-learning/tutors/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/_lib/caller.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/audit-logs/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/cities/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/cities/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/countries/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/countries/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/courses/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/courses/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/dashboard/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/events/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/events/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/import/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/import/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/intakes/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/intakes/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/monitoring/changes/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/monitoring/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/priority-27/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/referrals/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/research-areas/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/research-areas/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/research/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/research/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/resources/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/resources/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/scholarships/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/scholarships/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/student-stories/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/student-stories/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/subjects/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/subjects/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/supervisors/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/supervisors/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/universities/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/admin/universities/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/advisor/chat/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/ai-services/documents/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/ai-services/documents/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/ai-services/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/alerts/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/alerts/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/compare/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/consultation/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/courses/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/courses/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/destinations/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/destinations/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/eligibility-check/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/events/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/health/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/intakes/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/knowledge-search/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/proposal/review/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/proposal/review/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/proposal/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/referral/[code]/confirm/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/referral/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/research/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/research/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/resources/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/resources/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/saved/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/saved/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/scholarships/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/scholarships/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/sop/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/student-stories/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/subjects/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/supervisors/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/supervisors/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/universities/[slug]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/higher-study/universities/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/inquiries/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/meetings/admin/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/meetings/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/newsletter/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/newsletter/unsubscribe/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/newsletter/verify/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/public/articles/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/public/projects/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/sms/send/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/social/webhooks/[platform]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/support/[id]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/support/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/webhooks/inbox/[channel]/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/whatsapp/admin/stats/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/whatsapp/chat/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/whatsapp/send/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/whatsapp/status/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/api/v1/whatsapp/webhook/route.ts",
+      "type": "api-route"
+    },
+    {
+      "path": "src/app/apple-icon.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/articles/[slug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/articles/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/case-studies/[slug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/case-studies/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/console/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/contact/contact-form.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/contact/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/content/[slug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/dashboard/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/ecosystem/alo-education/directory/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/ecosystem/alo-education/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/ecosystem/alo-labs/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/ecosystem/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/ecosystem/tech360/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/apply/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/book-consultation/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/book-tutor/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/courses/[slug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/courses/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/eligibility-check/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/error.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/english-learning/layout.tsx",
+      "type": "layout"
+    },
+    {
+      "path": "src/app/english-learning/loading.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/english-learning/not-found.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/english-learning/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/practice-tests/[slug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/practice-tests/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/progress/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/resources/[slug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/resources/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/tutors/[slug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/english-learning/tutors/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/error.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/expertise/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/global-error.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/globals.css",
+      "type": "other"
+    },
+    {
+      "path": "src/app/higher-study/_lib/detail-helpers.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/higher-study/_lib/markdown-renderer.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/higher-study/_lib/search-params.ts",
+      "type": "other"
+    },
+    {
+      "path": "src/app/higher-study/ai-services/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/application-guide/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/apply/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/book-consultation/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/compare/_lib/compare-helpers.ts",
+      "type": "other"
+    },
+    {
+      "path": "src/app/higher-study/compare/courses/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/compare/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/compare/scholarships/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/compare/universities/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/course-finder/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/courses/[courseSlug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/courses/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/destinations/[countrySlug]/[citySlug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/destinations/[countrySlug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/destinations/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/eligibility-check/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/error.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/higher-study/global-universities/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/intakes/[intakeSlug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/intakes/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/layout.tsx",
+      "type": "layout"
+    },
+    {
+      "path": "src/app/higher-study/loading.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/higher-study/not-found.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/higher-study/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/phd-research/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/proposal-builder/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/research/[researchSlug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/research/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/resources/[resourceSlug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/resources/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/saved/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/scholarships/[scholarshipSlug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/scholarships/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/sop-builder/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/study-resources/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/subjects/[subjectSlug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/subjects/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/supervisors/[supervisorSlug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/supervisors/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/uk-universities/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/universities/[universitySlug]/courses/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/universities/[universitySlug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/universities/[universitySlug]/research/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/universities/[universitySlug]/scholarships/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/universities/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/higher-study/universities/uk/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/icon.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/impact/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/insights/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "type": "layout"
+    },
+    {
+      "path": "src/app/legal/privacy/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/legal/terms/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/loading.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/login/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/manifest.ts",
+      "type": "other"
+    },
+    {
+      "path": "src/app/media/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/newsletter/unsubscribe/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/not-found.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/projects/[slug]/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/projects/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/reports/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/robots.ts",
+      "type": "other"
+    },
+    {
+      "path": "src/app/settings/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/sitemap.ts",
+      "type": "other"
+    },
+    {
+      "path": "src/app/work-with-me/contact-form.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/app/work-with-me/page.tsx",
+      "type": "page"
+    },
+    {
+      "path": "src/app/work-with-me/schedule-button.tsx",
+      "type": "other"
+    },
+    {
+      "path": "src/components/admin/admin-shell.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/command-center-overview.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/crud-list.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/dashboard-ai-agent.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/analytics.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/chat.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/crm.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/diagrams.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/email-campaign.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/email.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/humanizer.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/integrations.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/launchpad.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/library.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/marketing.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/seo.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/shared.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/sms.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/social.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/kits/video.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/lib.ts",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/page-primitives.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/resource-dialog.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/admin/upload-button.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/apply-cta.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/breadcrumb.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/course-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/course-filters.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/eligibility-quiz.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/empty-state.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/english-test-runner.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/home-hero-search.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/lesson-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/loading-skeleton.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/newsletter-subscribe.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/pagination-client.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/practice-test-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/progress-dashboard.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/referral-cta.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/resource-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/test-filters.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/tutor-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/english-learning/tutor-filters.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/ai-services-client.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/apply-cta.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/breadcrumb.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/compare-actions.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/compare-button.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/comparison-table.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/consultation-form.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/course-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/eligibility-checker-form.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/empty-state.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/filter-panel.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/higher-study-explorer.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/higher-study-navbar.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/higher-study-shell.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/home-hero-search.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/home-newsletter-subscribe.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/list-page-controls.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/loading-skeleton.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/page-hero.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/pagination-client.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/research-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/resource-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/save-button.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/saved-items-client.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/scholarship-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/search-bar.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/supervisor-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/tabs-client.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/university-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/higher-study/verification-badge.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/analytics-init.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/brand-icons.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/command-center-bridge.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/command-center.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/constellation.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/detail-modal.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/footer.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/json-ld.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/legal-modals.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/lightbox.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/live-support-widget.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/navbar.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/public-chrome.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/pwa/register-sw.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/schedule-meeting-modal.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/scroll-utilities.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/search-palette.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/ai-advisor.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/alo-labs.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/audience-pathways.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/case-studies.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/contact-finale.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/contact-profile-social.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/destination-experience.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/ecosystem.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/editorial-hero.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/executive-intro.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/expertise.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/faq.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/find-your-path.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/hero.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/impact.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/insights.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/journey-timeline.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/latest-updates.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/linkedin-recommendations.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/my-work.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/newsletter.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/photo-gallery.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/profile.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/resources.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/section-primitives.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/services-story.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/skills-radar.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/social-hub.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/statistics-story.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/verification.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/work-system.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/sections/work-with-me.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/site-chrome.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/stats-ticker.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/theme-toggle.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/whatsapp/whatsapp-button.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/site/whatsapp/whatsapp-chat-widget.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/social/automation-switch.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/staff/StaffManager.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/uci/AdminView.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/uci/AuditView.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/uci/DirectoryView.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/uci/ProgrammeView.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/uci/SourcesView.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/uci/shared.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/accordion.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/alert-dialog.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/alert.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/aspect-ratio.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/avatar.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/badge.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/breadcrumb.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/button.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/calendar.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/carousel.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/chart.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/checkbox.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/collapsible.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/command.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/context-menu.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/dialog.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/drawer.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/dropdown-menu.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/form.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/hover-card.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/input-otp.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/input.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/label.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/menubar.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/navigation-menu.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/pagination.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/popover.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/progress.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/radio-group.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/resizable.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/scroll-area.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/select.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/separator.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/sheet.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/sidebar.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/skeleton.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/slider.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/sonner.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/switch.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/table.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/tabs.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/textarea.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/toast.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/toaster.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/toggle-group.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/toggle.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/components/ui/tooltip.tsx",
+      "type": "component"
+    },
+    {
+      "path": "src/fonts/LICENSE-DMSerifDisplay-OFL.txt",
+      "type": "other"
+    },
+    {
+      "path": "src/fonts/LICENSE-Inter-OFL.txt",
+      "type": "other"
+    },
+    {
+      "path": "src/fonts/LICENSE-Manrope-OFL.txt",
+      "type": "other"
+    },
+    {
+      "path": "src/fonts/dm-serif-display-latin-400-normal.woff2",
+      "type": "other"
+    },
+    {
+      "path": "src/fonts/inter-latin-wght-normal.woff2",
+      "type": "other"
+    },
+    {
+      "path": "src/fonts/manrope-latin-wght-normal.woff2",
+      "type": "other"
+    },
+    {
+      "path": "src/hooks/use-count-up.ts",
+      "type": "other"
+    },
+    {
+      "path": "src/hooks/use-mobile.ts",
+      "type": "other"
+    },
+    {
+      "path": "src/hooks/use-toast.ts",
+      "type": "other"
+    },
+    {
+      "path": "src/instrumentation.ts",
+      "type": "other"
+    },
+    {
+      "path": "src/lib/admin-api-server.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/admin-api.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/agentos/foundation.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/api-gateway.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/chat-providers.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/dashboard-agents.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/free-providers.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/free-router.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/free-tools.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/inference-engine.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/knowledge-retrieval.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/model-registry.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/ollama-cloud.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/ai/workflow-executor.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/analytics.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/auth.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/auth/jwt.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/auth/password.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/auth/rate-limit.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/auth/ratelimit.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/auth/rbac.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/auth/secret.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/auth/session.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/auth/staff-token-session.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/auth/token.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/blur-placeholders.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/cms/revisions.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/cms/state.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/command-center/metrics.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/cron-auth.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/csv.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/database-url.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/db.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/email/index.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/email/layout.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/email/providers.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/email/queue.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/email/router.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/email/sender.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/email/templates.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/email/transport.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/endorsements-server.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/endorsements.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/english-learning/admin-factory.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/english-learning/admin-helpers.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/english-learning/api-helpers.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/english-learning/constants.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/english-learning/integration.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/english-learning/rate-limit.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/english-learning/seo.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/english-learning/types.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/env.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/admin-factory.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/admin-helpers.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/ai-services-documents.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/ai-services-rate-limit.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/ai-services.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/api-helpers.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/constants.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/english-test-engine.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/integration.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/monitoring/engine.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/monitoring/runner.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/rate-limit.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/seo.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/higher-study/types.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/inbox/adapters.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/inbox/attachment-storage.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/inbox/contacts.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/inbox/ingest.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/inbox/outbound.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/integrations/connectors.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/integrations/registry.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/integrations/store.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/json-ld.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/kits/ai.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/kits/api.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/kits/catalog.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/kits/contracts.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/kits/email.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/kits/seo.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/kits/social.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/kits/support.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/load-env.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/logger.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/marketing/helpers.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/middleware/audit-logger.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/middleware/auth-middleware.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/middleware/rate-limiter.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/observability.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/prisma-adapter.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/rbac.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/request-context.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/shutdown.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/site-data.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/sms/index.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/sms/providers.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/sms/router.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/sms/sender.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/social/adapters.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/social/classifier.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/social/communication-controls.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/social/crypto.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/social/personality.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/social/pipeline.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/social/policy-server.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/social/policy.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/social/publisher.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/uci/source-fetch.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/uci/verification.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/upload-validation.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/utils.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/utm.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/whatsapp/agent.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/whatsapp/config.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/whatsapp/index.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/whatsapp/intents.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/whatsapp/knowledge.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/whatsapp/leads.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/whatsapp/policy.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/lib/whatsapp/sender.ts",
+      "type": "lib"
+    },
+    {
+      "path": "src/proxy.ts",
+      "type": "other"
+    },
+    {
+      "path": "src/types/express.d.ts",
+      "type": "other"
+    },
+    {
+      "path": "start-prod.sh",
+      "type": "other"
+    },
+    {
+      "path": "storage/.htaccess",
+      "type": "other"
+    },
+    {
+      "path": "storage/exports/.gitkeep",
+      "type": "other"
+    },
+    {
+      "path": "storage/inbox-attachments/.gitkeep",
+      "type": "other"
+    },
+    {
+      "path": "storage/temporary/.gitkeep",
+      "type": "other"
+    },
+    {
+      "path": "storage/uploads/.gitkeep",
+      "type": "other"
+    },
+    {
+      "path": "tailwind.config.ts",
+      "type": "other"
+    },
+    {
+      "path": "tests/README.md",
+      "type": "test"
+    },
+    {
+      "path": "tests/api/admin-auth.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/api/communication-controls.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/api/feature-kits.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/api/health.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/api/higher-study-ai-services.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/api/inquiries.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/api/staff-lifecycle.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/components/feature-kits.test.tsx",
+      "type": "test"
+    },
+    {
+      "path": "tests/fixtures/api-target.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/fixtures/disposable-target.mjs",
+      "type": "test"
+    },
+    {
+      "path": "tests/fixtures/init-sqlite.mjs",
+      "type": "test"
+    },
+    {
+      "path": "tests/fixtures/run-api.mjs",
+      "type": "test"
+    },
+    {
+      "path": "tests/integration/auth-password-reset-session.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/integration/critical-route-families.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/integration/cron-session-cleanup.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/integration/english-learning-progress.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/integration/higher-study-security.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/integration/messaging.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/integration/proxy-auth-rbac.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/integration/staff-bootstrap.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/integration/whatsapp-account-send.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/integration/whatsapp-webhook-security.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/auth.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/bounded-rate-limit.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/command-center-metrics.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/communication-controls.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/email-templates.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/endorsements.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/env.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/feature-kits.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/higher-study-ai-services.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/integrations.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/kit-workers.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/load-env.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/phase1-auth.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/proxy-csp.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/rbac.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/stage-inbox-cms.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/lib/stage-inbox-integrations.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/migrations/client-parity-mysql.mjs",
+      "type": "test"
+    },
+    {
+      "path": "tests/migrations/client-parity.mjs",
+      "type": "test"
+    },
+    {
+      "path": "tests/migrations/mariadb-persistence.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/migrations/sqlite-recovery.mjs",
+      "type": "test"
+    },
+    {
+      "path": "tests/migrations/sqlite_replay.py",
+      "type": "test"
+    },
+    {
+      "path": "tests/run_all.mjs",
+      "type": "test"
+    },
+    {
+      "path": "tests/setup.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/agentos-foundation.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/ai-gateway.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/ai/inference-engine.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/ai/knowledge-retrieval.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/ai/marketing-helpers.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/ai/ollama-cloud.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/backup-retention.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/browser-console-regressions.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/concurrent-db-ops.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/concurrent-write-safety.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/connection-leak.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/database-url.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/db-unavailability.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/deploy/provisioning-security.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/deploy/release-ci-guard.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/deploy/workflow-tests.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/disposable-target.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/free-ai-agents.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/health-check.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/higher-study-monitoring.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/higher-study/english-test-engine.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/json-ld-xss.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/mysql-schema-compatibility.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/reconnection-recovery.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/schema-parity.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/slow-query-analysis.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/social-policy.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/stage-inbox-cms-chat-api.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/uci-source-fetch.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/upload-validation.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/utm.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/whatsapp-account-sender.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/whatsapp-policy.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tests/unit/whatsapp-webhook-events.test.ts",
+      "type": "test"
+    },
+    {
+      "path": "tsconfig.json",
+      "type": "other"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "type": "other"
+    },
+    {
+      "path": "vitest.config.ts",
+      "type": "other"
+    },
+    {
+      "path": "worklog.md",
+      "type": "other"
+    },
+    {
+      "path": "zip-exclude.txt",
+      "type": "other"
+    }
+  ]
+}
