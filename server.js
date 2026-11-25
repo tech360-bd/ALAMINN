@@ -4,21 +4,24 @@
  * This file is the "Application startup file" for cPanel's "Setup Node.js App"
  * UI and also works as a plain `node server.js` entry on a VPS.
  *
- * It does five things:
- *   1. Loads .env from the app root (so secrets stay OUTSIDE public_html).
- *      Next.js standalone does NOT auto-load .env, so we parse it manually
- *      here — no dotenv dependency needed.
+ * It does:
+ *   1. Loads environment configuration with the SAME precedence as the
+ *      Next.js app (src/lib/load-env.ts): process env > .env.config.local >
+ *      .env.config > legacy .env.local/.env fallback. Uses dotenv.parse in
+ *      no-expansion mode so `$` in secrets is preserved byte-for-byte.
  *   2. Ensures NODE_ENV=production is set.
  *   3. Validates that the standalone build exists.
  *   4. Installs graceful shutdown handlers (SIGTERM, SIGINT) for clean exits
  *      under systemd / PM2 / Docker / cPanel Passenger.
- *   5. Requires and boots the Next.js standalone server at
- *      `.next/standalone/server.js`.
+ *   5. Boots the Next.js standalone server at `.next/standalone/server.js`.
+ *
+ * Canonical env file: .env.config (see .env.config.example).
+ * Legacy .env is supported only as a fallback with a deprecation warning.
  *
  * cPanel setup:
- *   Application root:          /home/aloeduca/alaminn.info
+ *   Application root:          /home/<user>/alaminn.info
  *   Application startup file:  server.js
- *   .env location:             /home/aloeduca/alaminn.info/.env  (secure)
+ *   .env.config location:      /home/<user>/alaminn.info/.env.config  (secure)
  *
  * VPS / standalone:
  *   NODE_ENV=production node server.js
@@ -29,64 +32,120 @@ process.env.NODE_ENV = process.env.NODE_ENV || "production";
 
 const path = require("path");
 const fs = require("fs");
+const { parse } = require("dotenv");
 
-// ── 1. Load .env from the app root (if present) ────────────────────────────
-const envPath = path.join(__dirname, ".env");
-if (fs.existsSync(envPath)) {
-  const raw = fs.readFileSync(envPath, "utf8");
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let val = trimmed.slice(eq + 1).trim();
-    if (
-      (val.startsWith('"') && val.endsWith('"')) ||
-      (val.startsWith("'") && val.endsWith("'"))
-    ) {
-      val = val.slice(1, -1);
+// ── 1. Load env with canonical precedence (no $ expansion) ──────────────────
+const CANONICAL_FILES = [".env.config.local", ".env.config"];
+const LEGACY_FILES = [".env.local", ".env"];
+const canonicalPresent = CANONICAL_FILES.some((file) =>
+  fs.existsSync(path.join(__dirname, file))
+);
+const envFiles = canonicalPresent
+  ? CANONICAL_FILES
+  : [...CANONICAL_FILES, ...LEGACY_FILES];
+const legacyLoaded = [];
+
+for (const file of envFiles) {
+  const envPath = path.join(__dirname, file);
+  if (!fs.existsSync(envPath)) continue;
+  try {
+    const parsed = parse(fs.readFileSync(envPath));
+    for (const [key, value] of Object.entries(parsed)) {
+      if (process.env[key] === undefined) process.env[key] = value;
     }
-    // Don't override vars already set by the environment (cPanel UI wins)
-    if (process.env[key] === undefined) {
-      process.env[key] = val;
-    }
+    if (LEGACY_FILES.includes(file)) legacyLoaded.push(file);
+  } catch (err) {
+    console.warn(
+      `[alaminn.info] could not read ${file}:`,
+      err && err.message ? err.message : err
+    );
   }
 }
 
-// ── 2. Locate the Next.js standalone server ────────────────────────────────
-const standalonePath = path.join(__dirname, ".next", "standalone", "server.js");
+if (legacyLoaded.length > 0) {
+  console.warn(
+    `[alaminn.info] DEPRECATED: loaded legacy env file(s): ${legacyLoaded.join(", ")}. ` +
+      "Migrate to .env.config / .env.config.local (no $ expansion)."
+  );
+}
 
-if (!fs.existsSync(standalonePath)) {
+// ── 1b. Production runtime configuration validation (fail fast, no secrets) ─
+function validateRuntimeEnv() {
+  if (process.env.NODE_ENV !== "production") return;
+  const errors = [];
+  const warnings = [];
+
+  const jwt = process.env.JWT_SECRET || process.env.AUTH_SECRET || "";
+  if (Buffer.byteLength(jwt, "utf8") < 32) {
+    errors.push(
+      "JWT_SECRET (or AUTH_SECRET) must be set to a random value of at least 32 bytes."
+    );
+  }
+
+  const session = process.env.SESSION_SECRET || "";
+  if (session && Buffer.byteLength(session, "utf8") < 32) {
+    errors.push("SESSION_SECRET is set but must be at least 32 bytes when provided.");
+  } else if (!session) {
+    warnings.push(
+      "SESSION_SECRET is not set; staff session routes will fail closed in production."
+    );
+  }
+
+  if (!process.env.CRON_SECRET) {
+    warnings.push("CRON_SECRET is not set; scheduled cron endpoints will reject requests.");
+  }
+
+  if (!process.env.DATABASE_URL) {
+    warnings.push("DATABASE_URL is not set; runtime will use its configured default/fail-fast behavior.");
+  }
+
+  for (const w of warnings) console.warn(`[alaminn.info] CONFIG WARNING: ${w}`);
+  if (errors.length > 0) {
+    for (const e of errors) console.error(`[alaminn.info] CONFIG ERROR: ${e}`);
+    console.error(
+      "[alaminn.info] Refusing to start with unsafe production configuration. " +
+        "Set required secrets in .env.config or deployment environment."
+    );
+    process.exit(1);
+  }
+}
+validateRuntimeEnv();
+
+// ── 2. Locate the Next.js standalone server ────────────────────────────────
+const standaloneCandidates = [
+  path.join(__dirname, "server.standalone.js"), // Docker runtime wrapper layout
+  path.join(__dirname, ".next", "standalone", "server.js"), // local/VPS standalone build
+];
+const standalonePath = standaloneCandidates.find((p) => fs.existsSync(p));
+
+if (!standalonePath) {
   console.error(
-    "[alaminn.info] FATAL: .next/standalone/server.js not found.\n" +
-      "Run `npm install` then `npm run build` before starting the app.\n" +
-      "If you're on cPanel, use the Terminal to run the build commands in the app root."
+    "[alaminn.info] FATAL: Next.js standalone server not found. Checked:\n" +
+      standaloneCandidates.map((p) => `  - ${p}`).join("\n") +
+      "\nRun `npm install` then `npm run build` before starting the app."
   );
   process.exit(1);
 }
 
 // ── 3. Graceful shutdown handlers ──────────────────────────────────────────
-// Under systemd (SIGTERM), PM2 (SIGINT), Docker (SIGTERM), or cPanel Passenger
-// reloads, we give the Next.js server 10 seconds to finish in-flight requests
-// before forcing exit. The standalone server exposes `process` signals natively
-// but we add a safety net so the process never hangs.
+// The standalone Next.js server registers its own signal handlers. We add a
+// bounded safety-net exit so the process cannot hang forever if shutdown stalls.
+// We intentionally do NOT force-exit immediately; the timeout is a last resort.
 let shuttingDown = false;
 function gracefulShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`[alaminn.info] Received ${signal}, shutting down gracefully...`);
-  // Give Next.js 10s to drain in-flight requests, then force exit.
-  setTimeout(() => {
-    console.log("[alaminn.info] Forcing exit after timeout.");
-    process.exit(0);
+  const timeout = setTimeout(() => {
+    console.error("[alaminn.info] Forcing exit after graceful-shutdown timeout.");
+    process.exit(1);
   }, 10000);
+  // Allow the process to exit naturally if all handles close before timeout.
+  if (typeof timeout.unref === "function") timeout.unref();
 }
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-process.on("SIGHUP", () => gracefulShutdown("SIGHUP"));
 
 // ── 4. Hand off to the Next.js standalone server ───────────────────────────
 // Next.js standalone reads process.env.PORT and process.env.HOSTNAME.
-// cPanel/Passenger sets PORT automatically; on a VPS, set PORT=3000.
 require(standalonePath);

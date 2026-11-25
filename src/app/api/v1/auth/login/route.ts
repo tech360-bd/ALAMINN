@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth";
 import { normalizeRole, ALL_ROLES } from "@/lib/rbac";
 import { createHash } from "crypto";
+import { BoundedRateLimitMap } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,9 @@ function fail(message: string, errors: unknown[] = [], status = 400) {
 }
 
 // ─── Rate limiting (per IP hash) ────────────────────────────────────────
-const loginAttempts = new Map<string, { count: number; reset: number; locked: boolean; lockUntil: number }>();
+// Process-local, bounded map. Multi-instance deployments should enforce
+// limits in a shared store; this provides defense-in-depth and memory bounds.
+const loginAttempts = new BoundedRateLimitMap(5000);
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60_000; // 15 min
 const LOCK_MS = 15 * 60_000; // 15 min lockout after 5 fails
@@ -52,7 +55,7 @@ export async function POST(req: NextRequest) {
     const entry = loginAttempts.get(hash);
 
     // Enforce lockout
-    if (entry?.locked && now < entry.lockUntil) {
+    if (entry?.locked && typeof entry.lockUntil === "number" && now < entry.lockUntil) {
       const minsLeft = Math.ceil((entry.lockUntil - now) / 60_000);
       return fail(
         `Too many failed attempts. Try again in ${minsLeft} minute(s).`,

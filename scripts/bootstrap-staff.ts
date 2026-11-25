@@ -26,9 +26,12 @@ async function main() {
       });
       break;
     } catch (error) {
-      const transient = error instanceof Error && /database is locked|SQLITE_BUSY|deadlock|write conflict/i.test(error.message);
-      if (!transient || attempt === 4) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 30 * (attempt + 1)));
+      const message = error instanceof Error ? error.message : String(error);
+      const alreadyProvisioned = /Staff already provisioned/i.test(message);
+      if (alreadyProvisioned) throw error;
+      const transient = /database is locked|SQLITE_BUSY|SQLITE_LOCKED|SQLITE_BUSY_SNAPSHOT|deadlock|write conflict|cannot start a transaction/i.test(message);
+      if (!transient || attempt >= 7) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
     }
   }
   console.log("Initial staff administrator provisioned.");

@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  reactStrictMode: true,
   allowedDevOrigins: ["*.e2b.app", "*.space-z.ai", "127.0.0.1", "localhost", "21.0.4.174"],
   // Tree-shake and optimize large icon/utility libraries so only the
   // icons actually used end up in the client bundle.

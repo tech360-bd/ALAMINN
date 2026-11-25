@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { createHash } from "crypto";
+import { BoundedRateLimitMap } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ function ipHash(req: NextRequest): string {
 // Cap reset attempts to 10 per 15 minutes per IP. Prevents brute-force
 // token guessing (32 hex chars — already infeasible, but rate-limiting
 // is defense-in-depth) and audit-log flooding.
-const resetAttempts = new Map<string, { count: number; reset: number }>();
+const resetAttempts = new BoundedRateLimitMap(5000);
 const RESET_LIMIT = 10;
 const RESET_WINDOW_MS = 15 * 60_000;
 

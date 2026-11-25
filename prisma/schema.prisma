@@ -13,7 +13,7 @@ datasource db {
 // ─── Identity & Auth ──────────────────────────────────────────────
 model User {
   id                     String       @id @default(cuid())
-  email                  String       @unique @default("")
+  email                  String       @unique
   name                   String       @default("")
   role                   String       @default("VIEWER") // SUPER_ADMIN | OWNER | EXECUTIVE_ASSISTANT | CRM_MANAGER | PARTNERSHIP_MANAGER | CONTENT_MANAGER | MARKETING_MANAGER | PROJECT_MANAGER | AI_REVIEWER | SECURITY_AUDITOR | VIEWER
   status                 String       @default("active") // active | suspended | inactive
@@ -37,7 +37,7 @@ model User {
 model Contact {
   id               String            @id @default(cuid())
   fullName         String            @default("")
-  email            String            @unique @default("")
+  email            String            @unique
   phone            String?
   whatsapp         String?
   organization     String?
@@ -72,7 +72,7 @@ model Organization {
 // ─── Inquiries & CRM ──────────────────────────────────────────────
 model Inquiry {
   id                 String           @id @default(cuid())
-  reference          String           @unique @default("")
+  reference          String           @unique
   type               String           @default("") // university-partnership | business-consultation | operations-review | sales-strategy | education-advisory | ai-automation | crm-digital | tech-collaboration | personal-branding | speaking | media | student-referral | other
   contactId          String
   contact            Contact          @relation(fields: [contactId], references: [id])

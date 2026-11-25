@@ -87,7 +87,7 @@ export default function SavedItemsPage() {
                 </li>
                 <li>
                   <strong className="font-semibold text-ink-900">Clearing browser data will remove them.</strong>{" "}
-                  Consider signing in for cross-device sync (coming soon).
+                  Saved items are currently stored on this device only.
                 </li>
               </ul>
             </SectionCard>

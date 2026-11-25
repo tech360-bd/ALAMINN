@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { generateToken } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { createHash } from "crypto";
+import { BoundedRateLimitMap } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ function ipHash(req: NextRequest): string {
 // Even though the response is identical whether or not the email exists,
 // rate-limiting prevents an attacker from triggering mass emails or
 // hammering the DB lookup.
-const forgotAttempts = new Map<string, { count: number; reset: number }>();
+const forgotAttempts = new BoundedRateLimitMap(5000);
 const FORGOT_LIMIT = 5;
 const FORGOT_WINDOW_MS = 15 * 60_000;
 

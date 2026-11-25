@@ -44,6 +44,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+# Safe default for containerized SQLite; override via env_file/runtime env.
+ENV DATABASE_URL=file:/app/db/custom.db
 
 # Create a non-root user for security.
 RUN usermod --login nextjs node && groupmod --new-name nextjs node
@@ -53,6 +55,12 @@ COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nextjs /app/public ./public
 COPY --from=builder --chown=nextjs:nextjs /app/prisma ./prisma
+
+# Preserve standalone server and install the canonical runtime wrapper.
+# Docker runs the repo-root server.js for env validation/loading and
+# graceful-shutdown safety net; it hands off to the standalone server.
+RUN mv ./server.js ./server.standalone.js
+COPY --chown=nextjs:nextjs server.js ./server.js
 
 # Create writable dirs for logs/backups.
 RUN mkdir -p storage/logs storage/backups storage/temporary storage/exports db/backups && \

@@ -1,10 +1,21 @@
 # ═══════════════════════════════════════════════════════════════════
 #  Alaminn.info — Docker Compose (production stack)
 #  Usage:
+#    cp .env.config.example .env.config   # canonical env file
+#    # fill required secrets (JWT_SECRET, SESSION_SECRET, CRON_SECRET, ...)
 #    docker compose --profile tools run --build --rm migrate
 #    docker compose up -d --build
 #    docker compose logs -f
 #    docker compose down
+#
+#  Notes:
+#  - Canonical env file is .env.config (no $ expansion). Legacy .env is
+#    supported by the app runtime but .env.config is preferred.
+#  - Do NOT add secret values here. Provide them via env_file or a
+#    deployment secret manager.
+#  - Avoid ${VAR} interpolation for values that should come from env_file;
+#    Compose interpolates ${VAR} from the host/Compose environment, not
+#    from env_file, and can override env_file values with empty strings.
 # ═══════════════════════════════════════════════════════════════════
 
 services:
@@ -17,17 +28,12 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - .env
+      - path: .env.config
+        required: false
+      - path: .env
+        required: false
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL:-file:/app/db/custom.db}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASS=${SMTP_PASS}
-      - EMAIL_FROM=${EMAIL_FROM}
-      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://alaminn.info}
-      - CRON_SECRET=${CRON_SECRET}
+      NODE_ENV: production
     volumes:
       - app-storage:/app/storage
       - app-db:/app/db
@@ -45,55 +51,19 @@ services:
     build:
       context: .
       target: migrator
+    env_file:
+      - path: .env.config
+        required: false
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: ${DATABASE_URL:-file:/app/db/custom.db}
+      NODE_ENV: production
     volumes:
       - app-db:/app/db
-
-  # ── Optional: MySQL 8 database ───────────────────────────────────
-  # Uncomment if you want Docker to manage MySQL instead of cPanel.
-  # db:
-  #   image: mysql:8.0
-  #   container_name: alaminn-db
-  #   restart: unless-stopped
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-  #     MYSQL_DATABASE: aloeduca_alamin_crm
-  #     MYSQL_USER: aloeduca_alamin_crm
-  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-  #   volumes:
-  #     - db-data:/var/lib/mysql
-  #   ports:
-  #     - "3306:3306"
-  #   networks:
-  #     - alaminn-net
-  #   healthcheck:
-  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-
-  # ── Optional: Nginx reverse proxy (SSL termination) ──────────────
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: alaminn-nginx
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./deploy/nginx-alaminn-info.conf:/etc/nginx/conf.d/default.conf:ro
-  #     - ./certbot/conf:/etc/letsencrypt
-  #     - ./certbot/www:/var/www/certbot
-  #   depends_on:
-  #     - app
-  #   networks:
-  #     - alaminn-net
 
 volumes:
   app-storage:
   app-db:
-  # db-data:
 
 networks:
   alaminn-net:
