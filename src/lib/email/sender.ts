@@ -11,7 +11,7 @@
 
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/admin-api-server";
-import { sendEmail, type EmailSendResult } from "./router";
+import { sendEmail, type EmailSendResult, type EmailProviderId } from "./router";
 import type { Session } from "@/lib/auth";
 
 export interface SendEmailOptions {
@@ -52,7 +52,6 @@ export async function sendConsentEmail(
   const { to, subject, html, text, from, contactId, session, preferredProvider } = options;
 
   // ─── Consent guard ─────────────────────────────────────────────────
-  let consentChecked = false;
   if (contactId) {
     const contact = await db.contact.findUnique({
       where: { id: contactId },
@@ -77,7 +76,6 @@ export async function sendConsentEmail(
         consentChecked: true,
       };
     }
-    consentChecked = true;
     if (contact.status !== "active") {
       return {
         ok: false,
@@ -120,7 +118,7 @@ export async function sendConsentEmail(
       };
     }
     const result = await sendEmail(target, { subject, html, text, from }, {
-      preferredProvider: (preferredProvider || "auto") as any,
+      preferredProvider: (preferredProvider || "auto") as EmailProviderId | "auto",
     });
     await writeAudit(
       session,
@@ -152,7 +150,7 @@ export async function sendConsentEmail(
 
   // No contact context — send directly (still validated by the router)
   const result = await sendEmail(to, { subject, html, text, from }, {
-    preferredProvider: (preferredProvider || "auto") as any,
+    preferredProvider: (preferredProvider || "auto") as EmailProviderId | "auto",
   });
   await writeAudit(
     session,

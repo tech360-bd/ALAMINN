@@ -37,7 +37,7 @@ export async function processSocialEvent(
 
   const cls = classifyMessage(ev.text);
   const knowledge = cls.category === "spam" || options.draftFactory ? [] : await retrieveApprovedKnowledge(ev.text);
-  let generated: InboundDraft = cls.category === "spam"
+  const generated: InboundDraft = cls.category === "spam"
     ? { text: "", modelUsed: "spam-filter" }
     : options.draftFactory
       ? await options.draftFactory()

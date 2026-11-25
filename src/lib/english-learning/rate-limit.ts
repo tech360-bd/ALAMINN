@@ -32,22 +32,6 @@ export function rateLimit(key: string, maxPerMinute: number): boolean {
   return entry.count > maxPerMinute;
 }
 
-/**
- * Returns the current count + reset timestamp for a key (or `null`).
- */
-export function rateLimitStatus(
-  key: string,
-): { count: number; reset: number; remaining: number } | null {
-  if (!key) return null;
-  const entry = buckets.get(key);
-  if (!entry) return null;
-  return {
-    count: entry.count,
-    reset: entry.reset,
-    remaining: Math.max(0, 0 - entry.count),
-  };
-}
-
 /** Test-only helper. */
 export function __resetRateLimiterForTests(): void {
   buckets.clear();

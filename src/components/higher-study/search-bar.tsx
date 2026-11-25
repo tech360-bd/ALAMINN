@@ -67,9 +67,14 @@ export function SearchBar({
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync external value -> internal input (e.g. when URL changes).
-  useEffect(() => {
+  // Adjusting state during render (react.dev recommended pattern) instead of
+  // synchronously inside an effect, which the React Compiler flags as a
+  // cascading-render hazard.
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
     setInternal(value);
-  }, [value]);
+  }
 
   // Debounced onChange.
   const debouncedChange = useCallback(

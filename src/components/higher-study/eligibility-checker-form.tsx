@@ -140,20 +140,6 @@ export function EligibilityCheckerForm() {
     }
   }, [step, form]);
 
-  const next = useCallback(() => {
-    if (!canProceed) return;
-    if (step < 6) {
-      setStep(step + 1);
-    } else {
-      void submit();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- submit is stable via useCallback; including it would re-create next on every form change
-  }, [canProceed, step]);
-
-  const back = useCallback(() => {
-    if (step > 1) setStep(step - 1);
-  }, [step]);
-
   const submit = useCallback(async () => {
     setSubmitting(true);
     setError(null);
@@ -174,6 +160,20 @@ export function EligibilityCheckerForm() {
       setSubmitting(false);
     }
   }, [form]);
+
+  const next = useCallback(() => {
+    if (!canProceed) return;
+    if (step < 6) {
+      setStep(step + 1);
+    } else {
+      void submit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- submit is stable via useCallback; including it would re-create next on every form change
+  }, [canProceed, step]);
+
+  const back = useCallback(() => {
+    if (step > 1) setStep(step - 1);
+  }, [step]);
 
   const restart = useCallback(() => {
     setForm(INITIAL_STATE);

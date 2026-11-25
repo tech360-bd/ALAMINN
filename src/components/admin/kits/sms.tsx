@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Phone, Send, ShieldAlert, AlertCircle, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { Phone, Send, ShieldAlert, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch } from "@/components/admin/lib";
 import { errorMessage } from "./shared";
@@ -14,7 +15,6 @@ import {
   KitError,
   SelectField,
   StatusBadge,
-  Modal,
 } from "./shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +46,6 @@ export default function SmsKit() {
   const [error, setError] = useState<string | null>(null);
   const [providers, setProviders] = useState<SmsProviderRow[]>([]);
   const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ to: "", text: "", contactId: "", preferredProvider: "auto" });
   const [lastResult, setLastResult] = useState<{
     ok: boolean;
@@ -108,7 +107,6 @@ export default function SmsKit() {
         }),
       });
       setLastResult(json.data);
-      setOpen(false);
       toast.success(json.data.actuallySent ? "SMS sent." : "SMS queued (dev mode).");
       setForm({ to: "", text: "", contactId: "", preferredProvider: "auto" });
     } catch (e) {
@@ -141,8 +139,10 @@ export default function SmsKit() {
         badge="SMS"
       >
         {!anyConfigured && (
-          <Button size="sm" onClick={() => setOpen(true)}>
-            <Phone className="mr-2 size-3.5" />Configure a provider
+          <Button asChild size="sm" variant="outline">
+            <Link href="/admin/integrations">
+              <Phone className="mr-2 size-3.5" />Configure a provider
+            </Link>
           </Button>
         )}
       </KitHeading>

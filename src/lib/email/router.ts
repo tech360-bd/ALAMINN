@@ -83,10 +83,6 @@ export function clearEmailRouterMetrics(): number {
   return count;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 function isValidEmail(input: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(input).trim());
 }
@@ -828,7 +824,6 @@ export async function sendEmail(
       };
     }
 
-    const callStart = Date.now();
     metric.calls++;
     try {
       let inner: Awaited<ReturnType<typeof sendSparkPost>>;

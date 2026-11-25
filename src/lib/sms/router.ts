@@ -93,9 +93,6 @@ export function clearSmsRouterMetrics(): number {
   return count;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
 
 function normalizePhone(input: string): string {
   return String(input).trim().replace(/[^+\d]/g, "");

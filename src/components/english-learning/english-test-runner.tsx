@@ -138,18 +138,6 @@ export function EnglishTestRunner({ slug, className }: EnglishTestRunnerProps) {
     };
   }, [slug]);
 
-  // Countdown timer.
-  useEffect(() => {
-    if (phase !== "running") return;
-    if (secondsLeft <= 0) {
-      handleSubmit();
-      return;
-    }
-    const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSubmit is stable via useCallback but adding it would re-trigger the timer every render
-  }, [phase, secondsLeft]);
-
   const handleAnswer = useCallback((questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   }, []);
@@ -184,6 +172,20 @@ export function EnglishTestRunner({ slug, className }: EnglishTestRunnerProps) {
       setPhase("error");
     }
   }, [test, slug, answers]);
+
+  // Countdown timer — declared after handleSubmit so the callback reference is initialized.
+  useEffect(() => {
+    if (phase !== "running") return;
+    if (secondsLeft <= 0) {
+      // Defer auto-submit to a timeout tick so state updates originate from an
+      // event-like context, not synchronously inside the effect body.
+      const submitTimer = setTimeout(() => handleSubmit(), 0);
+      return () => clearTimeout(submitTimer);
+    }
+    const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSubmit is stable via useCallback but adding it would re-trigger the timer every render
+  }, [phase, secondsLeft]);
 
   const handleRestart = () => {
     setAnswers({});

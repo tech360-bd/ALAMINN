@@ -716,7 +716,7 @@ export default function AgentConsole() {
                 <CardContent className="px-3 pb-3 max-h-48 overflow-y-auto space-y-1">
                   {compliance?.auditEvents?.slice(0, 30).map((e) => (
                     <div key={e.id} className="text-[11px] flex gap-2 border-b border-zinc-900 pb-1">
-                      <span className="text-zinc-500">{new Date(e.at ?? e.createdAt ?? Date.now()).toLocaleTimeString()}</span>
+                      <span className="text-zinc-500">{e.at ? new Date(e.at).toLocaleTimeString() : e.createdAt ? new Date(e.createdAt).toLocaleTimeString() : "—"}</span>
                       <b className="w-44 shrink-0">{e.type}</b>
                       <span className="text-zinc-400 truncate">{e.detail}</span>
                     </div>
