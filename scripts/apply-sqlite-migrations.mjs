@@ -129,7 +129,7 @@ for (const dir of dirs) {
       msg.includes('already exists') ||
       msg.includes('duplicate column') ||
       msg.includes('duplicate table');
-    try { db.exec('ROLLBACK'); } catch {}
+    try { db.exec('ROLLBACK'); } catch { /* transaction may already be closed */ }
     if (isAlreadyExists) {
       try {
         db.exec('BEGIN');
@@ -141,7 +141,7 @@ for (const dir of dirs) {
         console.log(`  [recorded] ${dir} (schema already present)`);
         applied++;
       } catch (insertErr) {
-        try { db.exec('ROLLBACK'); } catch {}
+        try { db.exec('ROLLBACK'); } catch { /* transaction may already be closed */ }
         console.error(`  [FAILED] ${dir}: ${insertErr.message}`);
         skipped++;
       }

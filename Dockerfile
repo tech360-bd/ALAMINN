@@ -56,6 +56,11 @@ COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nextjs /app/public ./public
 COPY --from=builder --chown=nextjs:nextjs /app/prisma ./prisma
 
+# dotenv is required by the runtime wrapper (server.js) for .env.config
+# parsing, but Next's standalone output does not reliably trace it; copy it
+# explicitly so the wrapper also honours a mounted env file inside containers.
+COPY --from=deps --chown=nextjs:nextjs /app/node_modules/dotenv ./node_modules/dotenv
+
 # Preserve standalone server and install the canonical runtime wrapper.
 # Docker runs the repo-root server.js for env validation/loading and
 # graceful-shutdown safety net; it hands off to the standalone server.

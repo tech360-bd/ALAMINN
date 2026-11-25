@@ -12,7 +12,7 @@
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/admin-api-server";
 import type { Session } from "@/lib/auth";
-import { sendSms, type SmsSendResult } from "./router";
+import { sendSms, type SmsSendResult, type SmsProviderId } from "./router";
 
 export interface SendSmsOptions {
   /** Recipient phone number, international format preferred (e.g. "+8801716609554") */
@@ -47,7 +47,6 @@ export async function sendConsentSms(
   const { to, text, contactId, session, preferredProvider } = options;
 
   // ─── Consent guard ─────────────────────────────────────────────────
-  let consentChecked = false;
   if (contactId) {
     const contact = await db.contact.findUnique({
       where: { id: contactId },
@@ -72,7 +71,6 @@ export async function sendConsentSms(
         consentChecked: true,
       };
     }
-    consentChecked = true;
     if (contact.status !== "active") {
       return {
         ok: false,
@@ -115,7 +113,7 @@ export async function sendConsentSms(
       };
     }
     const result = await sendSms(target, text, {
-      preferredProvider: (preferredProvider || "auto") as any,
+      preferredProvider: (preferredProvider || "auto") as SmsProviderId | "auto",
     });
     await writeAudit(
       session,
@@ -147,7 +145,7 @@ export async function sendConsentSms(
 
   // No contact context — send directly (still validated by the router)
   const result = await sendSms(to, text, {
-    preferredProvider: (preferredProvider || "auto") as any,
+    preferredProvider: (preferredProvider || "auto") as SmsProviderId | "auto",
   });
   await writeAudit(
     session,

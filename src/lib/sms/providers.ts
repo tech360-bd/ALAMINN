@@ -18,7 +18,7 @@
  */
 
 import { db } from "@/lib/db";
-import { decryptStoredAiSecret, encryptStoredAiSecret } from "@/lib/ai/free-providers";
+import { decryptStoredAiSecret } from "@/lib/ai/free-providers";
 
 export type SmsProviderId =
   | "httpsms"

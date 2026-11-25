@@ -39,26 +39,6 @@ export function rateLimit(key: string, maxPerMinute: number): boolean {
 }
 
 /**
- * Returns the current count + reset timestamp for a key (or `null` if
- * the key has no active bucket). Useful for building `X-RateLimit-*`
- * response headers.
- */
-export function rateLimitStatus(key: string): {
-  count: number;
-  reset: number;
-  remaining: number;
-} | null {
-  if (!key) return null;
-  const entry = buckets.get(key);
-  if (!entry) return null;
-  return {
-    count: entry.count,
-    reset: entry.reset,
-    remaining: Math.max(0, 0 - entry.count), // placeholder for symmetry
-  };
-}
-
-/**
  * Test-only helper to reset the limiter state. Exported so unit tests
  * can isolate rate-limit behaviour; not used by application code.
  */

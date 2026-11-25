@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { getAdapter } from "@/lib/social/adapters";
 import { normalizeWhatsappNumber } from "@/lib/whatsapp";
 import { isWhatsappCustomerServiceWindowOpen } from "@/lib/whatsapp/policy";
-import { sendWhatsappAccountTemplate } from "@/lib/whatsapp/sender";
+import { sendWhatsappAccountTemplate, type WhatsappTemplateComponent } from "@/lib/whatsapp/sender";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
   await db.socialConversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date() } });
 
   const result = isTemplate
-    ? await sendWhatsappAccountTemplate(account, normalized, { name: templateName, language: templateLanguage, components: templateComponents as any[] })
+    ? await sendWhatsappAccountTemplate(account, normalized, { name: templateName, language: templateLanguage, components: templateComponents as WhatsappTemplateComponent[] })
     : await getAdapter("whatsapp").sendReply(account, normalized, text);
 
   const providerMessageId = "messageId" in result ? result.messageId : result.providerId;

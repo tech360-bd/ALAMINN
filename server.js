@@ -32,7 +32,20 @@ process.env.NODE_ENV = process.env.NODE_ENV || "production";
 
 const path = require("path");
 const fs = require("fs");
-const { parse } = require("dotenv");
+
+// dotenv is optional in minimal container images where Next's standalone
+// output does not trace it; there, orchestrator-supplied env vars (docker -e,
+// systemd Environment=, PM2 env) make env-file parsing unnecessary. On
+// bare-metal installs dotenv is a regular dependency and .env.config loads.
+let dotenvParse = null;
+try {
+  dotenvParse = require("dotenv").parse;
+} catch {
+  console.warn(
+    "[alaminn.info] dotenv module unavailable; skipping env-file parsing " +
+      "(relying on orchestrator-supplied environment variables)."
+  );
+}
 
 // ── 1. Load env with canonical precedence (no $ expansion) ──────────────────
 const CANONICAL_FILES = [".env.config.local", ".env.config"];
@@ -45,20 +58,22 @@ const envFiles = canonicalPresent
   : [...CANONICAL_FILES, ...LEGACY_FILES];
 const legacyLoaded = [];
 
-for (const file of envFiles) {
-  const envPath = path.join(__dirname, file);
-  if (!fs.existsSync(envPath)) continue;
-  try {
-    const parsed = parse(fs.readFileSync(envPath));
-    for (const [key, value] of Object.entries(parsed)) {
-      if (process.env[key] === undefined) process.env[key] = value;
+if (dotenvParse) {
+  for (const file of envFiles) {
+    const envPath = path.join(__dirname, file);
+    if (!fs.existsSync(envPath)) continue;
+    try {
+      const parsed = dotenvParse(fs.readFileSync(envPath));
+      for (const [key, value] of Object.entries(parsed)) {
+        if (process.env[key] === undefined) process.env[key] = value;
+      }
+      if (LEGACY_FILES.includes(file)) legacyLoaded.push(file);
+    } catch (err) {
+      console.warn(
+        `[alaminn.info] could not read ${file}:`,
+        err && err.message ? err.message : err
+      );
     }
-    if (LEGACY_FILES.includes(file)) legacyLoaded.push(file);
-  } catch (err) {
-    console.warn(
-      `[alaminn.info] could not read ${file}:`,
-      err && err.message ? err.message : err
-    );
   }
 }
 
