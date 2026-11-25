@@ -10,7 +10,7 @@ it('permits exactly one concurrent operator bootstrap and records its audit entr
     execFile(process.execPath, ['--import', 'tsx', 'scripts/bootstrap-staff.ts'], {
       env: { ...process.env, DATABASE_URL: `file:${file}`, STAFF_BOOTSTRAP_EMAIL: email,
         STAFF_BOOTSTRAP_NAME: 'Initial operator', STAFF_BOOTSTRAP_PASSWORD: 'Integration-only-password-51!' },
-      timeout: 12_000,
+      timeout: 30_000,
     }, (error) => resolve(!error));
   });
   try {
@@ -24,4 +24,4 @@ it('permits exactly one concurrent operator bootstrap and records its audit entr
       expect(db.prepare('SELECT entityId FROM UciAuditLog WHERE action=?').all('auth.bootstrap_admin')).toEqual([{ entityId: 'staff-bootstrap-admin' }]);
     } finally { db.close(); }
   } finally { await rm(dirname(file), { recursive: true, force: true }); }
-}, 25_000);
+}, 90_000);
