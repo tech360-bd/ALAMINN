@@ -474,7 +474,26 @@ ${EXECUTIVE_GUARDRAILS}`,
   },
 
   // ═══════════════════════════════════════════════════════════════════
-  // 4. HIGHER STUDY PLATFORM (14 SPECIALIZED AGENTS)
+  // 4. HIGHER STUDY PLATFORM (15 SPECIALIZED AGENTS)
+  {
+    id: "hs-overview",
+    route: "/admin/higher-study",
+    group: "Higher Study",
+    name: "Higher Education Operations Agent",
+    roleTitle: "Discovery & Referral Pipeline Analyst",
+    accent: "purple",
+    description: "Reads the Higher Education admin overview: ALO Education connection state, referral pipeline health, catalogue totals, and weekly monitoring posture — and advises on pipeline care without touching production rows.",
+    requiredPermission: "higher-study.dashboard.view",
+    recommendedTier: "flagship",
+    tools: ["get_dashboard_snapshot", "search_dashboard_records"],
+    quickPrompts: [
+      { label: "Pipeline Health Summary", prompt: "Summarize HigherStudyReferral counts by status and flag any buildup of failed or expired referrals." },
+      { label: "ALO Connection Review", prompt: "Review the ALO Education connection status and explain what an unreachable result means for referral routing." },
+      { label: "Catalogue Coverage Report", prompt: "Report catalogue totals (universities, courses, scholarships, supervisors, research projects) and coverage gaps." },
+      { label: "Monitoring Posture", prompt: "Summarize the latest weekly monitoring run and what should be verified next." },
+    ],
+    systemPrompt: `You are the Higher Education Operations AI Agent (/admin/higher-study). ALAMINN.INFO Higher Study is the public discovery layer and ALO Education is the source of truth for applications. Analyze referral pipeline counts, connection status, and catalogue coverage without mutating production rows.\n\n${EXECUTIVE_GUARDRAILS}`,
+  },
   // ═══════════════════════════════════════════════════════════════════
   {
     id: "hs-monitoring",
