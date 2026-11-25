@@ -61,12 +61,17 @@ describe("Task 01, 08, 10, 14, 15, 16 — Provisioning, CI, Portability & Repo H
     expect(script).toContain("chmod 600");
   });
 
-  it("GitHub workflows use valid action versions (@v4/@v5) and CI blocks on Prisma migration drift", () => {
+  it("GitHub workflows use Node 24-compatible action versions and CI blocks on Prisma migration drift", () => {
     const ci = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
-    expect(ci).not.toContain("@v7");
-    expect(ci).toContain("actions/checkout@v4");
-    expect(ci).toContain("actions/setup-node@v4");
-    expect(ci).toContain("actions/setup-python@v5");
+    const deploy = readFileSync(join(ROOT, ".github/workflows/deploy.yml"), "utf8");
+    const supplyChain = readFileSync(join(ROOT, ".github/workflows/supply-chain.yml"), "utf8");
+    expect(ci).toContain("actions/checkout@v6");
+    expect(ci).toContain("actions/setup-node@v6");
+    expect(ci).toContain("actions/setup-python@v6");
+    expect(ci).toContain("actions/upload-artifact@v6");
+    expect(deploy).toContain("actions/upload-artifact@v6");
+    expect(deploy).toContain("actions/download-artifact@v7");
+    expect(supplyChain).toContain("gitleaks/gitleaks-action@v3");
     expect(ci).toContain("SQLite Prisma migrate diff failed with exit code");
     expect(ci).toContain("MariaDB Prisma migrate diff failed with exit code");
     expect(ci).not.toContain("::warning::SQLite Prisma catalog drift detected");
