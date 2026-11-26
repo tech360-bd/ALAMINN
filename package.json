@@ -2,7 +2,7 @@
   "name": "alaminn-info",
   "version": "1.0.0",
   "private": true,
-  "description": "alaminn.info \u2014 Premium executive authority platform for Al Aminn (Next.js 16 standalone production build)",
+  "description": "alaminn.info — Premium executive authority platform for Al Aminn (Next.js 16 standalone production build)",
   "engines": {
     "node": "^22.22.3 || ^24.0.0"
   },
@@ -101,6 +101,7 @@
     "dotenv": "18.0.10",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^14.12.0",
+    "grapesjs": "^0.23.9",
     "input-otp": "^1.5.0",
     "jose": "^6.2.17",
     "lucide-react": "^1.76.0",

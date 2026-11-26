@@ -24,6 +24,7 @@ export type IntegrationCategory =
   | "SEO & Growth"
   | "Voice & VoIP"
   | "Dev Tooling"
+  | "AI OS & Automation"
   | "Reference"
   | "Excluded";
 
@@ -263,6 +264,95 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     summary: "Promise-flavored IPC for Electron.",
     integrationNote: "Electron-only utility; this is a Next.js web app, so it does not apply. Reference only." },
 
+  // ── AI OS & Automation (self-hosted microservices, deploy/ai-os) ───
+  { id: "litellm", name: "LiteLLM", url: "https://github.com/BerriAI/litellm", category: "AI OS & Automation", mode: "service", license: "MIT", language: "Python", connector: "litellm",
+    summary: "Unified LLM proxy: one API for 100+ providers, virtual API keys, budgets, spend tracking.",
+    integrationNote: "First-class connector. Register the proxy base URL + master key; the ecosystem copilot (/api/v1/ecosystem/copilot) routes completions through LiteLLM first and falls back to the built-in free AI router. Deployed via deploy/ai-os/docker-compose.ai-os.yml.",
+    docsUrl: "https://docs.litellm.ai",
+    fields: [
+      { key: "baseUrl", label: "LiteLLM proxy base URL (e.g. https://ai-os.example.com/litellm)", required: true },
+      { key: "masterKey", label: "LiteLLM master key (sk-…)", secret: true, required: true },
+      { key: "model", label: "Default model (e.g. gpt-4o-mini)" },
+    ] },
+  { id: "librechat", name: "LibreChat", url: "https://github.com/danny-avila/LibreChat", category: "AI OS & Automation", mode: "service", license: "MIT", language: "TypeScript", connector: "librechat",
+    summary: "Self-hosted multi-provider AI chat workspace (ChatGPT-style UI, RAG, agents, presets).",
+    integrationNote: "Self-hosted AI chat + RAG workspace for staff. Connection test probes /api/health. No code is vendored (MIT); the service runs in the AI-OS Docker network.",
+    docsUrl: "https://docs.librechat.ai",
+    fields: [
+      { key: "baseUrl", label: "LibreChat base URL", required: true },
+      { key: "apiKey", label: "API key (if auth is enabled)", secret: true },
+    ] },
+  { id: "open-webui", name: "Open-WebUI", url: "https://github.com/open-webui/open-webui", category: "AI OS & Automation", mode: "service", license: "BSD-3-Clause", language: "Svelte/Python", connector: "open-webui",
+    summary: "Self-hosted AI chat UI with Ollama/OpenAI backends, RAG pipelines and RBAC.",
+    integrationNote: "Second chat workspace option (lighter than LibreChat). Probe confirms reachability; API use goes through LiteLLM rather than directly.",
+    docsUrl: "https://docs.openwebui.com",
+    fields: [
+      { key: "baseUrl", label: "Open-WebUI base URL", required: true },
+      { key: "apiKey", label: "API key (if auth is enabled)", secret: true },
+    ] },
+  { id: "activepieces", name: "Activepieces", url: "https://github.com/activepieces/activepieces", category: "AI OS & Automation", mode: "service", license: "MIT", language: "TypeScript", connector: "activepieces",
+    summary: "No-code automation builder (webhooks, CRM flows, AI steps) — Zapier alternative.",
+    integrationNote: "Automation bridge: Activepieces flows call the ALAMINN ecosystem API (/api/v1/ecosystem/*) with ALAMINN_ECOSYSTEM_API_KEY to read/write leads and trigger copilot actions. Deployed in deploy/ai-os.",
+    docsUrl: "https://www.activepieces.com/docs",
+    fields: [
+      { key: "baseUrl", label: "Activepieces base URL", required: true },
+      { key: "apiKey", label: "API key", secret: true },
+    ] },
+  { id: "temporal", name: "Temporal", url: "https://github.com/temporalio/temporal", category: "AI OS & Automation", mode: "service", license: "MIT", language: "Go", connector: "temporal",
+    summary: "Durable workflow engine for long-running, fault-tolerant background jobs.",
+    integrationNote: "Durable workers for long jobs (bulk imports, weekly AEO runs, application pipelines) call the ecosystem API the same way Activepieces does. Health probe hits the frontend service /health endpoint.",
+    docsUrl: "https://docs.temporal.io",
+    fields: [
+      { key: "baseUrl", label: "Temporal frontend address (host:port)", required: true },
+    ] },
+  { id: "directus", name: "Directus", url: "https://github.com/directus/directus", category: "AI OS & Automation", mode: "service", license: "BSL-1.1", language: "TypeScript", connector: "directus",
+    summary: "Headless CMS / instant data platform on top of SQL databases.",
+    integrationNote: "Headless CMS for content microsites. Reads/writes ALAMINN leads via the ecosystem API with a scoped ApiKey. BSL-1.1 is fine for internal use; review before offering it as a hosted service.",
+    docsUrl: "https://docs.directus.io",
+    fields: [
+      { key: "baseUrl", label: "Directus base URL", required: true },
+      { key: "apiKey", label: "Static token", secret: true },
+    ] },
+  { id: "nocobase", name: "NocoBase", url: "https://github.com/nocobase/nocobase", category: "AI OS & Automation", mode: "service", license: "AGPL-3.0", language: "TypeScript", connector: "nocobase",
+    summary: "Self-hosted no-code data platform (admin panels, internal tools, portals).",
+    integrationNote: "Internal data portals over the CRM. AGPL-3.0 licensing boundary: NocoBase is self-hosted separately as its own network service (never vendored, no AGPL code copied in) — exactly how deploy/ai-os runs it.",
+    docsUrl: "https://docs.nocobase.com",
+    fields: [
+      { key: "baseUrl", label: "NocoBase base URL", required: true },
+      { key: "apiKey", label: "API token", secret: true },
+    ] },
+  { id: "caprover", name: "CapRover", url: "https://github.com/caprover/caprover", category: "AI OS & Automation", mode: "service", license: "Apache-2.0", language: "TypeScript", connector: "generic",
+    summary: "Self-hosted PaaS (one-click Docker deployments, TLS, rollbacks).",
+    integrationNote: "PaaS deployment target for the AI-OS stack: apps in deploy/ai-os/ship as one-click captain-definition files. Probe checks the dashboard reachability.",
+    docsUrl: "https://caprover.com",
+    fields: [
+      { key: "baseUrl", label: "CapRover dashboard URL", required: true },
+      { key: "apiKey", label: "Captain API token", secret: true },
+    ] },
+  { id: "dokku", name: "Dokku", url: "https://github.com/dokku/dokku", category: "AI OS & Automation", mode: "service", license: "MIT", language: "Shell", connector: "generic",
+    summary: "Mini-Heroku PaaS built on Docker (git push deployments).",
+    integrationNote: "Alternative PaaS target: Procfile/app.json manifests in deploy/ai-os/ deploy the stack. No HTTP API by default — the probe checks the configured endpoint (e.g. the Dokku dashboard or reverse proxy) reachability.",
+    docsUrl: "https://dokku.com/docs/",
+    fields: [
+      { key: "baseUrl", label: "Dokku host endpoint URL", required: true },
+    ] },
+  { id: "aider", name: "Aider", url: "https://github.com/Aider-AI/aider", category: "AI OS & Automation", mode: "service", license: "Apache-2.0", language: "Python", connector: "generic",
+    summary: "AI pair programming in the terminal (edits code from prompts, git commits).",
+    integrationNote: "CI/code-maintenance runner: scheduled aider jobs apply dependency bumps and small fixes on branches (never direct to main). Runs from a worker container, not this web app; probe the runner endpoint if you self-host its web UI (aider --browser).",
+    docsUrl: "https://aider.chat/docs",
+    fields: [
+      { key: "baseUrl", label: "Aider web-UI base URL (if exposed)", required: false },
+      { key: "apiKey", label: "Model provider key the runner uses", secret: true },
+    ] },
+  { id: "swe-agent", name: "SWE-agent", url: "https://github.com/SWE-agent/SWE-agent", category: "AI OS & Automation", mode: "service", license: "MIT", language: "Python", connector: "generic",
+    summary: "Agent harness that turns LLMs into software engineers (issue → patch).",
+    integrationNote: "Automated CI/code-maintenance runner for larger refactors: opens PRs for human review — the existing HITL approval flow stays mandatory. Runs in its own container/runner; probe the endpoint if you expose an HTTP bridge.",
+    docsUrl: "https://swe-agent.com/latest/",
+    fields: [
+      { key: "baseUrl", label: "SWE-agent bridge endpoint URL (if exposed)", required: false },
+      { key: "apiKey", label: "Model provider key the runner uses", secret: true },
+    ] },
+
   // ── Excluded ─────────────────────────────────────────────────────
   { id: "wifi-cracker", name: "WiFi-Password-Cracker-Pro", url: "https://github.com/YouBTech01/WiFi-Password-Cracker-Pro", category: "Excluded", mode: "excluded", license: "MIT", language: "TeX",
     summary: "Wi-Fi credential-cracking tooling.",
@@ -271,6 +361,6 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
 
 export const INTEGRATION_BY_ID: Record<string, IntegrationDefinition> = Object.fromEntries(INTEGRATIONS.map(i => [i.id, i]));
 export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
-  "Messaging & SMS", "CRM & Inbox", "Social Publishing", "AI & Agents", "Video & Media", "SEO & Growth", "Voice & VoIP", "Dev Tooling", "Reference", "Excluded",
+  "Messaging & SMS", "CRM & Inbox", "Social Publishing", "AI & Agents", "Video & Media", "SEO & Growth", "Voice & VoIP", "Dev Tooling", "AI OS & Automation", "Reference", "Excluded",
 ];
 export function isConnectable(mode: IntegrationMode): boolean { return mode === "adapter" || mode === "service"; }

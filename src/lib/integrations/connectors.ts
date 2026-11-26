@@ -160,6 +160,136 @@ async function testGeneric(def: IntegrationDefinition, cfg: Record<string, strin
   return { ok: false, message: `Could not reach ${def.name} at ${base}${lastStatus ? ` (last status ${lastStatus})` : ""}. Check the URL, TLS and that the service is running.`, status: lastStatus, latencyMs: Date.now() - start };
 }
 
+/**
+ * AI-OS service probes (deploy/ai-os microservices). Each probes a real,
+ * documented health endpoint; 401/403 still proves reachability.
+ */
+/** LiteLLM: GET /health/liveliness (public), then /v1/models with the master key. */
+async function testLiteLLM(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  const base = trimBase(cfg.baseUrl || "");
+  if (!base) return { ok: false, message: "Add the LiteLLM proxy base URL first.", latencyMs: 0 };
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  try {
+    const health = await probe(`${base}/health/liveliness`, { headers: { Accept: "application/json" } });
+    const latencyMs = Date.now() - start;
+    if (health.status >= 400) {
+      return { ok: false, message: `LiteLLM responded with status ${health.status} on /health/liveliness.`, status: health.status, latencyMs };
+    }
+    if (cfg.masterKey) {
+      const models = await probe(`${base}/v1/models`, { headers: { Authorization: `Bearer ${cfg.masterKey}`, Accept: "application/json" } });
+      if (models.status === 401 || models.status === 403) {
+        return { ok: false, message: "LiteLLM is reachable but rejected the master key.", status: models.status, latencyMs: Date.now() - start };
+      }
+      if (models.ok) {
+        return { ok: true, message: "Connected to LiteLLM. Proxy is live and the master key is valid.", status: models.status, latencyMs: Date.now() - start };
+      }
+      return { ok: false, message: `LiteLLM is reachable (/health ${health.status}) but /v1/models returned ${models.status}.`, status: models.status, latencyMs: Date.now() - start };
+    }
+    return { ok: true, message: "LiteLLM proxy is reachable. Add the master key to verify authentication.", status: health.status, latencyMs };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Could not reach LiteLLM.", latencyMs: Date.now() - start }; }
+}
+/** LibreChat: GET /api/health → {"ok":true}. */
+async function testLibreChat(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  const base = trimBase(cfg.baseUrl || "");
+  if (!base) return { ok: false, message: "Add the LibreChat base URL first.", latencyMs: 0 };
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  try {
+    const r = await probe(`${base}/api/health`, { headers: { Accept: "application/json" } });
+    const latencyMs = Date.now() - start;
+    if (r.ok) return { ok: true, message: "Connected to LibreChat (health OK).", status: r.status, latencyMs };
+    if (r.status === 401 || r.status === 403) return { ok: false, message: "LibreChat is reachable but requires authentication.", status: r.status, latencyMs };
+    return { ok: false, message: `LibreChat responded with status ${r.status}.`, status: r.status, latencyMs };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Could not reach LibreChat.", latencyMs: Date.now() - start }; }
+}
+/** Open-WebUI: GET /api/config. */
+async function testOpenWebUI(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  const base = trimBase(cfg.baseUrl || "");
+  if (!base) return { ok: false, message: "Add the Open-WebUI base URL first.", latencyMs: 0 };
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  try {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
+    const r = await probe(`${base}/api/config`, { headers });
+    const latencyMs = Date.now() - start;
+    if (r.ok) return { ok: true, message: "Connected to Open-WebUI.", status: r.status, latencyMs };
+    if (r.status === 401 || r.status === 403) return { ok: false, message: "Open-WebUI is reachable but rejected the credentials.", status: r.status, latencyMs };
+    return { ok: false, message: `Open-WebUI responded with status ${r.status}.`, status: r.status, latencyMs };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Could not reach Open-WebUI.", latencyMs: Date.now() - start }; }
+}
+/** Activepieces: GET /healthz (also /api/v1/healthz). */
+async function testActivepieces(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  const base = trimBase(cfg.baseUrl || "");
+  if (!base) return { ok: false, message: "Add the Activepieces base URL first.", latencyMs: 0 };
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
+  for (const path of ["/healthz", "/api/v1/healthz"]) {
+    try {
+      const r = await probe(`${base}${path}`, { headers });
+      const latencyMs = Date.now() - start;
+      if (r.status < 400) return { ok: true, message: "Connected to Activepieces.", status: r.status, latencyMs };
+      if (r.status === 401 || r.status === 403) return { ok: false, message: "Activepieces is reachable but rejected the API key.", status: r.status, latencyMs };
+    } catch { /* try next path */ }
+  }
+  return { ok: false, message: "Could not reach Activepieces on /healthz or /api/v1/healthz. Check the URL and that the service is running.", latencyMs: Date.now() - start };
+}
+/** Temporal: GET /health on the frontend service (host:port). */
+async function testTemporal(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  const raw = (cfg.baseUrl || "").trim();
+  if (!raw) return { ok: false, message: "Add the Temporal frontend address (host:port, e.g. 127.0.0.1:7233) first.", latencyMs: 0 };
+  const base = /^https?:\/\//i.test(raw) ? trimBase(raw) : `http://${raw.replace(/^\/+/, "")}`;
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid address.", latencyMs: 0 }; }
+  try {
+    const r = await probe(`${base}/health`, { headers: { Accept: "text/plain, application/json" } });
+    const latencyMs = Date.now() - start;
+    if (r.status < 400) return { ok: true, message: "Connected to the Temporal frontend service.", status: r.status, latencyMs };
+    return { ok: false, message: `Temporal frontend responded with status ${r.status}.`, status: r.status, latencyMs };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Could not reach the Temporal frontend.", latencyMs: Date.now() - start }; }
+}
+/** Directus: GET /server/health → {"status":"ok"}. */
+async function testDirectus(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  const base = trimBase(cfg.baseUrl || "");
+  if (!base) return { ok: false, message: "Add the Directus base URL first.", latencyMs: 0 };
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  try {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
+    const r = await probe(`${base}/server/health`, { headers });
+    const latencyMs = Date.now() - start;
+    if (r.ok) {
+      const body = (await r.json().catch(() => ({}))) as { status?: string; database?: boolean };
+      if (body.database === false) return { ok: false, message: "Directus is reachable but its database connection is down.", status: r.status, latencyMs };
+      return { ok: true, message: "Connected to Directus.", status: r.status, latencyMs };
+    }
+    if (r.status === 401 || r.status === 403) return { ok: false, message: "Directus is reachable but rejected the token.", status: r.status, latencyMs };
+    return { ok: false, message: `Directus responded with status ${r.status}.`, status: r.status, latencyMs };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Could not reach Directus.", latencyMs: Date.now() - start }; }
+}
+/** NocoBase: GET /api/app:getInfo (or /api/healthz). */
+async function testNocoBase(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  const base = trimBase(cfg.baseUrl || "");
+  if (!base) return { ok: false, message: "Add the NocoBase base URL first.", latencyMs: 0 };
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
+  for (const path of ["/api/healthz", "/api/app:getInfo"]) {
+    try {
+      const r = await probe(`${base}${path}`, { headers });
+      const latencyMs = Date.now() - start;
+      if (r.status < 400) return { ok: true, message: "Connected to NocoBase.", status: r.status, latencyMs };
+      if (r.status === 401 || r.status === 403) return { ok: false, message: "NocoBase is reachable but rejected the API token.", status: r.status, latencyMs };
+    } catch { /* try next path */ }
+  }
+  return { ok: false, message: "Could not reach NocoBase on /api/healthz or /api/app:getInfo.", latencyMs: Date.now() - start };
+}
+
 export async function testIntegration(def: IntegrationDefinition, cfg: Record<string, string>): Promise<TestResult> {
   switch (def.connector) {
     case "httpsms": return testHttpSms(cfg);
@@ -169,6 +299,13 @@ export async function testIntegration(def: IntegrationDefinition, cfg: Record<st
     case "elasticemail": return testElasticEmail(cfg);
     case "openrouter": return testOpenRouter(cfg);
     case "meta": return testMeta(cfg);
+    case "litellm": return testLiteLLM(cfg);
+    case "librechat": return testLibreChat(cfg);
+    case "open-webui": return testOpenWebUI(cfg);
+    case "activepieces": return testActivepieces(cfg);
+    case "temporal": return testTemporal(cfg);
+    case "directus": return testDirectus(cfg);
+    case "nocobase": return testNocoBase(cfg);
     case "generic": return testGeneric(def, cfg);
     default: return { ok: false, message: "This integration has no runtime connector (reference/desktop only).", latencyMs: 0 };
   }

@@ -1,0 +1,24 @@
+{
+  "name": "alaminn-ai-os",
+  "description": "ALAMINN AI-OS service gateway (LiteLLM minimal deployment; use docker-compose.ai-os.yml for the full stack)",
+  "repository": "https://github.com/tech360-bd/ALAMINN",
+  "logo": "https://alaminn.info/icon.svg",
+  "keywords": ["litellm", "ai-gateway", "crm", "alaminn"],
+  "env": {
+    "LITELLM_MASTER_KEY": {
+      "description": "Master key for the LiteLLM proxy (min 32 chars; openssl rand -hex 32). Also register this key in ALAMINN /admin/integrations.",
+      "required": true
+    },
+    "ALAMINN_ECOSYSTEM_API_KEY": {
+      "description": "The ALAMINN ecosystem bridge key used by AI-OS services to call /api/v1/ecosystem/* on the main site.",
+      "required": false
+    }
+  },
+  "stack": "container",
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "standard-1x"
+    }
+  }
+}

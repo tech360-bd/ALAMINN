@@ -55,6 +55,7 @@ jobs:
           echo "CRON_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           echo "STAFF_BOOTSTRAP_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
           echo "ALAMINN_TEST_INSTANCE=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "ALAMINN_ECOSYSTEM_API_KEY=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           DB_DIR=$(mktemp -d /tmp/alaminn-test-XXXXXX)
           touch "$DB_DIR/.disposable-alaminn-test"
           echo "DATABASE_URL=file:$DB_DIR/test.sqlite" >> "$GITHUB_ENV"

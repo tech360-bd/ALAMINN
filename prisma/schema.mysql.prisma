@@ -52,6 +52,7 @@ model Contact {
   leadScoreGrade   String?           @db.VarChar(191) // A | B | C | D | F
   leadScoreSignals String?           @db.VarChar(500) // JSON array of scoring signals
   leadScoreUpdatedAt DateTime? // last scoring time
+  customFields     String?           @db.Text // JSON object of custom field values keyed by CustomField.key
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   inquiries        Inquiry[]
@@ -2438,4 +2439,197 @@ model InboxAttachment {
   createdAt      DateTime @default(now())
 
   @@index([conversationId, createdAt])
+}
+
+// ─── P0 Completion Sprint: CRM hygiene (custom fields, imports, merges) ───
+model CustomField {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  entity    String   @default("contact") @db.VarChar(191) // contact | inquiry | opportunity
+  key       String   @db.VarChar(191) // normalized machine key, unique per entity
+  label     String   @db.VarChar(500)
+  type      String   @default("text") @db.VarChar(191) // text | number | date | select | multiselect | boolean
+  options   String?  @db.Text // comma-separated options for select/multiselect
+  required  Boolean  @default(false)
+  sortOrder Int      @default(0)
+  status    String   @default("active") @db.VarChar(191) // active | archived
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([entity, key])
+  @@index([entity, status])
+}
+
+model ContactImportJob {
+  id            String    @id @default(cuid()) @db.VarChar(191)
+  filename      String    @db.VarChar(500)
+  status        String    @default("pending") @db.VarChar(191) // pending | running | completed | failed
+  totalRows     Int       @default(0)
+  createdRows   Int       @default(0)
+  updatedRows   Int       @default(0)
+  skippedRows   Int       @default(0)
+  duplicateRows Int       @default(0)
+  mapping       String?   @db.Text // JSON header → field mapping actually used
+  report        String?   @db.Text // JSON bounded per-row results
+  errors        String?   @db.Text // JSON fatal errors
+  createdBy     String?   @db.VarChar(191)
+  createdAt     DateTime  @default(now())
+  finishedAt    DateTime?
+}
+
+model ContactMergeLog {
+  id           String   @id @default(cuid()) @db.VarChar(191)
+  masterId     String   @db.VarChar(191)
+  duplicateId  String   @db.VarChar(191)
+  mergedFields String?  @db.Text // JSON field-by-field merge decisions
+  mergedBy     String?  @db.VarChar(191)
+  createdAt    DateTime @default(now())
+}
+
+// ─── P0 Completion Sprint: Automation (sequences + trigger rules) ───
+model AutomationSequence {
+  id          String   @id @default(cuid()) @db.VarChar(191)
+  name        String   @db.VarChar(500)
+  description String   @default("") @db.VarChar(2000)
+  trigger     String   @default("manual") @db.VarChar(191) // manual | contact.created | inquiry.created
+  status      String   @default("draft") @db.VarChar(191) // draft | active | paused
+  steps       String   @default("[]") @db.Text // JSON [{ delayHours, subject, bodyText, bodyHtml }]
+  enrollCount Int      @default(0)
+  createdBy   String?  @db.VarChar(191)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SequenceEnrollment {
+  id          String   @id @default(cuid()) @db.VarChar(191)
+  sequenceId  String   @db.VarChar(191)
+  contactId   String   @db.VarChar(191)
+  status      String   @default("active") @db.VarChar(191) // active | completed | cancelled | bounced
+  currentStep Int      @default(0)
+  nextStepAt  DateTime @default(now())
+  variables   String?  @db.Text // JSON template variables (bounded)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([sequenceId, contactId])
+  @@index([status, nextStepAt])
+}
+
+model AutomationRule {
+  id         String    @id @default(cuid()) @db.VarChar(191)
+  name       String    @db.VarChar(500)
+  trigger    String    @db.VarChar(191) // contact.created | contact.updated | inquiry.created | opportunity.stage_changed | lead.score_changed
+  conditions String    @default("[]") @db.Text // JSON [{ field, op, value }]
+  actions    String    @default("[]") @db.Text // JSON [{ type, params }]
+  status     String    @default("draft") @db.VarChar(191) // draft | active | paused
+  runCount   Int       @default(0)
+  lastRunAt  DateTime?
+  createdBy  String?   @db.VarChar(191)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model AutomationRunLog {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  ruleId    String   @db.VarChar(191)
+  trigger   String   @db.VarChar(191)
+  contactId String?  @db.VarChar(191)
+  status    String   @default("success") @db.VarChar(191) // success | skipped | error
+  detail    String?  @db.Text // JSON action results (bounded)
+  createdAt DateTime @default(now())
+
+  @@index([ruleId, createdAt])
+}
+
+// ─── P0 Completion Sprint: Public API platform (keys, webhooks, usage) ───
+model ApiKey {
+  id              String    @id @default(cuid()) @db.VarChar(191)
+  name            String    @db.VarChar(500)
+  prefix          String    @db.VarChar(32) // first 10 chars of the raw key, for safe identification
+  hashedKey       String    @unique @db.VarChar(191) // sha256(rawKey)
+  scopes          String    @default("[]") @db.Text // JSON ["leads:write", ...]
+  status          String    @default("active") @db.VarChar(191) // active | revoked
+  rateLimitPerMin Int       @default(60)
+  lastUsedAt      DateTime?
+  createdBy       String?   @db.VarChar(191)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  url       String   @db.VarChar(1000) // https:// only, validated
+  events    String   @default("[]") @db.Text // JSON subscribed event names
+  secret    String   @db.VarChar(500) // HMAC-SHA256 signing secret
+  status    String   @default("active") @db.VarChar(191) // active | paused
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WebhookDelivery {
+  id          String    @id @default(cuid()) @db.VarChar(191)
+  endpointId  String    @db.VarChar(191)
+  event       String    @db.VarChar(191)
+  payload     String    @db.Text // JSON body sent
+  status      String    @default("pending") @db.VarChar(191) // pending | success | failed
+  attempts    Int       @default(0)
+  lastError   String?   @db.VarChar(500)
+  createdAt   DateTime  @default(now())
+  deliveredAt DateTime?
+
+  @@index([endpointId, createdAt])
+}
+
+model ApiUsageLog {
+  id         String   @id @default(cuid()) @db.VarChar(191)
+  keyId      String?  @db.VarChar(191) // null = session/anonymous traffic
+  route      String   @db.VarChar(500)
+  method     String   @db.VarChar(16)
+  status     Int
+  durationMs Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([keyId, createdAt])
+  @@index([route, createdAt])
+}
+
+// ─── P0 Completion Sprint: AEO (answer engine optimization) engine ───
+model AeoCheckRun {
+  id         String    @id @default(cuid()) @db.VarChar(191)
+  status     String    @default("pending") @db.VarChar(191) // pending | completed | provider_unavailable | failed
+  engine     String    @default("all") @db.VarChar(191) // all | per-engine label
+  queries    Int       @default(0)
+  citedCount Int       @default(0)
+  score      Int       @default(0) // 0-100 citation share across answered queries
+  detail     String?   @db.Text // JSON per-query results with source URLs
+  startedBy  String?   @db.VarChar(191)
+  createdAt  DateTime  @default(now())
+  finishedAt DateTime?
+}
+
+model AeoCitationCheck {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  runId     String   @db.VarChar(191)
+  engine    String   @db.VarChar(191) // label of the engine/answer endpoint checked
+  query     String   @db.VarChar(500)
+  cited     Boolean  @default(false)
+  url       String?  @db.VarChar(1000) // our URL cited, when found
+  position  Int? // rank in the citation list, when found
+  createdAt DateTime @default(now())
+
+  @@index([runId])
+}
+
+model AeoContentGap {
+  id             String   @id @default(cuid()) @db.VarChar(191)
+  topic          String   @db.VarChar(500)
+  intent         String   @default("informational") @db.VarChar(191) // informational | commercial | transactional
+  ourCoverage    String   @default("none") @db.VarChar(191) // none | partial | full
+  competitors    String?  @db.Text // JSON competitor mentions found in verification runs
+  recommendation String   @default("") @db.VarChar(2000)
+  status         String   @default("open") @db.VarChar(191) // open | planned | covered
+  score          Int      @default(0) // opportunity 0-100
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([topic])
 }
