@@ -9,7 +9,9 @@ import { adminFetch, fmtDate } from "@/components/admin/lib";
 import { toast } from "sonner";
 
 type Change = { id: string; changeType: string; impact: string; entityLabel: string | null; field: string | null; oldValue: string | null; newValue: string | null; sourceUrl: string | null; confidence: number; aiSummary: string | null; status: string; detectedAt: string };
-type Data = { widget: { lastCheck: string | null; nextCheck: string | null; universities: number; courses: number; sources: number; pendingApproval: number; critical: number; failedSources: number; status: string }; recentChanges: Change[] };
+type DigestChangeSummary = { changeType: string; impact: string; count: number; pending: number };
+type Digest = { runId: string | null; status: string; windowStart: string | null; windowEnd: string | null; nextRunAt: string | null; sourcesChecked: number; sourcesFailed: number; changesDetected: number; pendingApproval: number; criticalOrHigh: number; byType: DigestChangeSummary[]; headline: string };
+type Data = { widget: { lastCheck: string | null; nextCheck: string | null; universities: number; courses: number; sources: number; pendingApproval: number; critical: number; failedSources: number; status: string }; digest?: Digest | null; recentChanges: Change[] };
 
 export default function MonitoringPage() {
   const [d, setD] = useState<Data | null>(null); const [, setLoading] = useState(false);
@@ -21,6 +23,11 @@ export default function MonitoringPage() {
   if (!d) return <div className="p-6 text-sm text-muted-foreground">Loading University Data Monitor…</div>;
   const w = d.widget;
   return (<div className="p-6"><PageHeader title="University & Course Monitoring" subtitle="ALO University & Official Data Monitoring Agent — checks official sources every 7 days (cron: /api/cron/higher-study-monitor). AI detects and explains; only Super Admin approval updates production data." />
+    {d.digest && (<Card className="mb-6"><CardHeader><CardTitle>Weekly digest</CardTitle></CardHeader><CardContent className="text-sm">
+      <p>{d.digest.headline}</p>
+      {d.digest.byType.length > 0 && (<ul className="mt-3 space-y-1">{d.digest.byType.map((t) => (<li key={`${t.changeType}-${t.impact}`} className="flex gap-2 items-center text-sm"><Badge variant={t.impact === "CRITICAL" || t.impact === "HIGH" ? "destructive" : "outline"}>{t.impact}</Badge><Badge variant="secondary">{t.changeType}</Badge><span>{t.count} detected · {t.pending} pending</span></li>))}</ul>)}
+      <p className="mt-3 text-xs text-muted-foreground">Window: {d.digest.windowStart ? fmtDate(d.digest.windowStart) : "—"} → {d.digest.windowEnd ? fmtDate(d.digest.windowEnd) : "—"}{d.digest.nextRunAt ? ` · Next scheduled run: ${fmtDate(d.digest.nextRunAt)}` : ""}. Derived only from persisted run rows — nothing is inferred or fabricated.</p>
+    </CardContent></Card>)}
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       {[["Status", w.status], ["Last check", w.lastCheck ? fmtDate(w.lastCheck) : "never run"], ["Next check", w.nextCheck ? fmtDate(w.nextCheck) : "—"], ["Universities / Courses", `${w.universities} / ${w.courses}`], ["Official sources", String(w.sources)], ["Pending approval", String(w.pendingApproval)], ["Critical", String(w.critical)], ["Failed sources", String(w.failedSources)]].map(([k, v]) => <Card key={k}><CardHeader><CardTitle className="text-sm text-muted-foreground">{k}</CardTitle></CardHeader><CardContent><p className="text-xl font-bold">{v}</p></CardContent></Card>)}
     </div>
