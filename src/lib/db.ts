@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 // Bust cache when schema version changes (forces new client after prisma generate)
-const SCHEMA_VERSION = 'v7-unorouter-hardened-2026-10'
+const SCHEMA_VERSION = 'v8-contact-lead-scoring-2026-11'
 
 const cachedVersion = globalForPrisma.__prismaVersion
 const cachedPrisma = globalForPrisma.prisma

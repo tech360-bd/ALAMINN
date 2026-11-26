@@ -48,6 +48,10 @@ model Contact {
   tags             String?           @db.VarChar(500) // comma separated
   status           String            @default("active") @db.VarChar(191) // active | nurturing | converted | archived
   source           String?           @db.VarChar(191) // utm source / referral
+  leadScore        Int? // deterministic 0-100 score from scoreContact()
+  leadScoreGrade   String?           @db.VarChar(191) // A | B | C | D | F
+  leadScoreSignals String?           @db.VarChar(500) // JSON array of scoring signals
+  leadScoreUpdatedAt DateTime? // last scoring time
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   inquiries        Inquiry[]

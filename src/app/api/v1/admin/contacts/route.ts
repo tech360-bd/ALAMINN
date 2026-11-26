@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { ok, fail, pagination, searchWhere, readJson, writeAudit } from "@/lib/admin-api-server";
+import { findDuplicateContacts, recomputeContactScore } from "@/lib/crm/lead-hygiene";
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +38,18 @@ export async function POST(req: NextRequest) {
   if (!body) return fail("Invalid JSON body.");
 
   const { fullName, email, phone, organization, role, country, status, tags } = body as Record<string, string>;
+  const allowDuplicate = (body as Record<string, unknown>).allowDuplicate === true;
   if (!fullName || !email) return fail("fullName and email are required.", ["missing_fields"]);
 
   const existing = await db.contact.findUnique({ where: { email: email.toLowerCase() } });
   if (existing) return fail("A contact with that email already exists.", ["duplicate_email"], 409);
+
+  // Phone duplicate guard (P0 CRM hygiene): 409 with matches unless the caller
+  // explicitly acknowledges the duplicate with allowDuplicate: true.
+  const phoneMatches = await findDuplicateContacts(db, { phone: phone || null });
+  if (phoneMatches.length > 0 && !allowDuplicate) {
+    return fail("Possible duplicate contact found.", ["duplicate_contact"], 409, { matches: phoneMatches });
+  }
 
   try {
     const contact = await db.contact.create({
@@ -56,7 +65,13 @@ export async function POST(req: NextRequest) {
       },
     });
     await writeAudit(guard.session, "contact.create", "Contact", contact.id, { email });
-    return ok(contact, "Contact created.", {}, 201);
+    const score = await recomputeContactScore(db, contact.id);
+    const scored = await db.contact.findUnique({ where: { id: contact.id } });
+    await writeAudit(guard.session, "contact.lead-score", "Contact", contact.id, {
+      score: score?.score ?? null,
+      grade: score?.grade ?? null,
+    });
+    return ok(scored, "Contact created.", {}, 201);
   } catch (e) {
     return fail("Failed to create contact.", [(e as Error).message], 500);
   }

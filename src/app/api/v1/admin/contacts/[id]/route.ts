@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
+import { findDuplicateContacts, recomputeContactScore } from "@/lib/crm/lead-hygiene";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +26,22 @@ export async function PUT(req: NextRequest, ctx: RouteCtx) {
   const body = await readJson(req);
   if (!body) return fail("Invalid JSON body.");
   const { fullName, email, phone, organization, role, country, status, tags } = body as Record<string, string>;
+  const allowDuplicate = (body as Record<string, unknown>).allowDuplicate === true;
+
+  // Duplicate guard (P0 CRM hygiene): when email/phone change, match against
+  // other contacts; 409 with matches unless allowDuplicate: true. This also
+  // converts the previous raw P2002 unique-constraint 500 into a useful 409.
+  const dupMatches = await findDuplicateContacts(db, {
+    ...(email !== undefined ? { email } : {}),
+    ...(phone !== undefined ? { phone } : {}),
+    excludeId: id,
+  });
+  if (dupMatches.length > 0 && !allowDuplicate) {
+    return fail("Possible duplicate contact found.", ["duplicate_contact"], 409, { matches: dupMatches });
+  }
+
   try {
-    const updated = await db.contact.update({
+    await db.contact.update({
       where: { id },
       data: {
         ...(fullName !== undefined ? { fullName } : {}),
@@ -40,7 +55,15 @@ export async function PUT(req: NextRequest, ctx: RouteCtx) {
       },
     });
     await writeAudit(guard.session, "contact.update", "Contact", id, { fields: Object.keys(body as object) });
-    return ok(updated, "Contact updated.");
+    const score = await recomputeContactScore(db, id);
+    const scored = await db.contact.findUnique({ where: { id } });
+    if (score) {
+      await writeAudit(guard.session, "contact.lead-score", "Contact", id, {
+        score: score.score,
+        grade: score.grade,
+      });
+    }
+    return ok(scored, "Contact updated.");
   } catch (e) {
     return fail("Failed to update contact.", [(e as Error).message], 500);
   }
