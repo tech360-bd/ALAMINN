@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Status | Reference catalog (v1) |
-| Created | 2026-11-28 |
-| Source | Operator-provided list of 16 URLs (verified individually) |
+| Status | Reference catalog (v2 — wave 2 added) |
+| Created | 2026-11-28 (v1); wave 2 same day |
+| Source | Operator-provided URL batches: 16 (v1) + 21 entries (v2), all verified individually |
 | Scope | External open-source projects, platforms and services that ALO agents and engineering treat as reference knowledge |
 | Rules | Reference only — no competitor content is copied; every ALO-side implementation stays original. Facts marked `unknown` stay unknown. Nothing here is auto-integrated; the compliance notes in Part 6 apply before any adoption. |
 
@@ -49,7 +49,7 @@ Note on #16: the operator supplied six GitHub *organization* URLs (BerriAI, noco
 
 ## Part 2 — Already deployed in the ALO AI-OS stack
 
-Seven of the supplied URLs correspond to services that **already run** in `deploy/ai-os/docker-compose.ai-os.yml` (delivered in PR #105). The catalog therefore treats them as first-party ALO infrastructure, not as new candidates. Image pins as of the compose file:
+Eight product services from the supplied URLs **already run** in `deploy/ai-os/docker-compose.ai-os.yml` (seven delivered in PR #105; Rocket.Chat added in wave 2 as the free self-hosted chat implementation). The catalog therefore treats them as first-party ALO infrastructure, not as new candidates. Image pins as of the compose file:
 
 | Service | Compose image | Verified upstream metadata (2026-11-28) |
 |---|---|---|
@@ -60,6 +60,7 @@ Seven of the supplied URLs correspond to services that **already run** in `deplo
 | Temporal | `temporalio/auto-setup:1.25.2` | 24,527 stars; Go, MIT; durable execution, workflow orchestration, distributed cron |
 | Directus | `directus/directus:11` | 38,716 stars; TypeScript; turns a DB into a headless CMS / admin panels / instant APIs with auth |
 | NocoBase | `nocobase/nocobase:latest` | 25,035 stars; TypeScript; no-code platform for business systems with AI; agents write code, platform provides governance; topics include CRM and workflow engine |
+| Rocket.Chat | `registry.rocket.chat/rocketchat/rocket.chat:9.0.0` (+ `mongo:7` replica set) | 46,584 stars; TypeScript; MIT core + separately licensed `ee/` directory; latest stable release 9.0.0 (2026-11-10); staff chat, DMs, live-chat widget — deployed as the **free self-hosted chat implementation** (see Part 8.4) |
 
 Operational consequence: upstream metadata above is refreshed when a stack upgrade is planned; the compose pins are the source of truth for what actually runs.
 
@@ -132,6 +133,12 @@ Operational consequence: upstream metadata above is refreshed when a stack upgra
 | University & Course Intelligence (PR #106) | FloppyData Cloud Browser, free-for-dev | Remote-browser pattern for JS-rendered public pages (strict guardrails); free-tier index for scheduled-job infra |
 | CRM / admin surfaces (PR #105) | Directus, NocoBase | Deployed as admin/data-platform options in the AI-OS stack |
 | Admissions & enrollment documents | SignuDoc | Candidate self-hosted e-signature evaluation |
+| Staff & student chat (wave 2) | Rocket.Chat (deployed), MirrorFly (commercial alt) | Chat implemented free in the AI-OS stack; MirrorFly documented as the commercial one-time-license alternative |
+| AI call center / telephony (wave 2, future module) | rasonyang stack, call-gpt, amulchapla, 10x-Tool-Calls | Open-source voice-agent and SIP/FreeSWITCH building blocks; reference patterns, not deployed (needs SIP trunk + telephony ops) |
+| Deployment alternatives (wave 2) | CapRover, Dokku | Host-level PaaS for one-click app deployment; Dokku already referenced in `deploy/ai-os/README.md` §7 |
+| Frontend builders (wave 2) | GrapesJS | Open-source drag-and-drop page-builder library; candidate for ALO visual editing surfaces |
+| Coding agents (wave 2) | SWE-agent, Aider, OmniCopilot, meta/astryx, free-claude-code | Agentic engineering references for the autonomous-factory track |
+| Media & content (wave 2) | InfiniteTalk, OpenMausBot, lastbook | Talking-video generation, chat-bot and reading/content references |
 | Engineering practice | Aider, Postman, free-for-dev | Coding-agent patterns, API testing workflow, infra cost control |
 
 ---
@@ -139,17 +146,102 @@ Operational consequence: upstream metadata above is refreshed when a stack upgra
 ## Part 6 — Compliance and license guardrails
 
 1. **Reference, not copy.** No text, imagery or content is lifted from any listed project or site into ALO. Only architectural patterns and integration options are consumed.
-2. **License awareness before code adoption.** MIT/Apache-2.0 entries (monid, SignuDoc, Temporal, LibreChat, Aider, vLLM) are clean starting points. Entries whose GitHub API license field reads `NOASSERTION` (litellm, nocobase, activepieces, directus, open-webui) need a targeted license review of the upstream LICENSE file before any code or substantial pattern adoption. `free-for-dev` license: unknown — treat as reference material only.
+2. **License awareness before code adoption.** MIT/Apache-2.0 entries (monid, SignuDoc, Temporal, LibreChat, Aider, vLLM, Dokku, SWE-agent, ai-native-callcenter, InfiniteTalk, OmniCopilot, meta/astryx, OpenMausBot, lastbook) are clean starting points. Entries whose GitHub API license field reads `NOASSERTION` (litellm, nocobase, activepieces, directus, open-webui, caprover, grapesjs, free-claude-code, 10x-Tool-Calls) need a targeted license review of the upstream LICENSE file before any code or substantial pattern adoption. Rocket.Chat and Mattermost use hybrid licenses (MIT/AGPL core + separately licensed enterprise directories); Rocket.Chat community edition is deployed as an isolated network service with no code sharing. `free-for-dev` license: unknown — treat as reference material only.
 3. **Collection ethics.** Any use of cloud-browser tooling stays inside ALO's existing intelligence-gathering policy: public data only, robots.txt respected, no auth/paywall bypass, no personal-data harvesting, L1/L2/L3 source hierarchy unchanged.
 4. **Excluded content.** `WiFi-Password-Cracker-Pro` (YouBTech01 profile) is excluded from all ALO work on security and legal grounds.
-5. **Spend control.** Marketplace/billing-based services (Monid, FloppyData, Postman paid tiers) require cost tracking through ALO's API-platform conventions and explicit budget approval before production use.
+5. **Spend control.** Marketplace/billing-based services (Monid, FloppyData, Postman paid tiers, outstand.so paid tiers, jarvis.institute, MirrorFly one-time license) require cost tracking through ALO's API-platform conventions and explicit budget approval before production use. Where the operator's rule "must add all free systems" applies, the free open-source equivalent is implemented first and the commercial product is documented as a paid alternative only.
+6. **Naming implies no endorsement.** `Alishahryar1/free-claude-code` references Anthropic's Claude by name; before any evaluation, verify its actual function, the provider's terms of service and its `NOASSERTION` license. The same caution applies to any tool that wraps another vendor's product name.
 
 ---
 
 ## Part 7 — Verification record
 
-- GitHub metadata (stars, license, language, descriptions, dates): GitHub REST API, fetched 2026-11-28.
+- GitHub metadata (stars, license, language, descriptions, dates): GitHub REST API, fetched 2026-11-28 (v1) and 2026-11-28 (wave 2: 17 repos + rasonyang profile listing + `topic:jarvis-ai` search, top 15).
 - `monid.ai/tools`, `floppydata.com/cloud-browser/`, `github.com/YouBTech01`: live pages fetched 2026-11-28.
 - `postman.com`: fetch limit reached this pass; entry is general knowledge, marked unknown where specific (tiers, current features). Re-verify before procurement.
-- Compose image pins: `deploy/ai-os/docker-compose.ai-os.yml` on `main` @ `5169630`.
+- Wave 2 live pages: `mirrorfly.com/self-hosted-chat-solution.php`, `outstand.so`, `jarvis.institute` fetched 2026-11-28.
+- Wave 2 license checks: LICENSE files of `RocketChat/Rocket.Chat`, `mattermost/mattermost`, `chatwoot/chatwoot` read via GitHub API 2026-11-28 (hybrid core + enterprise-dir licenses).
+- Docker image pins: `registry.rocket.chat/rocketchat/rocket.chat:9.0.0` confirmed present on Docker Hub 2026-11-28 (pushed 2026-11-10); latest stable GitHub release 9.0.0 (2026-11-10).
+- Compose image pins: `deploy/ai-os/docker-compose.ai-os.yml` on `main` @ `5169630` (v1); wave-2 additions verified against this file.
 - Star counts are snapshots and drift daily; re-verify before citing externally.
+
+---
+
+## Part 8 — Wave 2: second operator URL batch (verified 2026-11-28)
+
+The operator supplied a second batch of URLs: the GitHub `jarvis-ai` topic, MirrorFly's self-hosted chat page, outstand.so, jarvis.institute, PaaS platforms (CapRover, Dokku), GrapesJS, SWE-agent, an AI-call-center cluster, and nine individual repositories. All GitHub entries were verified via the REST API on 2026-11-28; the three websites were fetched live.
+
+### 8.1 Snapshot table
+
+| # | Entry | Category | Language | License | Stars | Status in ALO |
+|---|---|---|---|---|---|---|
+| W1 | caprover/caprover | Self-hosted PaaS (one-click apps) | TypeScript | NOASSERTION (README historically Apache-2.0) | 15,210 | Reference (host layer, not a compose service) |
+| W2 | dokku/dokku | Self-hosted mini-Heroku PaaS | Shell | MIT | 32,241 | Reference (already used in deploy/ai-os README §7) |
+| W3 | GrapesJS/grapesjs | Drag-and-drop web page builder framework | TypeScript | NOASSERTION (historically BSD-3-Clause) | 26,437 | Reference |
+| W4 | SWE-agent/SWE-agent | Autonomous coding agent (terminal) | Python | MIT | 20,883 | Reference |
+| W5 | rasonyang/ai-native-callcenter | AI-native call center (SIP/FreeSWITCH + AI) | Go | Apache-2.0 | 842 | Reference (active 2026-11-26) |
+| W6 | rasonyang ecosystem (freesbc 416★, cascade-realtime-gateway, web-sip-phone, sip-to-ai, talkover, tts-server, stt-server…) | Open VoIP/RTC + AI telephony building blocks | Go/Python | Apache-2.0 (MIT/CC0 for some lists) | ≤416 per repo | Reference |
+| W7 | twilio-labs/call-gpt | Voice assistant (Twilio + OpenAI) | JavaScript | MIT | 497 | Reference (stale — last push 2024-12-13) |
+| W8 | amulchapla/AI-Powered-Call-Center-Intelligence | Call-center transcript analytics | JavaScript | MIT | 268 | Reference (stale — last push 2023-06-29) |
+| W9 | perrypixel/10x-Tool-Calls | Agent tool-call utilities | Python | NOASSERTION | 852 | Reference (license review required) |
+| W10 | MeiGen-AI/InfiniteTalk | Audio-driven talking-video generation | Python | Apache-2.0 | 8,488 | Reference (GPU-heavy) |
+| W11 | cheaper-inference/OmniCopilot | AI copilot tooling | TypeScript | MIT | 209 | Reference (active) |
+| W12 | Alishahryar1/free-claude-code | Claude-adjacent CLI tooling | Python | NOASSERTION | 73,510 | Reference — verify function/ToS/license before any use |
+| W13 | meta/astryx | Meta open-source project | TypeScript | MIT | 33,504 | Reference (active) |
+| W14 | DistinctZA/patina | Small web app (Svelte) | Svelte | MIT | 8 | Watchlist (distinct from microsoft/patina — different project) |
+| W15 | milind-soni/OpenMausBot | Bot platform | TypeScript | Apache-2.0 | 28,507 | Reference (active) |
+| W16 | Immortal-Protocols/lastbook | Content/reading tool | Python | MIT | 3,099 | Reference |
+| W17 | monid-ai/monid | Agent tool marketplace | TypeScript | MIT | 5,691 | Wave-1 entry 1 re-verified |
+| W18 | NYLLON-SOFTWARE/SignuDoc | E-signature platform | TypeScript | MIT | 3,393 | Wave-1 entry 2 re-verified (stars updated) |
+| W19 | mirrorfly.com (+ /self-hosted-chat-solution.php) | Commercial self-hosted chat SDK | SaaS | Commercial (one-time license) | n/a | Not free — free path implemented instead (see 8.4) |
+| W20 | outstand.so | Unified social-media posting API (12 platforms, MCP) | SaaS | Commercial (free tier 3,000 posts/mo; $19 / $129 plans) | n/a | Evaluate only with budget approval |
+| W21 | jarvis.institute | Commercial Windows AI assistant | SaaS (closed source) | Commercial ($9.99 one-time) | n/a | Reference — free alternatives are the topic repos below |
+
+### 8.2 The operator's question: "is the jarvis-ai topic free with self-host?"
+
+**Answer: yes — almost entirely.** The `jarvis-ai` topic contains 240 repositories. The top 15 by stars are overwhelmingly MIT-licensed personal AI assistants that run locally/self-hosted by design (they are desktop apps and Python programs — the user's own machine is the host):
+
+| Repo | Stars | License | Language |
+|---|---|---|---|
+| GauravSingh9356/J.A.R.V.I.S | 1,506 | MIT | Python |
+| kishanrajput23/Jarvis-Desktop-Voice-Assistant | 1,099 | MIT | Python |
+| blogminhquy/javis-os | 931 | MIT | Python |
+| akshayaggarwal99/jarvis-ai-assistant | 677 | MIT | TypeScript |
+| gia-guar/JARVIS-ChatGPT | 469 | MIT | Python |
+| BolisettySujith/J.A.R.V.I.S | 393 | MIT | Python |
+| FlowShift-in/IRIS-AI | 233 | NOASSERTION | TypeScript |
+| codewithbro95/J.A.R.V.I.S | 189 | MIT | Jupyter |
+| AbuZar-Ansarii/Ultron | 171 | NOASSERTION | Python |
+| Likhithsai2580/JARVIS | 153 | MIT | Python |
+| AbuZar-Ansarii/Jarvis | 150 | MIT | Dart |
+| Aryan-0001/Jarvis-AI | 149 | MIT | Dart |
+| Avinashb722/jarvis-ai-assistant | 146 | MIT | Python |
+| KKshitiz/J.A.R.V.I.S | 127 | MIT | Python |
+| aerele/jarvis | 112 | AGPL-3.0 | Python |
+
+Caveats: 12 of the top 15 are MIT (free for any use), 1 is AGPL-3.0 (copyleft — fine as a separate service, not for embedding), 2 are NOASSERTION (license review needed). Most are hobby-grade projects with uneven maintenance; the recurring cost is not the software but the LLM API keys unless run fully local via Ollama/llama.cpp. `jarvis.institute` (the commercial product the operator also linked) is the closed-source exception: $9.99 one-time Windows app, no public repo. ALO treats the topic as pattern reference for its own assistant surface — no third-party assistant code is embedded.
+
+### 8.3 MirrorFly — what it is and what implementing it would take
+
+Verified from `mirrorfly.com/self-hosted-chat-solution.php` (2026-11-28): MirrorFly is a **commercial** self-hosted chat solution — "one time license cost", full source-code access granted to paying customers, SDKs for ~11 platforms, deployment on customer premises/cloud, contact-sales pricing. It is **not free and not open source**: there is no public repository, no free tier, and the page does not publish prices.
+
+If MirrorFly were procured, the implementation path would be: (1) contact sales and sign the one-time license; (2) provision a dedicated server per their spec; (3) install their self-hosted package; (4) integrate their SDK into ALO frontends. Nothing of that can start without budget approval, and ALO rules forbid copying any MirrorFly content or designs.
+
+### 8.4 The decision taken (operator rule: "must be add all free system")
+
+Because the operator requires free systems, ALO implemented the **free, open-source equivalent** of the MirrorFly use case instead: **Rocket.Chat community edition** (MIT core, 46,584★, latest stable 9.0.0) added to the AI-OS compose stack as the self-hosted chat platform — staff channels/DMs, live-chat widget for the main site, MongoDB replica set for durability, isolated on the internal `ai-os` network behind nginx at `/rocketchat`. A future MirrorFly migration (only if ever procured) would replace one isolated service; no ALO application code depends on the chat choice.
+
+Alternatives evaluated via LICENSE files (2026-11-28): Mattermost (AGPL/MIT hybrid, 39,727★) and Chatwoot (MIT core + enterprise dir, 40,684★ — a support-inbox/live-chat alternative for a later phase). Rocket.Chat was chosen as the closest full-chat-platform fit.
+
+### 8.5 AI call-center cluster
+
+The operator collected several AI-call projects. Assessment: `rasonyang/ai-native-callcenter` (Go, Apache-2.0, active) is the strongest reference — a full open stack around FreeSWITCH/SIP with AI agents, complemented by the same author's `freesbc`, `web-sip-phone`, `sip-to-ai`, `tts-server` and `stt-server`. `twilio-labs/call-gpt` (MIT) and `amulchapla/AI-Powered-Call-Center-Intelligence` (MIT) are older, well-known patterns but stale (2024/2023). `perrypixel/10x-Tool-Calls` (NOASSERTION) needs license review. None are deployed: a call-center module needs SIP trunk procurement, telephony ops ownership and a compliance pass (call recording law in the operating jurisdictions) — all marked unknown until the operator provides them.
+
+### 8.6 PaaS, frontend builders, coding agents and other repos
+
+- **CapRover / Dokku**: host-level PaaS platforms for one-click self-hosted app deployment. They are not compose services (both manage the Docker host themselves); they are deployment alternatives for ALO's own VPS layer. Dokku is already referenced in `deploy/ai-os/README.md` §7 for sidecar services. CapRover's API license field is NOASSERTION — review before adoption.
+- **GrapesJS**: open-source drag-and-drop page builder framework (26,437★). Candidate library for a visual editing surface in ALO frontends; license field NOASSERTION (historically BSD-3-Clause) — review before embedding.
+- **SWE-agent** (MIT, 20,883★), **OmniCopilot** (MIT), **meta/astryx** (MIT), **free-claude-code** (NOASSERTION — verify function and ToS first): coding-agent references for ALO's autonomous-factory track, alongside Aider (wave 1).
+- **InfiniteTalk** (Apache-2.0): audio-driven talking-video generation — relevant to ALO content/avatar ambitions; GPU-heavy, not a near-term deploy.
+- **OpenMausBot** (Apache-2.0, 28,507★), **lastbook** (MIT), **DistinctZA/patina** (MIT, 8★ — watchlist): recorded for completeness; no integration value identified this pass.
+- **outstand.so**: commercial unified social-posting API (12 platforms, MCP integration for AI agents; free tier 3,000 posts/mo). Relevant only if ALO adds social publishing — then it competes with free self-hosted alternatives and stays spend-controlled.

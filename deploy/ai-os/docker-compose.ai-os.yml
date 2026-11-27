@@ -33,6 +33,8 @@ volumes:
   directus-uploads:
   nocobase-data:
   postgres-data:
+  mongo-chat-data:
+  rocketchat-uploads:
 
 services:
   # ── Unified LLM proxy (master key = LITELLM_MASTER_KEY) ────────────────
@@ -242,6 +244,82 @@ services:
       timeout: 10s
       retries: 5
       start_period: 90s
+
+  # ── Self-hosted team chat (free MirrorFly alternative) ─────────────────
+  # Rocket.Chat community edition (MIT core) — staff channels, DMs, voice
+  # notes, live-chat widget for the main site. Requires a MongoDB replica
+  # set (transaction support), initialized once by the one-shot service below.
+  mongo-chat:
+    image: mongo:7
+    restart: unless-stopped
+    networks: [ai-os]
+    command: ["mongod", "--replSet", "rs0", "--oplogSize", "128", "--bind_ip_all"]
+    volumes:
+      - mongo-chat-data:/data/db
+    deploy:
+      resources:
+        limits: { memory: 768m }
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'try { rs.status().ok } catch (e) { 0 }' | grep -q 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  mongo-init-replica:
+    image: mongo:7
+    restart: "no"
+    networks: [ai-os]
+    depends_on:
+      mongo-chat: { condition: service_started }
+    entrypoint:
+      - bash
+      - -c
+      - |
+        for i in $$(seq 1 30); do
+          mongosh "mongodb://mongo-chat:27017/rocketchat" --quiet --eval '
+            var rsconf = { _id: "rs0", members: [ { _id: 0, host: "mongo-chat:27017" } ] };
+            try { rs.status().ok == 1 || rs.initiate(rsconf, { force: true }) }
+            catch (e) { rs.initiate(rsconf, { force: true }) }
+            print("rs0 ready")
+          ' && exit 0
+          echo "mongo not ready yet, retry $$i/30"; sleep 2
+        done
+        echo "failed to initialize replica set rs0"; exit 1
+    deploy:
+      resources:
+        limits: { memory: 256m }
+
+  rocket-chat:
+    image: registry.rocket.chat/rocketchat/rocket.chat:9.0.0
+    restart: unless-stopped
+    networks: [ai-os]
+    # Bound to 127.0.0.1 only — nginx (deploy/nginx-ai-os.conf) proxies
+    # https://<AI_OS_PUBLIC_URL>/rocketchat/ to this port.
+    ports:
+      - "127.0.0.1:3083:3000"
+    environment:
+      PORT: "3000"
+      ROOT_URL: ${AI_OS_PUBLIC_URL:?set in .env.ai-os}/rocketchat
+      MONGO_URL: mongodb://mongo-chat:27017/rocketchat?replicaSet=rs0
+      MONGO_OPLOG_URL: mongodb://mongo-chat:27017/local?replicaSet=rs0
+      ADMIN_USERNAME: ${ROCKET_CHAT_ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ROCKET_CHAT_ADMIN_EMAIL:?set in .env.ai-os}
+      ADMIN_PASS: ${ROCKET_CHAT_ADMIN_PASSWORD:?set in .env.ai-os}
+      OVERWRITE_Setup_Wizard_State: "completed"
+    volumes:
+      - rocketchat-uploads:/app/uploads
+    depends_on:
+      mongo-init-replica: { condition: service_completed_successfully }
+    deploy:
+      resources:
+        limits: { memory: 1g }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:3000/api/health >/dev/null || wget -q -O- http://127.0.0.1:3000/api/health >/dev/null 2>&1 || exit 1"]
+      interval: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
 
   # ── Shared Postgres/Redis for Activepieces + NocoBase ──────────────────
   postgres-ai-os:
