@@ -1,9 +1,9 @@
 # ALAMINN AI-OS — self-hosted AI & automation microservice stack
 
 This directory deploys the **AI-OS stack**: LibreChat, LiteLLM, Open-WebUI,
-Activepieces, Temporal, Directus and NocoBase — the open-source AI & automation
-ecosystem that connects to ALAMINN through the **ecosystem bridge**
-(`/api/v1/ecosystem/*` on the main site).
+Activepieces, Temporal, Directus, NocoBase and Rocket.Chat — the open-source
+AI & automation ecosystem that connects to ALAMINN through the
+**ecosystem bridge** (`/api/v1/ecosystem/*` on the main site).
 
 ## Architecture (production-safe hybrid)
 
@@ -12,12 +12,13 @@ ecosystem that connects to ALAMINN through the **ecosystem bridge**
  Internet ──TLS──►  │ nginx (deploy/nginx-ai-os.conf)              │
                     │   ai-os.alaminn.info/{litellm,librechat,…}  │
                     └──────────────┬──────────────────────────────┘
-                                   │ host ports 4000/3080/8080/8081/8055/8082
+                                   │ host ports 4000/3080/8080/8081/8055/8082/3083
                     ┌──────────────▼──────────────────────────────┐
                     │ docker network "ai-os" (isolated)           │
                     │  litellm · librechat · open-webui           │
                     │  activepieces · temporal(+pg)               │
                     │  directus · nocobase · postgres · redis     │
+                    │  rocket-chat (+mongo replica set)           │
                     └──────────────┬──────────────────────────────┘
                                    │ ecosystem bridge (HTTPS + API key + HMAC)
                     ┌──────────────▼──────────────────────────────┐
@@ -34,12 +35,14 @@ plain HTTPS call with an API key — registered and health-tested from
 
 ## 1. Prerequisites
 
-- A VPS with Docker Engine 24+ and ~6 GB free RAM for the full stack
-  (each service has a memory limit: ~7.5 GB total ceiling, typically ~3–4 GB
+- A VPS with Docker Engine 24+ and ~7.5 GB free RAM for the full stack
+  (each service has a memory limit: ~9.5 GB total ceiling, typically ~4–5 GB
   at idle) plus the existing ALAMINN app
 - DNS record `ai-os.alaminn.info` → the VPS
-- Ports 4000, 3080, 8080, 8081, 8055, 8082 bound to 127.0.0.1 only (the
-  compose file does NOT publish them; nginx proxies by path)
+- Ports 4000, 3080, 8080, 8081, 8055, 8082, 3083 bound to 127.0.0.1 only.
+  Rocket.Chat publishes `127.0.0.1:3083`; the other services are reached by
+  docker network aliases where the host nginx runs inside the network or by
+  publishing the same 127.0.0.1-only mapping locally if needed.
 
 ## 2. Deploy the stack (VPS commands)
 
@@ -89,6 +92,7 @@ Restart the app, then in `/admin/integrations` register each service:
 | Temporal | `127.0.0.1:7233` (internal/VPN only) | — |
 | Directus | `https://ai-os.alaminn.info/directus` | static token |
 | NocoBase | `https://ai-os.alaminn.info/nocobase` | API token |
+| Rocket.Chat | `https://ai-os.alaminn.info/rocketchat` | admin login (staff chat) |
 
 Each entry has a **Test connection** button (SSRF-safe probes, real health
 endpoints). Secrets are AES-encrypted at rest; the UI only shows masks.
@@ -159,8 +163,12 @@ setting `LITELLM_MASTER_KEY`). Run the full stack with the host compose file.
 - **Backups:** `docker run --rm -v alaminn-ai-os_postgres-data:/data -v $PWD:/backup alpine tar czf /backup/ai-os-pg.tgz /data`
   (repeat for the other named volumes). Also export LiteLLM virtual-key config.
 - **Upgrades:** `docker compose -f docker-compose.ai-os.yml pull && docker compose -f docker-compose.ai-os.yml --env-file .env.ai-os up -d`
-- **Memory:** total ceiling ≈ 7.5 GB (`docker stats`); lower the per-service
-  `deploy.resources.limits.memory` values on small VPSes — healthchecks fail
-  fast if a limit is too low.
+- **Memory:** total ceiling ≈ 9.5 GB including Rocket.Chat + Mongo (`docker stats`);
+  lower the per-service `deploy.resources.limits.memory` values on small VPSes —
+  healthchecks fail fast if a limit is too low. Mongo runs with a replica set
+  (Rocket.Chat requires oplog/transactions); the one-shot `mongo-init-replica`
+  service initializes it on first `up`.
 - **Licensing:** NocoBase is AGPL-3.0 and Directus is BSL-1.1 — they run as
   separate network services (no code sharing), which is the intended use here.
+  Rocket.Chat community edition has an MIT core with a separately licensed
+  `ee/` enterprise directory — the compose image is the free community build.
