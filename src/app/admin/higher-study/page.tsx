@@ -18,6 +18,7 @@ type Overview = {
 };
 
 const SECTIONS = [
+  { href: "/admin/higher-study/intelligence", label: "University & Course Intelligence", desc: "Source registry (ApplyBoard Assist, Edvoy, AHZ, IDP, MARGE), evidence with verification status, conflicts, duplicates, review queues" },
   { href: "/admin/higher-study/monitoring", label: "Data Monitoring", desc: "Weekly official-source checks and the verification queue" },
   { href: "/admin/higher-study/universities", label: "Universities", desc: "Public discovery catalogue — source of truth: verified records" },
   { href: "/admin/higher-study/courses", label: "Courses", desc: "Programmes, fees, deadlines — approvals flow from monitoring" },
