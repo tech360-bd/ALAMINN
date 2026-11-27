@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
       inactiveSessionsResult,
       resetCodesResult,
       expiredUserResetResult,
+      expiredAdminSessionsResult,
     ] = await db.$transaction([
       db.staffSession.deleteMany({
         where: {
@@ -80,17 +81,19 @@ export async function GET(request: NextRequest) {
           passwordResetExpiresAt: null,
         },
       }),
+      db.adminSession.deleteMany({ where: { OR: [{ expiresAt: { lte: now } }, { user: { status: { not: "active" } } }] } }),
     ]);
 
     const expiredStaffSessions = expiredSessionsResult.count;
     const inactiveAccountSessions = inactiveSessionsResult.count;
     const expiredOrUsedResetCodes = resetCodesResult.count;
     const expiredUserResetTokens = expiredUserResetResult.count;
+    const expiredAdminSessions = expiredAdminSessionsResult.count;
     const cleaned =
       expiredStaffSessions +
       inactiveAccountSessions +
       expiredOrUsedResetCodes +
-      expiredUserResetTokens;
+      expiredUserResetTokens + expiredAdminSessions;
 
     return NextResponse.json({
       success: true,
@@ -101,6 +104,7 @@ export async function GET(request: NextRequest) {
         inactiveAccountSessions,
         expiredOrUsedResetCodes,
         expiredUserResetTokens,
+        expiredAdminSessions,
       },
       meta: {
         scannedAt: now.toISOString(),

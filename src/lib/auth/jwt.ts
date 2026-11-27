@@ -30,6 +30,8 @@ export type AuthToken = {
   /** User.id */
   userId: string;
   role: UserRole;
+  /** Unique identifier of the server-side session. */
+  sessionId: string;
   email: string;
   name: string;
   /** Epoch seconds */
@@ -49,7 +51,7 @@ function secretKey(): Uint8Array {
 export async function createToken(
   userId: string,
   role: string,
-  extra: { email?: string; name?: string } = {}
+  extra: { email?: string; name?: string; sessionId?: string } = {}
 ): Promise<string> {
   const normalized = normalizeRole(role);
   if (!normalized) throw new Error(`createToken: invalid role "${role}"`);
@@ -61,6 +63,7 @@ export async function createToken(
   })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(userId)
+    .setJti(extra.sessionId ?? crypto.randomUUID())
     .setIssuedAt()
     .setIssuer("alaminn.info")
     .setAudience("alaminn-admin")
@@ -85,11 +88,12 @@ export async function verifyToken(token: string | undefined | null): Promise<Aut
     const userId = payload.sub;
     const role = normalizeRole(typeof payload.role === "string" ? payload.role : "");
     if (!userId || !role || !ALL_ROLES.includes(role)) return null;
-    if (typeof payload.exp !== "number") return null;
+    if (typeof payload.exp !== "number" || typeof payload.jti !== "string" || !payload.jti) return null;
 
     return {
       userId,
       role,
+      sessionId: payload.jti,
       email: typeof payload.email === "string" ? payload.email : "",
       name: typeof payload.name === "string" ? payload.name : "",
       expiresAt: payload.exp,

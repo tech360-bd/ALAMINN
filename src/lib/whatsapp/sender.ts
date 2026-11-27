@@ -16,13 +16,12 @@ export type SendResult = {
 };
 
 export async function sendWhatsappMessage(to: string, text: string): Promise<SendResult> {
-  const cfg = whatsappConfig();
-  if (!cfg.apiConfigured || !cfg.apiToken || !cfg.apiPhoneNumberId) {
-    return { status: "PENDING", messageId: `dev-${Date.now()}-${to.slice(-4)}`, error: null, actuallySent: false };
-  }
-
   const normalized = normalizeWhatsappNumber(to);
   if (!normalized) return { status: "FAILED", messageId: null, error: "Invalid recipient number", actuallySent: false };
+  const cfg = whatsappConfig();
+  if (!cfg.apiConfigured || !cfg.apiToken || !cfg.apiPhoneNumberId) {
+    return { status: "PENDING", messageId: `dev-${Date.now()}-${normalized.slice(-4)}`, error: null, actuallySent: false };
+  }
   const body = text.length > 4096 ? `${text.slice(0, 4093)}...` : text;
   try {
     const res = await fetch(`https://graph.facebook.com/v18.0/${encodeURIComponent(cfg.apiPhoneNumberId)}/messages`, {

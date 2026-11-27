@@ -6,10 +6,13 @@ const dbMock = {
     findUnique: vi.fn(),
     findFirst: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
   },
   auditLog: {
     create: vi.fn(),
   },
+  adminSession: { deleteMany: vi.fn() },
+  $transaction: vi.fn(),
 };
 
 const sendTransactionalMock = vi.fn().mockResolvedValue({ ok: true });
@@ -37,6 +40,9 @@ describe("auth forgot/reset/session/logout routes", () => {
     vi.clearAllMocks();
     dbMock.auditLog.create.mockResolvedValue({});
     dbMock.user.update.mockResolvedValue({});
+    dbMock.user.updateMany.mockResolvedValue({ count: 1 });
+    dbMock.adminSession.deleteMany.mockResolvedValue({ count: 1 });
+    dbMock.$transaction.mockImplementation(async (fn) => fn(dbMock));
     sendTransactionalMock.mockResolvedValue({ ok: true });
   });
 
@@ -92,13 +98,21 @@ describe("auth forgot/reset/session/logout routes", () => {
     const { POST } = await import("@/app/api/v1/auth/reset-password/route");
     const res = await POST(req("http://localhost/api/v1/auth/reset-password", { token: "valid-token", password: "new-password-123" }));
     expect(res.status).toBe(200);
-    expect(dbMock.user.update).toHaveBeenCalledTimes(1);
-    const update = dbMock.user.update.mock.calls[0][0];
-    expect(update.where).toEqual({ id: "u1" });
+    expect(dbMock.user.updateMany).toHaveBeenCalledTimes(1);
+    const update = dbMock.user.updateMany.mock.calls[0][0];
+    expect(update.where).toEqual({ id: "u1", passwordResetToken: "valid-token", passwordResetExpiresAt: { gt: expect.any(Date) } });
     expect(update.data.passwordResetToken).toBeNull();
     expect(update.data.passwordResetExpiresAt).toBeNull();
     expect(typeof update.data.passwordHash).toBe("string");
     expect(update.data.passwordHash).not.toBe("new-password-123");
+  });
+
+  it("fails rather than reporting success when session revocation fails", async () => {
+    dbMock.user.findFirst.mockResolvedValue({ id: "user-1" });
+    dbMock.adminSession.deleteMany.mockRejectedValueOnce(new Error("store unavailable"));
+    const { POST } = await import("@/app/api/v1/auth/reset-password/route");
+    const res = await POST(req("http://localhost/api/v1/auth/reset-password", { token: "valid-token", password: "new-password-123" }));
+    expect(res.status).toBe(500);
   });
 
   it("reset-password rejects reused token after it has been cleared", async () => {

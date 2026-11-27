@@ -12,14 +12,14 @@ describe("sendWhatsappAccountTemplate", () => {
   afterEach(() => { global.fetch = originalFetch; vi.restoreAllMocks(); });
 
   it("rejects missing template name/language", async () => {
-    const res = await sendWhatsappAccountTemplate({ externalId: "123", tokenEncrypted: "enc" }, "+15551234567", { name: "", language: "" });
+    const res = await sendWhatsappAccountTemplate({ externalId: "123", tokenEncrypted: "enc" }, "+12025550123", { name: "", language: "" });
     expect(res.actuallySent).toBe(false);
     expect(res.error).toMatch(/required/i);
   });
 
   it("sends approved template payload", async () => {
     (global.fetch as any).mockResolvedValue({ ok: true, json: async () => ({ messages: [{ id: "wamid.1" }] }) });
-    const res = await sendWhatsappAccountTemplate({ externalId: "123", tokenEncrypted: "enc" }, "+15551234567", { name: "hello_world", language: "en_US" });
+    const res = await sendWhatsappAccountTemplate({ externalId: "123", tokenEncrypted: "enc" }, "+12025550123", { name: "hello_world", language: "en_US" });
     expect(res.actuallySent).toBe(true);
     expect(res.messageId).toBe("wamid.1");
     const body = JSON.parse((global.fetch as any).mock.calls[0][1].body);

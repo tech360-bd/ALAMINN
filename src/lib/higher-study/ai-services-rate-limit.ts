@@ -11,15 +11,36 @@ export interface RateLimitResult {
   resetAt: number;
 }
 
-export function createRateLimiter(maxRequests: number, windowMs: number) {
+export function createRateLimiter(maxRequests: number, windowMs: number, maxKeys = 10_000) {
   const counters = new Map<string, { count: number; resetAt: number }>();
+  let nextSweep = 0;
+  let earliestReset = Infinity;
+
+  function sweep(now: number) {
+    earliestReset = Infinity;
+    for (const [key, entry] of counters) {
+      if (entry.resetAt <= now) counters.delete(key);
+      else earliestReset = Math.min(earliestReset, entry.resetAt);
+    }
+    nextSweep = now + Math.min(windowMs, 60_000);
+  }
 
   return {
     check(key: string, now = Date.now()): RateLimitResult {
+      if (now >= nextSweep) sweep(now);
       const entry = counters.get(key);
       if (!entry || entry.resetAt <= now) {
+        // Do not evict active buckets: that would let attackers reset limits.
+        // At capacity, clear expired buckets, then fail closed for new keys.
+        if (!entry && counters.size >= maxKeys) {
+          if (earliestReset <= now) sweep(now);
+          if (counters.size >= maxKeys) {
+            return { allowed: false, remaining: 0, resetAt: earliestReset };
+          }
+        }
         const resetAt = now + windowMs;
         counters.set(key, { count: 1, resetAt });
+        earliestReset = Math.min(earliestReset, resetAt);
         return { allowed: true, remaining: maxRequests - 1, resetAt };
       }
       if (entry.count >= maxRequests) {
@@ -30,6 +51,7 @@ export function createRateLimiter(maxRequests: number, windowMs: number) {
     },
     reset() {
       counters.clear();
+      nextSweep = 0;
     },
   };
 }

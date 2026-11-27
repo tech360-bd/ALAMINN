@@ -44,9 +44,10 @@ import {
   generateRequestId,
   incrementRequestCount,
 } from "@/lib/request-context";
-import { SESSION_COOKIE, verifyToken } from "@/lib/auth/token";
-import { AUTH_COOKIE, verifyToken as verifyAuthToken } from "@/lib/auth/jwt";
-import { resolveStaffSecret } from "@/lib/auth/secret";
+import { SESSION_COOKIE } from "@/lib/auth/token";
+import { getSessionFromRequest } from "@/lib/auth";
+import { authenticateStaffToken } from "@/lib/auth/staff-token-session";
+import { db } from "@/lib/db";
 import { rolesForPath } from "@/lib/auth/rbac";
 
 /**
@@ -63,8 +64,7 @@ async function staffGate(req: NextRequest): Promise<NextResponse | null> {
   if (!roles) return null;
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const secret = resolveStaffSecret();
-  const payload = secret ? await verifyToken(token, secret) : null;
+  const payload = token ? await authenticateStaffToken(db, token).catch(() => null) : null;
   const isApi = pathname.startsWith("/api/");
 
   if (!payload) {
@@ -124,8 +124,9 @@ async function adminGate(req: NextRequest): Promise<NextResponse | null> {
   // Let CORS preflight through; the route decides how to answer it.
   if (req.method === "OPTIONS") return null;
 
-  const token = req.cookies.get(AUTH_COOKIE)?.value;
-  const payload = token ? await verifyAuthToken(token) : null;
+  // Public auth pages must remain reachable even if the session store is down.
+  if (isAdminPage && PUBLIC_ADMIN_PAGES.has(pathname)) return null;
+  const payload = await getSessionFromRequest(req);
 
   if (isAdminApi) {
     if (payload) return null;

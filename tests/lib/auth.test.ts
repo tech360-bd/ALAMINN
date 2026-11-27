@@ -54,10 +54,11 @@ describe("verifyPassword — correct password", () => {
     expect(verifyPassword(password, stored)).toBe(true);
   });
 
-  it("returns true for a long passphrase", () => {
-    const password = "a".repeat(200);
+  it("accepts 72 UTF-8 bytes but refuses to create silently truncated hashes", () => {
+    const password = "a".repeat(72);
     const stored = hashPassword(password);
     expect(verifyPassword(password, stored)).toBe(true);
+    expect(() => hashPassword("a".repeat(200))).toThrow(/72-byte/);
   });
 
   it("returns true for a password with unicode", () => {

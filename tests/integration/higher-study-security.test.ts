@@ -14,7 +14,8 @@ const { isolatedDbPath } = vi.hoisted(() => {
 });
 
 import { db } from "@/lib/db";
-import { createToken, AUTH_COOKIE } from "@/lib/auth/jwt";
+import { AUTH_COOKIE } from "@/lib/auth/jwt";
+import { createTestAdminToken as createToken } from "../fixtures/admin-session";
 import { signReferralCallback } from "@/lib/higher-study/api-helpers";
 import { POST as createReferralPost } from "@/app/api/v1/higher-study/referral/route";
 import { POST as confirmReferralPost } from "@/app/api/v1/higher-study/referral/[code]/confirm/route";

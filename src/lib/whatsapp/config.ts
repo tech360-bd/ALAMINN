@@ -11,6 +11,7 @@
  * @see DEVELOPMENT.md §AI WhatsApp Agent
  */
 import { env } from "@/lib/env";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 
 /** Get the WhatsApp env config (typed). */
 export function whatsappConfig() {
@@ -70,20 +71,22 @@ export function buildWhatsappHandoffUrl(conversationToken: string): string {
  *   "01716609554"      → "8801716609554"   (Bangladesh local → intl)
  *   "+8801716609554"   → "8801716609554"
  *   "8801716609554"    → "8801716609554"
- *   "+44 7700 900123"  → "447700900123"
+ *   "+44 20 7946 0018" → "442079460018"
+ *
+ * Only Bangladesh mobile national numbers are accepted without a country
+ * code. All other numbers must include their international calling code.
+ * The result is E.164 digits as expected by WhatsApp, without the leading +.
  */
 export function normalizeWhatsappNumber(input: string | null | undefined): string | null {
-  if (!input) return null;
-  let s = String(input).trim();
-  if (!s) return null;
-  // Strip everything except digits
-  s = s.replace(/[^\d]/g, "");
-  if (!s) return null;
-  // Bangladesh local → international (strip leading 0, prepend 880)
-  if (s.length === 11 && s.startsWith("0")) {
-    return "88" + s.slice(1);
-  }
-  return s;
+  if (typeof input !== "string") return null;
+  const value = input.trim();
+  if (!value || !/^\+?[\d\s().-]+$/.test(value)) return null;
+  const digits = value.replace(/\D/g, "");
+  const candidate = !value.startsWith("+") && /^01[3-9]\d{8}$/.test(digits)
+    ? `+880${digits.slice(1)}`
+    : `+${digits}`;
+  const parsed = parsePhoneNumberFromString(candidate);
+  return parsed?.isValid() ? parsed.number.slice(1) : null;
 }
 
 /**
