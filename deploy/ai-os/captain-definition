@@ -1,0 +1,5 @@
+{
+  "$schema": "https://caprover.com/schemas/captain-definition.json",
+  "schemaVersion": 2,
+  "dockerfilePath": "./Dockerfile.ai-os"
+}

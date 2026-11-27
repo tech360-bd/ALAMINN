@@ -1,0 +1,279 @@
+# AI-OS deployment stack — ALAMINN self-hosted AI & automation microservices
+# ----------------------------------------------------------------------------
+# Production-safe hybrid architecture:
+#   - The Next.js app (ALAMINN) stays the ONLY public web surface.
+#   - These services run on an ISOLATED Docker network ("ai-os"), reachable
+#     from the app through the ecosystem bridge (/api/v1/ecosystem/*) and
+#     from each other on the internal network — never exposed directly.
+#   - Every service has a memory limit + healthcheck. Nothing is vendored
+#     into the app repo; everything connects by base URL + key from
+#     /admin/integrations (encrypted at rest).
+#
+# Usage (on the VPS):
+#   cp .env.ai-os.example .env.ai-os   # fill the secrets
+#   docker compose -f deploy/ai-os/docker-compose.ai-os.yml --env-file deploy/ai-os/.env.ai-os up -d
+#
+# Update strategy: pull new images, `docker compose ... up -d` again; volumes
+# persist state. Back up the named volumes before upgrading (see README.md).
+
+name: alaminn-ai-os
+
+networks:
+  ai-os:
+    driver: bridge
+    internal: false   # outbound internet access allowed (model APIs); access IN is controlled by nginx
+
+volumes:
+  litellm-config:
+  librechat-data:
+  openwebui-data:
+  activepieces-data:
+  temporal-data:
+  directus-data:
+  directus-uploads:
+  nocobase-data:
+  postgres-data:
+
+services:
+  # ── Unified LLM proxy (master key = LITELLM_MASTER_KEY) ────────────────
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    restart: unless-stopped
+    networks: [ai-os]
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?set in .env.ai-os}
+      STORE_MODEL_IN_DB: "True"
+      DATABASE_URL: ${LITELLM_DATABASE_URL:-}
+    volumes:
+      - litellm-config:/app
+    deploy:
+      resources:
+        limits: { memory: 1g }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:4000/health/liveliness >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 20s
+
+  # ── Staff AI chat + RAG workspace ──────────────────────────────────────
+  librechat:
+    image: ghcr.io/danny-avila/librechat:latest
+    restart: unless-stopped
+    networks: [ai-os]
+    environment:
+      # Point LibreChat at LiteLLM as a single OpenAI-compatible provider.
+      OPENAI_APIKEY: ${LITELLM_MASTER_KEY:?}
+      OPENAI_REVERSE_PROXY: http://litellm:4000/v1/chat/completions
+      ENDPOINTS: openAI,assistants
+      # Multi-user mode with self-registration disabled = staff-only.
+      ALLOW_REGISTRATION: "false"
+      ALLOW_SOCIAL_LOGIN: "false"
+      CREDS_KEY: ${LIBRECHAT_CREDS_KEY:?set in .env.ai-os}
+      CREDS_IV: ${LIBRECHAT_CREDS_IV:?set in .env.ai-os}
+      JWT_SECRET: ${LIBRECHAT_JWT_SECRET:?set in .env.ai-os}
+    volumes:
+      - librechat-data:/app/api/logs
+      - librechat-data:/app/client/public/images
+    depends_on:
+      litellm: { condition: service_started }
+    deploy:
+      resources:
+        limits: { memory: 1g }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:3080/api/health >/dev/null 2>&1 || curl -sf http://127.0.0.1:3080/api/health >/dev/null || exit 1"]
+      interval: 45s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ── Lighter AI chat workspace (alternative to LibreChat) ────────────────
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    networks: [ai-os]
+    environment:
+      OPENAI_API_BASE_URL: http://litellm:4000/v1
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY:?}
+      ENABLE_SIGNUP: "false"
+      WEBUI_AUTH: "true"
+    volumes:
+      - openwebui-data:/app/backend/data
+    depends_on:
+      litellm: { condition: service_started }
+    deploy:
+      resources:
+        limits: { memory: 1g }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/health >/dev/null || exit 1"]
+      interval: 45s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ── No-code automation (calls the ALAMINN ecosystem API) ───────────────
+  activepieces:
+    image: ghcr.io/activepieces/activepieces:latest
+    restart: unless-stopped
+    networks: [ai-os]
+    environment:
+      AP_ENGINE_EXECUTABLE_PATH: dist/packages/engine/main/index.js
+      AP_ENVIRONMENT: prod
+      AP_FRONTEND_URL: ${AI_OS_PUBLIC_URL:?set in .env.ai-os}/activepieces
+      AP_ENCRYPTION_KEY: ${ACTIVEPIECES_ENCRYPTION_KEY:?set in .env.ai-os}
+      AP_JWT_SECRET: ${ACTIVEPIECES_JWT_SECRET:?set in .env.ai-os}
+      AP_POSTGRES_DATABASE: activepieces
+      AP_POSTGRES_HOST: postgres-ai-os
+      AP_POSTGRES_PORT: "5432"
+      AP_POSTGRES_USERNAME: ${POSTGRES_USER:?set in .env.ai-os}
+      AP_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env.ai-os}
+      AP_REDIS_URL: redis://redis-ai-os:6379
+      AP_TELEMETRY_ENABLED: "false"
+    volumes:
+      - activepieces-data:/root/.activepieces
+    depends_on:
+      postgres-ai-os: { condition: service_started }
+      redis-ai-os: { condition: service_started }
+    deploy:
+      resources:
+        limits: { memory: 1g }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:80/healthz >/dev/null || exit 1"]
+      interval: 45s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ── Durable workflow engine ────────────────────────────────────────────
+  temporal-postgresql:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks: [ai-os]
+    environment:
+      POSTGRES_USER: ${TEMPORAL_DB_USER:-temporal}
+      POSTGRES_PASSWORD: ${TEMPORAL_DB_PASSWORD:?set in .env.ai-os}
+      POSTGRES_DB: temporal
+    volumes:
+      - temporal-data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits: { memory: 512m }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TEMPORAL_DB_USER:-temporal}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  temporal:
+    image: temporalio/auto-setup:1.25.2
+    restart: unless-stopped
+    networks: [ai-os]
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: ${TEMPORAL_DB_USER:-temporal}
+      POSTGRES_PWD: ${TEMPORAL_DB_PASSWORD:?set in .env.ai-os}
+      POSTGRES_SEEDS: temporal-postgresql
+      DYNAMIC_CONFIG_FILE_PATH: /etc/temporal/config/dynamicconfig/production-sql.yaml
+    depends_on:
+      temporal-postgresql: { condition: service_started }
+    deploy:
+      resources:
+        limits: { memory: 768m }
+    healthcheck:
+      test: ["CMD-SHELL", "tctl --address 127.0.0.1:7233 cluster health | grep -q SERVING || exit 1"]
+      interval: 45s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ── Headless CMS ──────────────────────────────────────────────────────
+  directus:
+    image: directus/directus:11
+    restart: unless-stopped
+    networks: [ai-os]
+    environment:
+      SECRET: ${DIRECTUS_SECRET:?set in .env.ai-os}
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:?set in .env.ai-os}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:?set in .env.ai-os}
+      DB_CLIENT: sqlite3
+      DB_FILENAME: /directus/database/data.db
+      WEBSOCKETS_ENABLED: "true"
+      PUBLIC_URL: ${AI_OS_PUBLIC_URL:?set in .env.ai-os}/directus
+    volumes:
+      - directus-data:/directus/database
+      - directus-uploads:/directus/uploads
+    deploy:
+      resources:
+        limits: { memory: 768m }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8055/server/health >/dev/null 2>&1 || curl -sf http://127.0.0.1:8055/server/health >/dev/null || exit 1"]
+      interval: 45s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── No-code data platform (internal portals) ───────────────────────────
+  nocobase:
+    image: nocobase/nocobase:latest
+    restart: unless-stopped
+    networks: [ai-os]
+    environment:
+      APP_KEYS: ${NOCOBASE_APP_KEYS:?set in .env.ai-os}
+      SECRET_KEY: ${NOCOBASE_SECRET_KEY:?set in .env.ai-os}
+      DB_DIALECT: postgres
+      DB_HOST: postgres-ai-os
+      DB_PORT: "5432"
+      DB_DATABASE: nocobase
+      DB_USER: ${POSTGRES_USER:?set in .env.ai-os}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?set in .env.ai-os}
+      APP_PUBLIC_URL: ${AI_OS_PUBLIC_URL:?set in .env.ai-os}/nocobase
+    volumes:
+      - nocobase-data:/app/nocobase/storage
+    depends_on:
+      postgres-ai-os: { condition: service_started }
+    deploy:
+      resources:
+        limits: { memory: 1g }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:80/api/app:getInfo >/dev/null || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # ── Shared Postgres/Redis for Activepieces + NocoBase ──────────────────
+  postgres-ai-os:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks: [ai-os]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env.ai-os}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env.ai-os}
+      POSTGRES_DB: activepieces
+      POSTGRES_MULTIPLE_DATABASES: nocobase
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits: { memory: 768m }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aios}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  redis-ai-os:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [ai-os]
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    deploy:
+      resources:
+        limits: { memory: 320m }
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 20s
+      timeout: 5s
+      retries: 5

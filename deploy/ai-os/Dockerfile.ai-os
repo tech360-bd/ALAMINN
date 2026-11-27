@@ -1,0 +1,20 @@
+# CapRover one-click Dockerfile for the AI-OS stack.
+#
+# CapRover deploys ONE container per app. This image builds a small supervisor
+# that runs `docker compose` is NOT suitable for multi-service stacks, so the
+# recommended path is: deploy the AI-OS stack on a CapRover "One-Click App /
+# Docker Compose" template (paste the contents of docker-compose.ai-os.yml,
+# replacing ${VAR} values with your generated secrets), then deploy ONLY the
+# ALAMINN Next.js app as a normal CapRover web app pointing at this stack.
+#
+# This Dockerfile exists for the case where you want a single-service
+# LiteLLM-only deployment (the minimal ALAMINN AI gateway):
+#   caprover deploy -a alaminn-litellm -i ghcr.io/berriai/litellm:main-stable
+# and pass LITELLM_MASTER_KEY + config via CapRover environment variables.
+#
+# For the full stack (LibreChat, Open-WebUI, Activepieces, Temporal, Directus,
+# NocoBase) use the Compose template route described in README.md.
+FROM ghcr.io/berriai/litellm:main-stable
+ENV LITELLM_PORT=4000
+EXPOSE 4000
+CMD ["--port", "4000", "--num_workers", "2"]

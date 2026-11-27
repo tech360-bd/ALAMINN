@@ -1,0 +1,13 @@
+# Dokku deployment for the ALAMINN AI-OS service gateway.
+#
+# Dokku deploys one app per git push. The full multi-service stack uses
+# docker-compose.ai-os.yml on the host (see README.md §Dokku). This Procfile
+# deploys the LiteLLM gateway as a Dokku app when you want the minimal path:
+#
+#   dokku apps:create alaminn-litellm
+#   dokku config:set alaminn-litellm LITELLM_MASTER_KEY=sk-...
+#   git push dokku ai-os:main
+#
+# Full-stack alternative (recommended):
+#   dokku proxy:enable alaminn-litellm   # or leave on the docker network
+web: litellm --config /app/config.yaml --port $PORT --num_workers 2

@@ -12,6 +12,7 @@ import {
   FlaskConical, CalendarDays, GraduationCap, ClipboardList, HelpCircle, Mail,
   MessageCircle, Share2, Inbox, UserRound, CalendarClock as CalIcon, Megaphone, ListChecks,
   Activity, Sparkles, Briefcase, Workflow, Kanban, SearchCheck, PenLine, Mails, ChartNoAxesCombined, Clapperboard, MessagesSquare, Plug,
+  SlidersHorizontal, Zap, KeyRound,
   Quote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -56,12 +57,16 @@ const NAV_GROUPS: {
       { href: "/admin/video-studio", label: "Video Studio", icon: Clapperboard },
       { href: "/admin/social-scheduler", label: "Social Scheduler", icon: CalendarClock },
       { href: "/admin/live-chat", label: "Live Support Desk", icon: MessagesSquare },
+      { href: "/admin/api-platform", label: "API Platform", icon: KeyRound },
+      { href: "/admin/aeo", label: "AEO Engine", icon: Sparkles },
     ],
   },
   {
     label: "CRM",
     items: [
       { href: "/admin/contacts", label: "Contacts", icon: Users },
+      { href: "/admin/contacts/fields", label: "Custom Fields", icon: SlidersHorizontal },
+      { href: "/admin/automation", label: "Automation Rules", icon: Zap },
       { href: "/admin/companies", label: "Companies", icon: Building2 },
       { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
       { href: "/admin/opportunities", label: "Opportunities", icon: Briefcase },

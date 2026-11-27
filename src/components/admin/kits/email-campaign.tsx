@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   Mails,
   Plus,
@@ -10,6 +11,7 @@ import {
   FlaskConical,
   ArrowLeft,
   Users,
+  Palette,
 } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch, fmtDate } from "@/components/admin/lib";
@@ -17,6 +19,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { emailContentSchema, type EmailContent } from "@/lib/kits/contracts";
+
+// GrapesJS requires the DOM — client-only, never SSR'd.
+const VisualEmailStudio = dynamic(() => import("./visual-email-studio"), {
+  ssr: false,
+  loading: () => <p className="text-sm text-muted-foreground">Loading the visual editor…</p>,
+});
 import {
   KitHeading,
   Panel,
@@ -67,6 +75,7 @@ const empty: EmailContent & {
   ctaLabel: "",
   ctaUrl: "",
   accent: "blue",
+  bodyHtmlOverride: "",
   audience: "all",
   campaignId: "",
   scheduledAt: "",
@@ -106,6 +115,7 @@ export default function EmailCampaignBuilder() {
     campaignId: params.get("campaign") || "",
   });
   const [busy, setBusy] = useState("");
+  const [visualOpen, setVisualOpen] = useState(false);
   const [saved, setSaved] = useState<Campaign>();
   const [mobilePreview, setMobilePreview] = useState(false);
   async function save() {
@@ -274,6 +284,62 @@ export default function EmailCampaignBuilder() {
                     disabled={!!saved}
                   />
                 </Field>
+                {!saved && (
+                  <div className="rounded-lg border border-dashed p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">Visual designer (GrapesJS)</p>
+                      {form.bodyHtmlOverride ? (
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setVisualOpen(!visualOpen)}
+                          >
+                            {visualOpen ? "Hide editor" : "Edit design"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setForm({ ...form, bodyHtmlOverride: "" })
+                            }
+                          >
+                            Clear design
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setVisualOpen(true)}
+                        >
+                          <Palette className="h-4 w-4 mr-1" /> Design visually
+                        </Button>
+                      )}
+                    </div>
+                    {form.bodyHtmlOverride ? (
+                      <p className="text-xs text-muted-foreground">
+                        A visual design is applied — it will be used as the email HTML when you save the draft.
+                      </p>
+                    ) : null}
+                    {visualOpen ? (
+                      <VisualEmailStudio
+                        initialHtml={form.bodyHtmlOverride || previewHtml(form)}
+                        onSave={(html) => {
+                          setForm({ ...form, bodyHtmlOverride: html });
+                          setVisualOpen(false);
+                          toast.success(
+                            "Visual design applied. Save the draft to keep it.",
+                          );
+                        }}
+                        onCancel={() => setVisualOpen(false)}
+                      />
+                    ) : null}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Button label (optional)">
                     <Input
@@ -331,7 +397,7 @@ export default function EmailCampaignBuilder() {
                   <iframe
                     title="Email preview"
                     sandbox=""
-                    srcDoc={saved?.bodyHtml || previewHtml(form)}
+                    srcDoc={saved?.bodyHtml || form.bodyHtmlOverride || previewHtml(form)}
                     className={`bg-white border rounded-lg h-[560px] w-full transition-all ${mobilePreview ? "max-w-[375px]" : ""}`}
                   />
                 </div>

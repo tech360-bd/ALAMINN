@@ -17,6 +17,7 @@ const env = {
   ADMIN_BOOTSTRAP_EMAIL: 'ci-admin@alaminn.info', ADMIN_BOOTSTRAP_PASSWORD: secret(),
   SMTP_HOST: '127.0.0.1', SMTP_PORT: '25253', SMTP_USER: 'integration', SMTP_PASS: 'local-fixture-only',
   EMAIL_FROM: 'ci@example.invalid', RESEND_API_KEY: '',
+  ALAMINN_ECOSYSTEM_API_KEY: secret(), // ecosystem bridge integration tests
 };
 const run = (args) => spawn('npm', args, { env, stdio: 'inherit' });
 async function checked(args) {
