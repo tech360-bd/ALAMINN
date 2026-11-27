@@ -74,3 +74,66 @@ describe("connection connectors", () => {
     expect(r.ok).toBe(false); expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+describe("ALO Education source-of-truth connector", () => {
+  beforeEach(() => { vi.stubGlobal("fetch", vi.fn()); });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("is registered as the Education Services adapter with a dedicated connector", () => {
+    const def = INTEGRATION_BY_ID["alo-education"];
+    expect(def).toBeTruthy();
+    expect(def.mode).toBe("adapter");
+    expect(def.category).toBe("Education Services");
+    expect(def.connector).toBe("alo-education");
+    expect(INTEGRATION_CATEGORIES).toContain("Education Services");
+    expect(def.integrationNote).toMatch(/referral|PII/i);
+  });
+
+  it("probes the referral destination endpoint first and reports success", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("ok", { status: 200 }));
+    const r = await testIntegration(INTEGRATION_BY_ID["alo-education"], { baseUrl: "https://aloeducation.com/" });
+    expect(r.ok).toBe(true);
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0][0])).toBe("https://aloeducation.com/student/register");
+    expect(r.message).toContain("Referral destination endpoint is live");
+    const init = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit;
+    expect(init.redirect).toBe("manual");
+  });
+
+  it("falls through to other paths when the register endpoint errors", async () => {
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(new Response("nope", { status: 500 }))
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }));
+    const r = await testIntegration(INTEGRATION_BY_ID["alo-education"], {});
+    expect(r.ok).toBe(true);
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[1][0])).toBe("https://aloeducation.com/api/health");
+  });
+
+  it("defaults to the official ALO Education base URL", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("ok", { status: 200 }));
+    const r = await testIntegration(INTEGRATION_BY_ID["alo-education"], {});
+    expect(r.ok).toBe(true);
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0][0])).toBe("https://aloeducation.com/student/register");
+  });
+
+  it("treats credential rejection as a failed test", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response("denied", { status: 401 }));
+    const r = await testIntegration(INTEGRATION_BY_ID["alo-education"], { apiKey: "super-secret-key" });
+    expect(r.ok).toBe(false); expect(r.status).toBe(401);
+    expect(r.message).not.toContain("super-secret-key");
+  });
+
+  it("fails closed on unreachable hosts without leaking secrets", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new TypeError("fetch failed"));
+    const r = await testIntegration(INTEGRATION_BY_ID["alo-education"], { apiKey: "super-secret-key" });
+    expect(r.ok).toBe(false);
+    expect(r.message).not.toContain("super-secret-key");
+    expect(r.message).toContain("Referral handoffs will still be recorded and retried");
+  });
+
+  it("blocks the cloud metadata endpoint and non-http protocols", async () => {
+    const r1 = await testIntegration(INTEGRATION_BY_ID["alo-education"], { baseUrl: "http://169.254.169.254" });
+    const r2 = await testIntegration(INTEGRATION_BY_ID["alo-education"], { baseUrl: "file:///etc/passwd" });
+    expect(r1.ok).toBe(false); expect(fetch).not.toHaveBeenCalled();
+    expect(r2.ok).toBe(false); expect(fetch).not.toHaveBeenCalled();
+  });
+});

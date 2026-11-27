@@ -16,6 +16,7 @@
  */
 export type IntegrationMode = "adapter" | "service" | "reference" | "desktop" | "unavailable" | "excluded";
 export type IntegrationCategory =
+  | "Education Services"
   | "Messaging & SMS"
   | "CRM & Inbox"
   | "Social Publishing"
@@ -55,6 +56,12 @@ export interface IntegrationDefinition {
 }
 
 export const INTEGRATIONS: IntegrationDefinition[] = [
+  // ── Education Services ───────────────────────────────────────────
+  { id: "alo-education", name: "ALO Education", url: "https://aloeducation.com", category: "Education Services", mode: "adapter", license: "Proprietary (partner platform)", language: "Web", connector: "alo-education",
+    summary: "Partner student-services platform — the source of truth for applications, counselling, and enrolment workflows.",
+    integrationNote: "Source-of-truth education-service partner. ALAMINN.INFO Higher Study stays the public discovery layer; warm leads route through the signed, consent-tracked referral pipeline (src/lib/higher-study/integration.ts, HMAC via HIGHER_STUDY_REFERRAL_SECRET) and ALO Education confirms outcomes server-to-server. This connector verifies the referral destination endpoints are reachable. No student PII ever crosses in a URL.",
+    docsUrl: "https://aloeducation.com", fields: [{ key: "baseUrl", label: "ALO Education base URL", required: true, placeholder: "https://aloeducation.com" }, { key: "apiKey", label: "Service API key (optional, for future server-to-server APIs)", secret: true }] },
+
   // ── Messaging & SMS ──────────────────────────────────────────────
   { id: "httpsms", name: "httpSMS", url: "https://github.com/NdoleStudio/httpsms", category: "Messaging & SMS", mode: "adapter", license: "AGPL-3.0", language: "Go", connector: "httpsms",
     summary: "Send/receive SMS through your own Android phone via a hosted or self-hosted API.",
@@ -361,6 +368,6 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
 
 export const INTEGRATION_BY_ID: Record<string, IntegrationDefinition> = Object.fromEntries(INTEGRATIONS.map(i => [i.id, i]));
 export const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
-  "Messaging & SMS", "CRM & Inbox", "Social Publishing", "AI & Agents", "Video & Media", "SEO & Growth", "Voice & VoIP", "Dev Tooling", "AI OS & Automation", "Reference", "Excluded",
+  "Education Services", "Messaging & SMS", "CRM & Inbox", "Social Publishing", "AI & Agents", "Video & Media", "SEO & Growth", "Voice & VoIP", "Dev Tooling", "AI OS & Automation", "Reference", "Excluded",
 ];
 export function isConnectable(mode: IntegrationMode): boolean { return mode === "adapter" || mode === "service"; }

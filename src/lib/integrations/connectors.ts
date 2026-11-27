@@ -290,8 +290,40 @@ async function testNocoBase(cfg: Record<string, string>): Promise<TestResult> {
   return { ok: false, message: "Could not reach NocoBase on /api/healthz or /api/app:getInfo.", latencyMs: Date.now() - start };
 }
 
+/**
+ * ALO Education (source-of-truth education-service partner):
+ * verify the referral destination endpoints are reachable.
+ * Higher Study referrals point at `{base}/student/register` (the
+ * ALO_EDUCATION_REGISTER_URL contract in src/lib/higher-study/constants.ts),
+ * so that exact path is probed first, then `/api/health` and `/` as fallbacks.
+ * The optional service API key is sent as a Bearer token and NEVER appears
+ * in any returned message.
+ */
+async function testAloEducation(cfg: Record<string, string>): Promise<TestResult> {
+  const start = Date.now();
+  const base = trimBase(cfg.baseUrl || "https://aloeducation.com");
+  try { guardUrl(base); } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Invalid base URL.", latencyMs: 0 }; }
+  const headers: Record<string, string> = { Accept: "text/html,application/json" };
+  if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
+  const paths = ["/student/register", "/api/health", "/"];
+  let lastStatus: number | undefined;
+  for (const p of paths) {
+    try {
+      const r = await probe(`${base}${p}`, { headers });
+      lastStatus = r.status;
+      if (r.status < 400) {
+        const detail = p === "/student/register" ? " Referral destination endpoint is live." : "";
+        return { ok: true, message: `ALO Education is reachable at ${base}${detail}`, status: r.status, latencyMs: Date.now() - start };
+      }
+      if (r.status === 401 || r.status === 403) return { ok: false, message: `ALO Education is reachable but rejected the service credentials (${r.status}).`, status: r.status, latencyMs: Date.now() - start };
+    } catch { /* try next path */ }
+  }
+  return { ok: false, message: `Could not reach ALO Education at ${base}${lastStatus ? ` (last status ${lastStatus})` : ""}. Referral handoffs will still be recorded and retried, but live routing is blocked. Check the URL and TLS.`, status: lastStatus, latencyMs: Date.now() - start };
+}
+
 export async function testIntegration(def: IntegrationDefinition, cfg: Record<string, string>): Promise<TestResult> {
   switch (def.connector) {
+    case "alo-education": return testAloEducation(cfg);
     case "httpsms": return testHttpSms(cfg);
     case "textbelt": return testTextbelt(cfg);
     case "sparkpost": return testSparkPost(cfg);

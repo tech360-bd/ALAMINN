@@ -2,19 +2,21 @@ import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 import { db } from "@/lib/db";
+import { buildMonitoringDigest } from "@/lib/higher-study/monitoring/digest";
 export const dynamic = "force-dynamic"; export const runtime = "nodejs";
 /** Monitoring dashboard + source registry. Super Admin scope via higher-study.* permissions. */
 export async function GET(req: NextRequest) { const g = await requirePermission(req, "higher-study.dashboard.view"); if (g.denied) return g.response;
-  const [lastRun, pending, critical, conflicts, failedSources, sources, unis, courses, schols, faculties, intakes] = await Promise.all([
+  const [lastRun, pending, critical, conflicts, failedSources, sources, unis, courses, schols, faculties, intakes, digest] = await Promise.all([
     db.higherStudyMonitoringRun.findFirst({ orderBy: { startedAt: "desc" } }),
     db.higherStudyDataChange.count({ where: { status: "pending" } }), db.higherStudyDataChange.count({ where: { status: "pending", impact: "CRITICAL" } }),
     db.higherStudyDataChange.count({ where: { changeType: "POSSIBLE_DATA_CONFLICT", status: "pending" } }),
     db.higherStudySourceRecord.count({ where: { lastStatus: "unavailable" } }), db.higherStudySourceRecord.count(),
     db.higherStudyUniversity.count(), db.higherStudyCourse.count(), db.higherStudyScholarship.count(), db.higherStudyFaculty.count(), db.higherStudyCourseIntake.count(),
+    buildMonitoringDigest(),
   ]);
   const recentChanges = await db.higherStudyDataChange.findMany({ orderBy: { detectedAt: "desc" }, take: 30 });
   const status = critical > 0 || conflicts > 0 ? "NEEDS REVIEW" : pending > 0 ? "NEEDS REVIEW" : failedSources > 0 ? "ERROR" : "HEALTHY";
-  return ok({ widget: { lastCheck: lastRun?.completedAt || lastRun?.startedAt || null, nextCheck: lastRun?.nextRunAt || null, universities: unis, courses, sources, pendingApproval: pending, critical, failedSources, status }, report: { universitiesChecked: lastRun?.sourcesChecked ?? 0, changesDetected: lastRun?.changesDetected ?? 0, scholarships: schols, faculties, intakes, conflicts, failedSources }, recentChanges }); }
+  return ok({ widget: { lastCheck: lastRun?.completedAt || lastRun?.startedAt || null, nextCheck: lastRun?.nextRunAt || null, universities: unis, courses, sources, pendingApproval: pending, critical, failedSources, status }, report: { universitiesChecked: lastRun?.sourcesChecked ?? 0, changesDetected: lastRun?.changesDetected ?? 0, scholarships: schols, faculties, intakes, conflicts, failedSources }, digest, recentChanges }); }
 export async function POST(req: NextRequest) { const g = await requirePermission(req, "higher-study.import"); if (g.denied) return g.response;
   const b = await readJson<{ url?: string; sourceType?: string; entityType?: string; entityId?: string; owner?: string; title?: string }>(req);
   if (b?.url) { if (!/^https:\/\//.test(b.url)) return fail("Official source URL must be https", ["url_invalid"], 400);
