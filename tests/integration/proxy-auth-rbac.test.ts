@@ -1,10 +1,26 @@
 import { NextRequest } from "next/server";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { rmSync } from "node:fs";
+import { dirname } from "node:path";
+
+const { isolatedDbPath } = vi.hoisted(() => {
+  const { execFileSync } = require("node:child_process") as typeof import("node:child_process");
+  const file = execFileSync(process.execPath, ["tests/fixtures/init-sqlite.mjs"], { encoding: "utf8" }).trim();
+  process.env.DATABASE_URL = `file:${file}`;
+  return { isolatedDbPath: file };
+});
+import { db } from "@/lib/db";
+import { staffTokenHash } from "@/lib/auth/staff-token-session";
 import { proxy } from "@/proxy";
-import { createToken, AUTH_COOKIE } from "@/lib/auth/jwt";
+import { createToken, verifyToken, AUTH_COOKIE } from "@/lib/auth/jwt";
 import { signToken, SESSION_COOKIE } from "@/lib/auth/token";
 import { resolveAuthSecret, resolveStaffSecret } from "@/lib/auth/secret";
 import { encryptToken, decryptToken } from "@/lib/social/crypto";
+
+afterAll(async () => {
+  await db.$disconnect();
+  rmSync(dirname(isolatedDbPath), { recursive: true, force: true });
+});
 
 describe("Task 07 — Proxy Dual-Auth Gating, RBAC, Security Headers & Secret Enforcement", () => {
   const origJwtSecret = process.env.JWT_SECRET;
@@ -58,6 +74,9 @@ describe("Task 07 — Proxy Dual-Auth Gating, RBAC, Security Headers & Secret En
       name: "Owner",
     });
 
+    const payload = await verifyToken(jwt);
+    await db.user.create({ data: { id: "admin-user-1", email: "owner@alaminn.info", name: "Owner", role: "OWNER" } });
+    await db.adminSession.create({ data: { id: payload!.sessionId, userId: "admin-user-1", expiresAt: new Date(Date.now() + 3600_000) } });
     const req = new NextRequest(
       "http://localhost/api/v1/higher-study/admin/universities",
       {
@@ -98,6 +117,8 @@ describe("Task 07 — Proxy Dual-Auth Gating, RBAC, Security Headers & Secret En
       },
       secret,
     );
+    await db.staffAccount.create({ data: { id: "staff-viewer-1", email: "viewer@example.invalid", name: "Viewer", passwordHash: "unused", role: "VIEWER" } });
+    await db.staffSession.create({ data: { id: "sess-viewer-1", accountId: "staff-viewer-1", tokenHash: staffTokenHash(viewerToken), expiresAt: new Date(Date.now() + 3600_000) } });
     const viewerStaffRes = await proxy(
       new NextRequest("http://localhost/api/staff", {
         headers: { cookie: `${SESSION_COOKIE}=${viewerToken}` },
@@ -125,6 +146,8 @@ describe("Task 07 — Proxy Dual-Auth Gating, RBAC, Security Headers & Secret En
       },
       secret,
     );
+    await db.staffAccount.create({ data: { id: "staff-admin-1", email: "admin@example.invalid", name: "Admin", passwordHash: "unused", role: "ADMIN" } });
+    await db.staffSession.create({ data: { id: "sess-admin-1", accountId: "staff-admin-1", tokenHash: staffTokenHash(adminToken), expiresAt: new Date(Date.now() + 3600_000) } });
     const adminStaffRes = await proxy(
       new NextRequest("http://localhost/api/staff", {
         headers: { cookie: `${SESSION_COOKIE}=${adminToken}` },
@@ -132,6 +155,11 @@ describe("Task 07 — Proxy Dual-Auth Gating, RBAC, Security Headers & Secret En
     );
     expect(adminStaffRes.status).toBe(200);
     assertSecurityHeaders(adminStaffRes.headers);
+    await db.staffSession.delete({ where: { id: "sess-admin-1" } });
+    const revoked = await proxy(new NextRequest("http://localhost/api/staff", {
+      headers: { cookie: `${SESSION_COOKIE}=${adminToken}` },
+    }));
+    expect(revoked.status).toBe(401);
   });
 
   it("fails closed in production when JWT_SECRET / AUTH_SECRET / SESSION_SECRET are missing or too short", () => {

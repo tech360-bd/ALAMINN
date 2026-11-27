@@ -1,0 +1,3 @@
+# Security baseline (partial)
+
+See `SECURITY-FINDINGS-REMEDIATION.md` for the 11 supplied findings. The source contains signed cookies, role checks, webhook security modules and SSRF-related controls; their presence does not prove comprehensive protection. Particularly important remaining gaps: trusted proxy identity and shared limits, full executive session/password race and legacy-hash validation, account-owned CRM data, and complete browser privacy verification. The supplied security script's pass labels are not a substitute for acceptance tests: its replay/large-payload probes in this run received 429 responses, so they did not establish those behaviors.

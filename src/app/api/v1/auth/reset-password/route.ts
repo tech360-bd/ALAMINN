@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { createHash } from "crypto";
 import { BoundedRateLimitMap } from "@/lib/auth/rate-limit";
+import { validateAdminPassword } from "@/lib/auth/password-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -47,8 +48,8 @@ function resetRateLimited(key: string): boolean {
  *
  * Validates the token (must exist on a User row and not be expired),
  * then hashes the new password, persists it, and clears the token +
- * expiry fields. Single-use — the token is removed whether the
- * password update succeeds or fails after this point.
+ * expiry fields. The token is consumed only if the conditional password
+ * update succeeds; a failed update leaves the token unchanged.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -69,12 +70,12 @@ export async function POST(req: NextRequest) {
     if (!body || typeof body !== "object") return fail("Invalid request body.");
 
     const token = String(body.token || "").trim();
-    const password = String(body.password || "");
+    const password = body.password;
 
     if (!token) return fail("Reset token is required.", ["token_required"], 422);
-    if (!password) return fail("Password is required.", ["password_required"], 422);
-    if (password.length < 8) return fail("Password must be at least 8 characters.", ["password_too_short"], 422);
-    if (password.length > 1024) return fail("Password is too long.", ["password_too_long"], 422);
+    const passwordError = validateAdminPassword(password);
+    if (passwordError) return fail(passwordError.message, [passwordError.code], 422);
+    if (typeof password !== "string") return fail("Password is required.", ["password_required"], 422);
 
     const user = await db.user.findFirst({
       where: {
@@ -103,15 +104,19 @@ export async function POST(req: NextRequest) {
 
     const newHash = hashPassword(password);
 
-    // Update password + clear the token fields in a single transaction.
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        passwordHash: newHash,
-        passwordResetToken: null,
-        passwordResetExpiresAt: null,
-      },
+    // Consume the still-valid token and update the password in one atomic
+    // database statement. A competing request or newly issued token must not
+    // be overwritten after the earlier lookup.
+    const claimed = await db.$transaction(async (tx) => {
+      const result = await tx.user.updateMany({
+        where: { id: user.id, passwordResetToken: token, passwordResetExpiresAt: { gt: new Date() } },
+        data: { passwordHash: newHash, passwordResetToken: null, passwordResetExpiresAt: null },
+      });
+      if (result.count !== 1) return false;
+      await tx.adminSession.deleteMany({ where: { userId: user.id } });
+      return true;
     });
+    if (!claimed) return fail("Invalid or expired token.", ["token_invalid"], 400);
 
     // Audit log (success)
     try {

@@ -56,6 +56,7 @@ export type Auth = {
  * routes that create/reset passwords, never on a hot path.
  */
 export function hashPassword(password: string): string {
+  if (Buffer.byteLength(password, "utf8") > 72) throw new Error("Password exceeds bcrypt's 72-byte limit");
   return hashSync(password, BCRYPT_ROUNDS);
 }
 
@@ -95,30 +96,13 @@ export function needsPasswordRehash(stored: string): boolean {
  * Build, sign, and set the JWT session cookie. Called after successful login.
  * Also clears the legacy pre-JWT cookie so there is only ever one session.
  */
-export async function setSessionCookie(user: {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-}) {
-  const role = normalizeRole(user.role) ?? "VIEWER";
-  const token = await createToken(user.id, role, { email: user.email, name: user.name });
-
+export async function setSessionCookie(token: string) {
   const store = await cookies();
   store.set(AUTH_COOKIE, token, authCookieOptions());
   try {
     store.delete(LEGACY_COOKIE);
   } catch {
     // no-op
-  }
-
-  try {
-    await db.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
-  } catch {
-    // non-fatal
   }
 }
 
@@ -138,50 +122,32 @@ export async function clearSessionCookie() {
  * Returns null if: no cookie, invalid signature, expired token, or the
  * user no longer exists / is not active.
  */
-export async function getSession(): Promise<Session | null> {
-  const store = await cookies();
-  const token = store.get(AUTH_COOKIE)?.value;
-  if (!token) return null;
-
+async function sessionFromToken(token: string | undefined): Promise<Session | null> {
   const payload = await verifyToken(token);
   if (!payload) return null;
-
   try {
-    const user = await db.user.findUnique({
-      where: { id: payload.userId },
-      select: { id: true, email: true, name: true, role: true, status: true },
+    const record = await db.adminSession.findUnique({
+      where: { id: payload.sessionId },
+      include: { user: { select: { id: true, email: true, name: true, role: true, status: true } } },
     });
-    if (!user || user.status !== "active") return null;
-    const currentRole = normalizeRole(user.role) ?? payload.role;
-    return {
-      userId: user.id,
-      role: currentRole,
-      email: user.email,
-      name: user.name,
-      expiresAt: payload.expiresAt,
-    };
+    if (!record || record.userId !== payload.userId || record.expiresAt.getTime() <= Date.now() || record.user.status !== "active") return null;
+    const role = normalizeRole(record.user.role);
+    if (!role) return null;
+    return { userId: record.user.id, role, email: record.user.email, name: record.user.name, expiresAt: payload.expiresAt };
   } catch {
-    // DB error — fail closed
+    // An unavailable session store must never authorize a request.
     return null;
   }
 }
 
-/**
- * Read & validate the JWT from a NextRequest (route handlers).
- * Signature + expiry are checked here; callers that need live account
- * state (requireAuth / requirePermission) also re-check the database.
- */
+export async function getSession(): Promise<Session | null> {
+  const store = await cookies();
+  return sessionFromToken(store.get(AUTH_COOKIE)?.value);
+}
+
+/** Validate both the JWT and the current, revocable database session. */
 export async function getSessionFromRequest(req: NextRequest): Promise<Session | null> {
-  const token = req.cookies.get(AUTH_COOKIE)?.value;
-  const payload = await verifyToken(token);
-  if (!payload) return null;
-  return {
-    userId: payload.userId,
-    role: payload.role,
-    email: payload.email,
-    name: payload.name,
-    expiresAt: payload.expiresAt,
-  };
+  return sessionFromToken(req.cookies.get(AUTH_COOKIE)?.value);
 }
 
 function unauthorized(message = "Authentication required.") {

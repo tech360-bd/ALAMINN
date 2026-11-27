@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clearSessionCookie } from "@/lib/auth";
+import { AUTH_COOKIE, verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db";
 import { createHash } from "crypto";
 
@@ -23,10 +24,10 @@ function ipHash(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    // Best-effort audit log (we don't strictly need a session here)
-    const { getSessionFromRequest } = await import("@/lib/auth");
-    const session = await getSessionFromRequest(req);
+    // Delete only this session; other devices and other users remain active.
+    const session = await verifyToken(req.cookies.get(AUTH_COOKIE)?.value);
     if (session) {
+      await db.adminSession.deleteMany({ where: { id: session.sessionId, userId: session.userId } });
       try {
         await db.auditLog.create({
           data: {
@@ -46,8 +47,9 @@ export async function POST(req: NextRequest) {
     return ok();
   } catch (e) {
     console.error("[auth/logout] error", e);
-    // Still clear the cookie even if audit fails
+    // Clearing the local cookie is useful, but do not claim revocation when
+    // the session store could not be reached.
     await clearSessionCookie();
-    return ok();
+    return NextResponse.json({ success: false, message: "Could not revoke session.", errors: ["revocation_failed"] }, { status: 503 });
   }
 }

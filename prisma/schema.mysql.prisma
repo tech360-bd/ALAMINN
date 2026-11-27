@@ -27,11 +27,23 @@ model User {
   aiTasks                AiTask[]     @relation("AiRequester")
   aiApprovals            AiApproval[]
   auditLogs              AuditLog[]
+  adminSessions          AdminSession[]
   tasks                  Task[]
   notes                  Note[]
   documents              Document[]
 
   @@index([passwordResetToken])
+}
+
+model AdminSession {
+  id        String   @id @db.VarChar(191)
+  userId    String   @db.VarChar(191)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Contact {

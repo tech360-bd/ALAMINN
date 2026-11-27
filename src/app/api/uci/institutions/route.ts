@@ -34,21 +34,12 @@ export async function GET(req: NextRequest) {
   if (priority) instWhere.priorityCohort = true;
   if (hasOfficialUrl) instWhere.officialWebsite = { not: null };
 
-  const [total, institutions] = await Promise.all([
-    db.uciInstitution.count({ where: instWhere }),
-    db.uciInstitution.findMany({
-      where: instWhere,
-      orderBy: [{ priorityCohort: "desc" }, { canonicalName: "asc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: {
-        _count: { select: { records: true, programmes: true } },
-        records: { select: { id: true, fieldsJson: true, verificationStatus: true, context: true } },
-      },
-    }),
-  ]);
-
-  let items = institutions.map((i) => {
+  const include = {
+    _count: { select: { records: true, programmes: true } },
+    records: { select: { id: true, fieldsJson: true, verificationStatus: true, context: true } },
+  } as const;
+  type InstitutionWithRecords = Prisma.UciInstitutionGetPayload<{ include: typeof include }>;
+  function summarize(i: InstitutionWithRecords) {
     const statuses: Record<string, number> = {};
     let hasScholarship = false;
     const englishSeen = new Set<string>();
@@ -73,13 +64,40 @@ export async function GET(req: NextRequest) {
       hasScholarship,
       englishTests: [...englishSeen].sort(),
     };
-  });
-
-  if (englishTest) {
-    items = items.filter((i) => i.englishTests.some((t) => t.toLowerCase().includes(englishTest.toLowerCase())));
   }
-  if (scholarship) {
-    items = items.filter((i) => i.hasScholarship);
+
+  const orderBy: Prisma.UciInstitutionOrderByWithRelationInput[] = [
+    { priorityCohort: "desc" }, { canonicalName: "asc" }, { id: "asc" },
+  ];
+  let total: number;
+  let items: ReturnType<typeof summarize>[];
+  if (!englishTest && !scholarship) {
+    const [count, institutions] = await Promise.all([
+      db.uciInstitution.count({ where: instWhere }),
+      db.uciInstitution.findMany({ where: instWhere, orderBy, skip: (page - 1) * pageSize, take: pageSize, include }),
+    ]);
+    total = count;
+    items = institutions.map(summarize);
+  } else {
+    // Requirement records store captured values as JSON text. Scan in bounded
+    // batches, filter the entire ordered result, then select the requested
+    // page. This works on both SQLite and MariaDB without brittle JSON LIKE
+    // patterns. A normalized searchable projection would scale better.
+    total = 0;
+    items = [];
+    const batchSize = 100;
+    const start = (page - 1) * pageSize;
+    for (let skip = 0; ; skip += batchSize) {
+      const batch = await db.uciInstitution.findMany({ where: instWhere, orderBy, skip, take: batchSize, include });
+      for (const institution of batch) {
+        const item = summarize(institution);
+        if (englishTest && !item.englishTests.some((t) => t.toLowerCase().includes(englishTest.toLowerCase()))) continue;
+        if (scholarship && !item.hasScholarship) continue;
+        if (total >= start && items.length < pageSize) items.push(item);
+        total++;
+      }
+      if (batch.length < batchSize) break;
+    }
   }
 
   const countries = await db.uciInstitution.findMany({
@@ -89,7 +107,8 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({
-    total: englishTest || scholarship ? items.length : total,
+    total,
+    totalPages: Math.ceil(total / pageSize),
     page,
     pageSize,
     items,

@@ -16,7 +16,8 @@ const { isolatedDbPath } = vi.hoisted(() => {
 
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
-import { createToken, AUTH_COOKIE } from "@/lib/auth/jwt";
+import { AUTH_COOKIE } from "@/lib/auth/jwt";
+import { createTestAdminToken as createToken } from "../fixtures/admin-session";
 import { hashPassword as hashStaffPassword } from "@/lib/auth/password";
 import { signToken, SESSION_COOKIE } from "@/lib/auth/token";
 import { staffTokenHash } from "@/lib/auth/staff-token-session";

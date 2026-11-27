@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requirePermission, hashPassword } from "@/lib/auth";
 import { ok, fail, readJson, writeAudit } from "@/lib/admin-api-server";
 import { normalizeRole } from "@/lib/rbac";
+import { validateAdminPassword } from "@/lib/auth/password-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export async function PUT(req: NextRequest, ctx: RouteCtx) {
 
   // Role change requires the higher users.role_assign permission
   if (b.role !== undefined) {
+    if (Object.keys(b).some((key) => key !== "role")) return fail("Role changes must be submitted separately.", ["mixed_role_update"], 400);
     const guard = await requirePermission(req, "users.role_assign");
     if (guard.denied) return guard.response;
     const normalizedRole = normalizeRole(b.role as string);
@@ -44,16 +46,27 @@ export async function PUT(req: NextRequest, ctx: RouteCtx) {
   // Other updates (name, status) only need users.update
   const guard = await requirePermission(req, "users.update");
   if (guard.denied) return guard.response;
+  if (b.password !== undefined) {
+    const passwordError = validateAdminPassword(b.password);
+    if (passwordError) return fail(passwordError.message, [passwordError.code], 422);
+  }
   try {
-    const updated = await db.user.update({
-      where: { id },
-      data: {
-        ...(b.name !== undefined ? { name: String(b.name) } : {}),
-        ...(b.status !== undefined ? { status: String(b.status) } : {}),
-        ...(b.email !== undefined ? { email: String(b.email).toLowerCase() } : {}),
-        ...(b.password !== undefined ? { passwordHash: hashPassword(String(b.password)) } : {}),
-      },
-      select: { id: true, email: true, name: true, role: true, status: true },
+    const passwordHash = typeof b.password === "string" ? hashPassword(b.password) : undefined;
+    const updated = await db.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id },
+        data: {
+          ...(b.name !== undefined ? { name: String(b.name) } : {}),
+          ...(b.status !== undefined ? { status: String(b.status) } : {}),
+          ...(b.email !== undefined ? { email: String(b.email).toLowerCase() } : {}),
+          ...(passwordHash !== undefined ? { passwordHash, passwordResetToken: null, passwordResetExpiresAt: null } : {}),
+        },
+        select: { id: true, email: true, name: true, role: true, status: true },
+      });
+      if (passwordHash !== undefined || (b.status !== undefined && b.status !== "active")) {
+        await tx.adminSession.deleteMany({ where: { userId: id } });
+      }
+      return user;
     });
     await writeAudit(guard.session, "user.update", "User", id, { fields: Object.keys(b) });
     return ok(updated, "User updated.");

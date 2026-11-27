@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth";
+import { validateAdminPassword } from "@/lib/auth/password-policy";
 import { ok, fail, pagination, searchWhere, readJson, writeAudit } from "@/lib/admin-api-server";
 import { ALL_ROLES, normalizeRole, ROLE_LABELS } from "@/lib/rbac";
 
@@ -44,7 +45,8 @@ export async function POST(req: NextRequest) {
   if (!email || !name || !password) return fail("email, name, password are required.", ["missing_fields"]);
   const normalizedRole = normalizeRole(role);
   if (!normalizedRole) return fail(`Invalid role. Valid roles: ${ALL_ROLES.join(", ")}`, ["invalid_role"]);
-  if (password.length < 8) return fail("Password must be at least 8 characters.", ["weak_password"]);
+  const passwordError = validateAdminPassword(password);
+  if (passwordError) return fail(passwordError.message, [passwordError.code], 422);
 
   const existing = await db.user.findUnique({ where: { email: email.toLowerCase() } });
   if (existing) return fail("User with that email already exists.", ["duplicate_email"], 409);

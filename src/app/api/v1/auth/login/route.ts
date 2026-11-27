@@ -7,9 +7,10 @@ import {
   needsPasswordRehash,
   TIMING_DUMMY_HASH,
   TOKEN_TTL_SECONDS,
+  createToken,
 } from "@/lib/auth";
 import { normalizeRole, ALL_ROLES } from "@/lib/rbac";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { BoundedRateLimitMap } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
     const user = await db.user.findUnique({ where: { email } });
     // Always run a verify against a dummy bcrypt hash to keep timing consistent
     const storedHash = user?.passwordHash || TIMING_DUMMY_HASH;
-    const valid = user ? verifyPassword(password, storedHash) : false;
+    const valid = verifyPassword(password, storedHash);
 
     if (!user || !user.passwordHash || !valid || user.status !== "active") {
       // Increment failure count
@@ -139,21 +140,25 @@ export async function POST(req: NextRequest) {
     // Reset failure count on success
     loginAttempts.delete(hash);
 
-    // Upgrade legacy scrypt hashes to bcrypt on the next successful login.
-    // Best-effort: a failed upgrade must never block sign-in.
-    if (user.passwordHash && needsPasswordRehash(user.passwordHash)) {
-      try {
-        await db.user.update({
-          where: { id: user.id },
-          data: { passwordHash: hashPassword(password) },
-        });
-      } catch {
-        // non-fatal
-      }
-    }
-
-    // Set the JWT session cookie (httpOnly `auth_token`, 24h)
-    await setSessionCookie({ id: user.id, email: user.email, name: user.name, role: user.role });
+    // Lock/recheck the credential used for verification before creating a
+    // session. Password reset/update locks this same user row and removes
+    // sessions in its transaction; an old password cannot race a reset.
+    const sessionId = randomUUID();
+    const expiresAt = new Date(Date.now() + TOKEN_TTL_SECONDS * 1000);
+    const rehash = needsPasswordRehash(user.passwordHash) && Buffer.byteLength(password, "utf8") <= 72
+      ? hashPassword(password) : undefined;
+    const issued = await db.$transaction(async (tx) => {
+      const changed = await tx.user.updateMany({
+        where: { id: user.id, passwordHash: user.passwordHash, role: user.role, status: "active" },
+        data: { lastLoginAt: new Date(), ...(rehash ? { passwordHash: rehash } : {}) },
+      });
+      if (changed.count !== 1) return false;
+      await tx.adminSession.create({ data: { id: sessionId, userId: user.id, expiresAt } });
+      return true;
+    });
+    if (!issued) return fail("Invalid email or password.", ["credentials_invalid"], 401);
+    const token = await createToken(user.id, role, { email: user.email, name: user.name, sessionId });
+    await setSessionCookie(token);
 
     // Audit log (successful login)
     try {

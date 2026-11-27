@@ -73,18 +73,17 @@ export async function findExistingContactByWhatsapp(
 ) {
   const normalized = normalizeWhatsappNumber(whatsappNumber);
   if (!normalized) return null;
-  // Try exact match first, then partial match (in case of format differences)
-  return await db.contact.findFirst({
-    where: {
-      OR: [
-        { whatsapp: normalized },
-        { phone: normalized },
-        { whatsapp: { contains: normalized.slice(-10) } },
-        { phone: { contains: normalized.slice(-10) } },
-      ],
-    },
+  // Never use suffix or substring matches for identity. Existing records with
+  // other formatting need a reviewed migration to canonical values.
+  const matches = await db.contact.findMany({
+    where: { OR: [{ whatsapp: normalized }, { phone: normalized }] },
     select: { id: true, fullName: true, email: true, status: true },
+    take: 2,
   });
+  if (matches.length > 1) {
+    throw new Error("Multiple contacts have this number; manual review required.");
+  }
+  return matches[0] ?? null;
 }
 
 /**
@@ -118,14 +117,9 @@ export async function createOrUpdateLead(
   // Upsert the Contact (create if new, update if existing)
   const contact = await db.contact.upsert({
     where: existing ? { id: existing.id } : { email: `${normalized}@whatsapp.placeholder` },
-    update: {
-      whatsapp: normalized,
-      preferredChannel: "whatsapp",
-      source: "ALAMINN_WHATSAPP_AI",
-      status: isExisting ? existing!.status : "active",
-      ...(data.name ? { fullName: data.name } : {}),
-      ...(data.email ? { email: data.email } : {}),
-    },
+    // A phone match does not authorize overwriting a contact's personal data.
+    // The inquiry below retains the communication source for review.
+    update: {},
     create: {
       fullName: data.name || `WhatsApp Lead ${normalized.slice(-4)}`,
       email: data.email || `${normalized}@whatsapp.placeholder`,
