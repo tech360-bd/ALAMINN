@@ -295,6 +295,22 @@ export default async function CourseDetailPage({ params }: PageProps) {
     { label: course.title },
   ];
 
+  // Fact-level intelligence evidence trail: each intelligence-sourced fact
+  // shows its own verification status, source and last-checked date.
+  // Verified facts and facts awaiting confirmation are clearly
+  // distinguished; nothing is presented as current without its check date.
+  const evidence = await db.higherStudyEvidence
+    .findMany({
+      where: {
+        entityType: "course",
+        entityId: course.id,
+        status: { in: ["DISCOVERED", "SOURCE_CHECK_REQUIRED", "OFFICIAL_SOURCE_VERIFIED", "CONFLICTING_INFORMATION", "HUMAN_REVIEW_REQUIRED", "APPROVED_FOR_PUBLICATION"] },
+      },
+      orderBy: { lastCheckedAt: "desc" },
+      take: 8,
+    })
+    .catch(() => []);
+
   const courseLd = buildCourseJsonLd(course);
   const breadcrumbLd = buildBreadcrumbJsonLd([
     { name: "Higher Study", url: `${HIGHER_STUDY_BASE_URL}/higher-study` },
@@ -753,6 +769,42 @@ export default async function CourseDetailPage({ params }: PageProps) {
               description="Documents typically required when applying to this programme."
             >
               <Checklist items={requiredDocuments} variant="check" />
+            </DetailCard>
+          )}
+
+          {/* Fact-level intelligence verification trail */}
+          {evidence.length > 0 && (
+            <DetailCard
+              title="Data verification trail"
+              icon={FileText}
+              description="Each intelligence-sourced fact below carries its verification status, source and last check date. Verified facts are confirmed against official university sources; others await confirmation and are never presented as current."
+            >
+              <ul className="space-y-2">
+                {evidence.map((e) => {
+                  const verified = e.status === "OFFICIAL_SOURCE_VERIFIED" || e.status === "APPROVED_FOR_PUBLICATION";
+                  return (
+                    <li key={e.id} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className={verified ? "font-medium text-emerald-700" : "font-medium text-amber-700"}>
+                        {verified ? "Verified" : "Awaiting confirmation"}
+                      </span>
+                      <span className="text-ink-600">{e.field}:</span>
+                      <span className="max-w-md truncate">{e.normalisedValue}</span>
+                      {e.academicYear && <span className="text-xs text-ink-500">({e.academicYear})</span>}
+                      <a
+                        href={e.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer nofollow"
+                        className="text-xs underline text-[#0066CC]"
+                      >
+                        {e.sourceLevel === "L1_OFFICIAL" ? "official source" : "discovery source"}
+                      </a>
+                      <span className="text-xs text-ink-500">
+                        checked {e.lastCheckedAt ? new Date(e.lastCheckedAt).toLocaleDateString("en-GB") : "—"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
             </DetailCard>
           )}
 
