@@ -21,7 +21,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { createHmac, timingSafeEqual, createHash } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { checkKeyRateLimit, hasScope, hashApiKey, type ApiKeyScope } from "@/lib/api-platform/keys";
 
@@ -43,12 +43,15 @@ export interface EcosystemGuard {
   rateRemaining?: number;
 }
 
-function sha256Hex(input: string): string {
-  return createHash("sha256").update(input, "utf8").digest("hex");
+function constantTimeEqualString(a: string, b: string): boolean {
+  const ab = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  if (ab.length !== bb.length || ab.length === 0) return false;
+  return timingSafeEqual(ab, bb);
 }
 
-// The env key is hashed at module load so the raw value is never kept
-// in a hot comparison path; comparisons use timing-safe equality.
+// The env key comparison uses constant-time equality directly — no raw
+// value is ever hashed into a fast digest comparison path.
 function ecosystemEnvCredential(): EcosystemCredential | null {
   const raw = process.env.ALAMINN_ECOSYSTEM_API_KEY;
   if (!raw || raw.length < 32) return null;
@@ -142,7 +145,7 @@ export async function verifyEcosystemRequest(
   const envCredential = ecosystemEnvCredential();
   let credential: EcosystemCredential | null = null;
 
-  if (envCredential && constantTimeEqualHex(sha256Hex(raw), sha256Hex(process.env.ALAMINN_ECOSYSTEM_API_KEY as string))) {
+  if (envCredential && constantTimeEqualString(raw, process.env.ALAMINN_ECOSYSTEM_API_KEY as string)) {
     credential = envCredential;
   } else {
     // DB key lookup by hash

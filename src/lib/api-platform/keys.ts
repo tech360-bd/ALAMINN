@@ -3,7 +3,7 @@
  * API platform and the ecosystem bridge.
  *
  * SECURITY:
- *  - Raw keys are shown exactly once at creation time; only sha256
+ *  - Raw keys are shown exactly once at creation time; only scrypt
  *    hashes are persisted (ApiKey.hashedKey).
  *  - Keys use a recognizable prefix (`ak_live_`) so they can be
  *    identified in logs and revoked by prefix if ever leaked.
@@ -11,7 +11,7 @@
  *    hasScope (wildcard "*" grants everything — super keys only).
  */
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes, scryptSync } from "node:crypto";
 import { z } from "zod";
 
 export const API_KEY_SCOPES = [
@@ -27,8 +27,14 @@ export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
 export const ALL_SCOPES: ApiKeyScope[] = [...API_KEY_SCOPES];
 
+// Fixed domain-separated salt. Keys are high-entropy random tokens, so a
+// per-key salt column adds nothing (no rainbow-table risk); the memory-hard
+// KDF still hardens stored hashes against offline brute force after a DB
+// dump. Tuned (N=1024, r=8, p=1) so per-request key auth stays fast.
+const KEY_HASH_SALT = "alaminn.api-key.scrypt.v1";
+
 export function hashApiKey(rawKey: string): string {
-  return createHash("sha256").update(rawKey, "utf8").digest("hex");
+  return scryptSync(rawKey, KEY_HASH_SALT, 32, { N: 1024, r: 8, p: 1 }).toString("hex");
 }
 
 /** Generate a new raw key. Returned once; never persisted raw. */
